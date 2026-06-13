@@ -16,8 +16,21 @@ import unicodedata
 import zlib
 from pathlib import Path
 
-import chromadb
-from chromadb.api.types import EmbeddingFunction
+# ChromaDB es opcional: si no carga (p. ej. incompatibilidad en la nube), la app
+# sigue funcionando sin búsqueda semántica. Solo la pestaña "Pregunta" y la
+# resolución de nadadores por nombre dependen de él.
+try:
+    import chromadb
+    from chromadb.api.types import EmbeddingFunction
+
+    CHROMADB_AVAILABLE = True
+except Exception:  # ImportError u otros (protobuf, etc.)
+    chromadb = None
+    CHROMADB_AVAILABLE = False
+
+    class EmbeddingFunction:  # base de respaldo para definir la clase de abajo
+        pass
+
 
 DEFAULT_PERSIST_DIR = Path(__file__).resolve().parent.parent / "data" / "chroma"
 EMBEDDING_MARKER = "embedding.txt"
@@ -75,6 +88,8 @@ def get_embedding_fn(name: str):
 
 
 def get_client(persist_dir: Path | str | None = DEFAULT_PERSIST_DIR):
+    if not CHROMADB_AVAILABLE:
+        return None
     if persist_dir is None:
         return chromadb.EphemeralClient()
     Path(persist_dir).mkdir(parents=True, exist_ok=True)
@@ -106,6 +121,8 @@ def index_events(client, events: list[tuple[str, str]], embedding: str = "hash")
     Devuelve cuántos documentos (alias) se indexaron."""
     from .aliases import event_aliases
 
+    if client is None:
+        return 0
     collection = _recreate(client, EVENTS_COLLECTION, get_embedding_fn(embedding))
     ids, documents, metadatas = [], [], []
     for event_id, event_name in events:
@@ -120,6 +137,8 @@ def index_events(client, events: list[tuple[str, str]], embedding: str = "hash")
 
 def index_swimmers(client, swimmers: list[tuple[str, str]], embedding: str = "hash") -> int:
     """Indexa nadadores por nombre. swimmers = [(swimmer_id, name), ...]."""
+    if client is None:
+        return 0
     collection = _recreate(client, SWIMMERS_COLLECTION, get_embedding_fn(embedding))
     if swimmers:
         collection.add(
@@ -148,6 +167,8 @@ def rebuild_from_db(conn, embedding: str = "hash", persist_dir=DEFAULT_PERSIST_D
     """Reconstruye el índice completo (pruebas y nadadores) desde la base local."""
     from . import db as database
 
+    if not CHROMADB_AVAILABLE:
+        return "ChromaDB no disponible: búsqueda semántica desactivada."
     events = database.get_catalog(conn, "prueba")
     if not events:
         return "No hay catálogo de pruebas. Ejecuta primero: python -m fecna_agent catalog"

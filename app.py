@@ -3,6 +3,13 @@
 Ejecutar:  streamlit run app.py
 """
 
+# Usa la implementación pura de protobuf: evita el choque de versiones que
+# arrastra ChromaDB (opentelemetry) en algunas imágenes de la nube. Debe ir
+# ANTES de importar chromadb.
+import os as _os
+
+_os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
+
 # En la nube (Linux) ChromaDB exige sqlite >= 3.35: se reemplaza el módulo
 # sqlite3 por pysqlite3 ANTES de importar chromadb. En local no hace nada.
 try:
@@ -220,6 +227,10 @@ tab_ask, tab_rank, tab_comp, tab_evo, tab_swrank, tab_new = st.tabs(
 
 with tab_ask:
     st.subheader("Pregunta en lenguaje natural")
+    if not semantic.CHROMADB_AVAILABLE:
+        st.warning("Búsqueda semántica no disponible en este entorno: usa la "
+                   "identificación del nadador en la pregunta (las demás pestañas "
+                   "funcionan con normalidad).")
     question = st.text_input(
         "Pregunta",
         placeholder="Compara el nadador 1105388915 con el 1094060609 en 50 libre piscina larga",

@@ -63,7 +63,18 @@ def redact(text: str) -> str:
     return _ID_RE.sub("·····", text) if PUBLIC else text
 
 
-conn = database.connect(os.environ.get("FECNA_DB") or database.DEFAULT_DB_PATH)
+def _resolve_db_path():
+    """Base a usar: FECNA_DB si está; si no, la cruda local; y como respaldo en
+    la nube (donde la cruda no se sube), la anonimizada."""
+    if os.environ.get("FECNA_DB"):
+        return os.environ["FECNA_DB"]
+    if database.DEFAULT_DB_PATH.exists():
+        return database.DEFAULT_DB_PATH
+    public = database.DEFAULT_DB_PATH.parent / "fecna_public.db"
+    return public if public.exists() else database.DEFAULT_DB_PATH
+
+
+conn = database.connect(_resolve_db_path())
 
 
 @st.cache_resource

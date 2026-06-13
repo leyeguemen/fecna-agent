@@ -1,0 +1,11 @@
+# Datos personales: nunca subir la base cruda (cédulas, fechas de nacimiento)
+data/*
+*.db
+*.sqlite
+# Excepción: la base ANONIMIZADA sí puede publicarse (pseudónimos, solo año)
+!data/fecna_public.db
+
+.venv/
+__pycache__/
+*.pyc
+.pytest_cache/

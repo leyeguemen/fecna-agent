@@ -89,6 +89,7 @@ datos personales, incluyendo posibles menores — no publicar).
 python -m pytest tests/ -q
 ```
 
+
 ## Principio de diseño
 
 ```

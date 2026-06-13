@@ -1,0 +1,12 @@
+requests>=2.31
+streamlit>=1.30
+pandas>=2.0
+chromadb>=0.5
+fpdf2>=2.7
+Pillow>=10
+# ChromaDB necesita sqlite >= 3.35; en Linux (la nube) se reemplaza el sqlite
+# del sistema por esta rueda. En local (mac) no se instala ni hace falta.
+pysqlite3-binary>=0.5; platform_system == "Linux"
+
+# Solo para desarrollo/pruebas (no afecta el despliegue):
+pytest>=8.0

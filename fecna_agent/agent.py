@@ -1,0 +1,155 @@
+"""Agente de consulta: pregunta en lenguaje natural → respuesta con datos exactos.
+
+Flujo (sección 8 del spec):
+  1. resolver.parse_question  → intención, ids, piscina, género
+  2. semantic.resolve_event   → "50 libre" → event_id
+  3. db.*                     → marcas exactas desde SQLite
+  4. Formato de respuesta con los datos usados (sin inventar nada)
+"""
+
+from . import db as database
+from . import semantic
+from .resolver import parse_question
+from .times import ms_to_time
+
+
+def answer(
+    conn,
+    question: str,
+    persist_dir=semantic.DEFAULT_PERSIST_DIR,
+    use_llm: bool = False,
+    llm_model: str | None = None,
+) -> str:
+    parsed = parse_question(question)
+    embedding = semantic.load_embedding_name(persist_dir)
+    client = semantic.get_client(persist_dir)
+
+    event = semantic.resolve_event(client, question, embedding)
+
+    if parsed.intent == "compare":
+        facts = _compare(conn, parsed, event)
+    elif parsed.intent == "ranking":
+        facts = _ranking(conn, parsed, event)
+    elif parsed.intent == "history":
+        facts = _history(conn, parsed, event, client, embedding)
+    else:
+        facts = _best(conn, parsed, event, client, embedding)
+
+    if use_llm:
+        return redact_with_llm(question, facts, llm_model)
+    return facts
+
+
+def redact_with_llm(question: str, facts: str, model: str | None = None) -> str:
+    """Redacción natural con Ollama; si falla, devuelve los datos calculados.
+    Los datos siempre se anexan: el LLM explica, no es la fuente de verdad."""
+    from . import llm
+
+    try:
+        if not llm.is_available():
+            return f"{facts}\n\n(Ollama no disponible; respuesta determinística.)"
+        natural = llm.rephrase(question, facts, model=model)
+    except Exception as exc:
+        return f"{facts}\n\n(LLM local falló: {exc}; respuesta determinística.)"
+    return f"{natural}\n\n— Datos calculados (SQL/Python) —\n{facts}"
+
+
+def _swimmer_id(parsed, client, embedding) -> tuple[str | None, str | None]:
+    """Identificación del nadador: por id explícito o por nombre (semántico)."""
+    if parsed.swimmer_ids:
+        return parsed.swimmer_ids[0], None
+    match = semantic.resolve_swimmer(client, parsed.raw, embedding)
+    if match:
+        return match["swimmer_id"], match["swimmer_name"]
+    return None, None
+
+
+def _compare(conn, parsed, event) -> str:
+    if len(parsed.swimmer_ids) < 2:
+        return "Para comparar necesito dos identificaciones de nadadores."
+    if not event:
+        return "No pude identificar la prueba. Ejecuta primero: python -m fecna_agent index"
+
+    result = database.compare_swimmers(
+        conn, parsed.swimmer_ids[0], parsed.swimmer_ids[1],
+        event["event_id"], parsed.pool_type,
+    )
+    a, b = result["a"], result["b"]
+    missing = [sid for sid, row in zip(parsed.swimmer_ids[:2], (a, b)) if not row]
+    if missing:
+        return (f"Sin resultados en {event['event_name']} para: {', '.join(missing)}. "
+                f"¿Ya extrajiste esa prueba con 'fetch --prueba {event['event_id']}'?")
+
+    faster, slower = (a, b) if a["time_ms"] <= b["time_ms"] else (b, a)
+    pool = f" piscina {'larga' if parsed.pool_type == 'LC' else 'corta'}" if parsed.pool_type else ""
+    return (
+        f"En {event['event_name']}{pool}, {faster['swimmer_name']} tiene mejor marca "
+        f"que {slower['swimmer_name']}.\n\n"
+        f"  {a['swimmer_name']}: {a['time_raw']} ({a['result_date']})\n"
+        f"  {b['swimmer_name']}: {b['time_raw']} ({b['result_date']})\n"
+        f"  Diferencia: {result['diff_ms'] / 1000:.2f} segundos "
+        f"({result['diff_ms'] / slower['time_ms'] * 100:.2f}%)."
+    )
+
+
+def _best(conn, parsed, event, client, embedding) -> str:
+    swimmer_id, matched_name = _swimmer_id(parsed, client, embedding)
+    if not swimmer_id:
+        return "No pude identificar al nadador (usa su identificación o indexa los nombres)."
+
+    row = database.best_time(
+        conn, swimmer_id,
+        event["event_id"] if event else None,
+        parsed.pool_type,
+    )
+    if not row:
+        return f"Sin resultados locales para el nadador {swimmer_id} con esos filtros."
+
+    note = f" (interpreté el nombre como {matched_name})" if matched_name else ""
+    return (
+        f"Mejor marca de {row['swimmer_name']} ({swimmer_id}){note}:\n"
+        f"  {row['event_name']} [{row['pool_type']}]: {row['time_raw']} ({row['result_date']})"
+    )
+
+
+def _ranking(conn, parsed, event) -> str:
+    from .categories import age_range
+
+    if not event:
+        return "No pude identificar la prueba del ranking."
+    rows = database.ranking(
+        conn, event["event_id"], parsed.pool_type, parsed.gender, limit=10,
+        age_range=age_range(parsed.category) if parsed.category else None,
+    )
+    if not rows:
+        return (f"Sin resultados locales para {event['event_name']}. "
+                f"Extrae primero con 'fetch --prueba {event['event_id']}'.")
+    header = f"Ranking {event['event_name']}"
+    if parsed.pool_type:
+        header += f" [{parsed.pool_type}]"
+    if parsed.category:
+        header += f" — {parsed.category}"
+    lines = [header + ":"]
+    for pos, row in enumerate(rows, 1):
+        lines.append(f"  {pos:>2}. {ms_to_time(row['time_ms'])}  {row['swimmer_name']}"
+                     f"  ({row['club']} / {row['league']})")
+    return "\n".join(lines)
+
+
+def _history(conn, parsed, event, client, embedding) -> str:
+    swimmer_id, matched_name = _swimmer_id(parsed, client, embedding)
+    if not swimmer_id:
+        return "No pude identificar al nadador para ver su evolución."
+    rows = database.history(
+        conn, swimmer_id,
+        event["event_id"] if event else None,
+        parsed.pool_type,
+    )
+    if not rows:
+        return f"Sin resultados locales para el nadador {swimmer_id}."
+    note = f" (interpreté el nombre como {matched_name})" if matched_name else ""
+    lines = [f"Evolución de {rows[0]['swimmer_name']} ({swimmer_id}){note}:"]
+    for row in rows:
+        lines.append(f"  {row['result_date']}  {row['time_raw']}  "
+                     f"{row['event_name']} [{row['pool_type']}]")
+    return "\n".join(lines)

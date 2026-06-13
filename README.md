@@ -1,0 +1,100 @@
+# Agente IA - Resultados de natación FECNA
+
+Agente personal para consultar y comparar resultados de natación desde los
+reportes públicos de FECNA/Ecoapplet. Ver especificación completa en
+`../proyecto_agente_ia_natacion_fecna.md`.
+
+## Estado
+
+- [x] Fase 1: Extracción y almacenamiento local (SQLite)
+- [x] Fase 2: Consultas exactas (mejor marca, comparación, ranking, evolución)
+- [x] Fase 3: Índice semántico (ChromaDB) + preguntas en lenguaje natural
+- [x] Fase 4: Interfaz Streamlit
+- [x] Fase 5: Agente IA local (Ollama)
+
+## Instalación
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+## Uso
+
+```bash
+# 1a. Sincronización masiva: todas las pruebas × piscinas × géneros × categorías
+python -m fecna_agent catalog   # primero, una vez (y si el sitio cambia)
+python -m fecna_agent sync
+
+# 1b. Verificar un campeonato recién terminado: sincroniza desde su fecha de
+#     inicio y revisa qué resultados nuevos entraron
+python -m fecna_agent sync --inicio 2026-06-01
+python -m fecna_agent recent --limit 50
+
+# 1c. Extracción puntual de una sola prueba
+python -m fecna_agent fetch --genero M --categoria "12 AÑOS" --prueba 6 --piscina LC
+
+# 2. Consultas sobre la base local
+python -m fecna_agent best 1105388915 --prueba 2 --piscina LC
+python -m fecna_agent compare 1105388915 1094060609 --prueba 2 --piscina LC
+python -m fecna_agent ranking --prueba 2 --piscina LC --limit 10
+python -m fecna_agent history 1105388915 --prueba 2
+
+# 3. Índice semántico (una vez, y después de cada fetch para nuevos nadadores)
+python -m fecna_agent catalog   # descarga catálogos: pruebas, ligas, piscinas
+python -m fecna_agent index     # indexa pruebas (con alias) y nadadores en ChromaDB
+
+# 4. Interfaz web local (Streamlit)
+streamlit run app.py
+
+# 5. Preguntas en lenguaje natural (CLI)
+python -m fecna_agent ask "Compara el nadador 1105388915 con el 1094060609 en 50 libre piscina larga"
+python -m fecna_agent ask "ranking masculino en 50 libre piscina larga"
+python -m fecna_agent ask "evolución de jorge murillo en 50 libre"
+
+# 6. Redacción natural con IA local (requiere Ollama corriendo)
+python -m fecna_agent ask --llm "Compara el nadador 1105388915 con el 1094060609 en 50 libre"
+python -m fecna_agent ask --llm --model llama3:latest "..."
+```
+
+Notas:
+- `index --embeddings default` usa el modelo MiniLM de ChromaDB (descarga ~80MB
+  la primera vez); por defecto se usa un embedding de tokens offline que
+  resuelve bien alias y nombres.
+- `ask` solo consulta la base local: extrae primero la prueba que necesites.
+- Las categorías están embebidas en el JS de la página y el servidor exige al
+  menos una; `catalog` las extrae (por género y másters) y `sync` las envía
+  todas juntas en una sola petición por combinación. El select de `torneo`
+  sigue sin catálogo: usa rangos de fecha para acotar un campeonato.
+- `sync` es idempotente (los resultados repetidos se ignoran por UNIQUE), deja
+  bitácora en `sync_log` y estampa los nuevos con el timestamp de la corrida:
+  `recent` y la pestaña 🆕 Novedades muestran exactamente qué entró.
+- **Error 415 / "being verified"**: ecoapplet.co tiene protección anti-bot.
+  Si aparece, `sync` aborta de inmediato (cortacircuito) en vez de insistir.
+  Espera unas horas y reintenta. Para reducir la carga sobre el sitio,
+  sincroniza incrementalmente con `--inicio` reciente (la base ya conserva
+  todo lo histórico; no hace falta repetir el rango completo).
+- `--llm` solo redacta: los cálculos vienen de SQL/Python y siempre se anexan
+  a la respuesta. Si Ollama no está corriendo, se responde con el texto
+  determinístico. Variables: `FECNA_OLLAMA_URL` (defecto `http://localhost:11434`)
+  y `FECNA_OLLAMA_MODEL` (defecto: primer modelo instalado).
+
+La base de datos se guarda en `data/fecna.db` (ignorada por git: contiene
+datos personales, incluyendo posibles menores — no publicar).
+
+## Pruebas
+
+```bash
+python -m pytest tests/ -q
+```
+
+## Principio de diseño
+
+```
+Requests extrae datos.
+SQLite guarda y calcula.
+ChromaDB encuentra contexto.   (fase 3)
+Python compara.
+El LLM explica.                (fase 5)
+```

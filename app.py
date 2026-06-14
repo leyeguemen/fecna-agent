@@ -36,7 +36,8 @@ from fecna_agent import db as database
 from fecna_agent import extractor, normalizer, semantic
 from fecna_agent.times import ms_to_time
 
-st.set_page_config(page_title="FECNA Natación", page_icon="🏊", layout="wide")
+st.set_page_config(page_title="FECNA Natación", page_icon="🏊", layout="wide",
+                   initial_sidebar_state="expanded")
 
 # --- Responsivo: en pantallas angostas (móvil) las columnas se apilan en lugar
 # de comprimirse, las pestañas permiten scroll horizontal y se reducen los
@@ -258,17 +259,20 @@ with st.sidebar:
     else:
         admin_controls()
 
-# ---------------- Pestañas principales ----------------
+# ---------------- Menú principal ----------------
+# Se usa un menú desplegable en vez de pestañas: en móvil los textos de los tabs
+# no se alcanzan a ver. Cada sección es un `if menu == ...:`.
+# Sección "📈 Evolución" oculta temporalmente: para restaurarla, añade
+# "📈 Evolución" a SECCIONES y cambia el `if False` de su bloque por
+# `if menu == "📈 Evolución":`.
 
-tab_ask, tab_rank, tab_comp, tab_swrank, tab_ficha, tab_new = st.tabs(
-    ["💬 Pregunta", "🏆 Ranking", "⚖️ Comparar",
-     "🎖️ Rankings del nadador", "🪪 Ficha", "🆕 Novedades"]
-)
-# Pestaña "📈 Evolución" oculta temporalmente: para restaurarla, vuelve a añadir
-# "📈 Evolución" a la lista de arriba (con su tab_evo) y cambia el `if False`
-# del bloque de abajo por `with tab_evo:`.
+SECCIONES = [
+    "💬 Pregunta", "🏆 Ranking", "⚖️ Comparar",
+    "🎖️ Rankings del nadador", "🪪 Ficha", "🆕 Novedades",
+]
+menu = st.sidebar.radio("Sección", SECCIONES, key="menu_seccion")
 
-with tab_ask:
+if menu == "💬 Pregunta":
     st.subheader("Pregunta en lenguaje natural")
     if not semantic.CHROMADB_AVAILABLE:
         st.warning("Búsqueda semántica no disponible en este entorno: usa la "
@@ -302,7 +306,7 @@ with tab_ask:
                    "el LLM solo redacta y los datos calculados se muestran junto a "
                    "su respuesta.")
 
-with tab_rank:
+if menu == "🏆 Ranking":
     events = event_options()
     if not events:
         st.info("No hay datos locales. Extrae una prueba desde la barra lateral.")
@@ -382,7 +386,7 @@ with tab_rank:
                 width="stretch", key="rank_png",
             )
 
-with tab_comp:
+if menu == "⚖️ Comparar":
     colf1, colf2 = st.columns(2)
     comp_category = colf1.selectbox(
         "Categoría", ["Todas"] + [label for _, label in
@@ -443,7 +447,7 @@ with tab_comp:
             if len(both) > 2:
                 st.line_chart(both, x="fecha", y="segundos", color="swimmer_name")
 
-with tab_new:
+if menu == "🆕 Novedades":
     st.subheader("Resultados nuevos de la última sincronización")
     last = database.last_sync(conn)
     if not last:
@@ -516,7 +520,7 @@ if False:  # tab_evo — Evolución oculta temporalmente
             else:
                 st.caption("Se necesita más de un resultado para graficar la evolución.")
 
-with tab_swrank:
+if menu == "🎖️ Rankings del nadador":
     st.subheader("Posición en el ranking del nadador, prueba por prueba")
     colr1, colr2 = st.columns(2)
     swr_league = colr1.selectbox(
@@ -592,7 +596,7 @@ with tab_swrank:
                 width="stretch",
             )
 
-with tab_ficha:
+if menu == "🪪 Ficha":
     st.subheader("Ficha del nadador")
     colf1, colf2 = st.columns(2)
     fic_league = colf1.selectbox(

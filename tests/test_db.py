@@ -196,6 +196,43 @@ def test_swimmer_event_ranks_usa_mejor_marca(conn):
     assert rows[0]["national_rank"] == 1  # 28.84 < 29.00 de X
 
 
+def test_swimmer_profile_top5_y_datos_personales(conn):
+    # El objetivo (A, VALLE / DELFINES, nacido 2014 → 12 años al 2026) nada 6
+    # pruebas; en cada una agregamos k competidores más rápidos de su misma
+    # categoría y género, así su puesto nacional es k+1.
+    rows, eventos = [], ["2", "6", "7", "8", "9", "10"]
+    for k, ev in enumerate(eventos):
+        rows.append(make_row(event_id=ev, event_name=f"E{ev}",
+                             league="VALLE", club="DELFINES"))
+        for j in range(k):
+            rows.append(make_row(
+                swimmer_id=f"{ev}_c{j}", swimmer_name=f"C{ev}{j}",
+                event_id=ev, event_name=f"E{ev}", league="ANTIOQUIA", club="OTRO",
+                time_ms=28840 - (j + 1) * 100, time_raw="00:00:28.00"))
+    database.insert_results(conn, rows)
+
+    profile = database.swimmer_profile(conn, "1105388915", date_to="2026-12-31")
+    assert profile["swimmer_name"] == "NADADOR A"
+    assert profile["league"] == "VALLE"
+    assert profile["club"] == "DELFINES"
+    assert profile["age"] == 12
+    assert profile["gender"] == "M"
+    assert profile["birth_date"] == "2014-08-03"
+
+    top = profile["top_events"]
+    assert len(top) == 5  # excluye la prueba donde queda 6º
+    assert [t["national_rank"] for t in top] == [1, 2, 3, 4, 5]
+    assert [t["event_id"] for t in top] == ["2", "6", "7", "8", "9"]
+
+    # El selector de piscina acota las pruebas consideradas.
+    solo_sc = database.swimmer_profile(conn, "1105388915", pool_type="SC",
+                                       date_to="2026-12-31")
+    assert solo_sc["top_events"] == []
+    assert solo_sc["swimmer_name"] == "NADADOR A"  # los datos personales se mantienen
+
+    assert database.swimmer_profile(conn, "NO_EXISTE", date_to="2026-12-31") is None
+
+
 def test_export_anonymized_oculta_id_y_fecha(conn, tmp_path):
     database.insert_results(conn, [make_row()])  # id 1105388915, nac 2014-08-03
     dest = tmp_path / "pub.db"

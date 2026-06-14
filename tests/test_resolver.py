@@ -14,7 +14,20 @@ def test_mejor_marca():
     q = parse_question("¿Cuál es la mejor marca del nadador 1105388915 en 50 libre?")
     assert q.intent == "best"
     assert q.swimmer_ids == ["1105388915"]
+    assert q.event_query == "50 libre"
     assert q.pool_type is None
+
+
+def test_extrae_prueba_con_metros_y_id_largo():
+    q = parse_question("Mejor tiempo del nadador 1080063221 en 800m Libre")
+    assert q.intent == "best"
+    assert q.swimmer_ids == ["1080063221"]
+    assert q.event_query == "800 libre"
+
+
+def test_extrae_prueba_en_palabras():
+    q = parse_question("mejor marca en ochocientos libre")
+    assert q.event_query == "800 libre"
 
 
 def test_ranking_con_genero_y_categoria():

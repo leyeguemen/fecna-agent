@@ -379,13 +379,25 @@ def swimmer_event_ranks(
                 WHERE league IS NOT NULL AND league != ''
             ) WHERE rn = 1
         ),
+        swimmer_club AS (
+            SELECT swimmer_id, club FROM (
+                SELECT swimmer_id, club,
+                       ROW_NUMBER() OVER (
+                           PARTITION BY swimmer_id
+                           ORDER BY result_date DESC, fetched_at DESC
+                       ) AS rn
+                FROM filtered
+                WHERE club IS NOT NULL AND club != ''
+            ) WHERE rn = 1
+        ),
         best AS (
             SELECT f.swimmer_id, f.swimmer_name, f.event_id, f.event_name,
-                   f.pool_type, f.gender, sl.league AS league,
+                   f.pool_type, f.gender, sl.league AS league, sc.club AS club,
                    ? - CAST(strftime('%Y', f.birth_date) AS INTEGER) AS age,
                    MIN(f.time_ms) AS best_ms
             FROM filtered f
             LEFT JOIN swimmer_league sl ON sl.swimmer_id = f.swimmer_id
+            LEFT JOIN swimmer_club sc ON sc.swimmer_id = f.swimmer_id
             WHERE f.birth_date IS NOT NULL
             GROUP BY f.swimmer_id, f.event_id, f.pool_type
         ),
@@ -401,11 +413,54 @@ def swimmer_event_ranks(
                              AS league_total
             FROM best
         )
-        SELECT swimmer_name, event_id, event_name, pool_type, gender, league, age,
-               best_ms, national_rank, national_total, league_rank, league_total
+        SELECT swimmer_name, event_id, event_name, pool_type, gender, league, club,
+               age, best_ms, national_rank, national_total, league_rank, league_total
         FROM ranked
         WHERE swimmer_id = ?
         ORDER BY event_name, pool_type
         """,
         [*date_params, reference_year, swimmer_id],
     ).fetchall()
+
+
+def swimmer_profile(
+    conn: sqlite3.Connection,
+    swimmer_id: str,
+    pool_type: str | None = None,
+    date_from: str | None = None,
+    date_to: str | None = None,
+    top: int = 5,
+) -> dict | None:
+    """Ficha del nadador: datos personales + las pruebas en las que está mejor
+    ubicado en el ranking nacional de su categoría/género.
+
+    Devuelve None si el nadador no tiene marcas en el rango. pool_type acota las
+    pruebas consideradas (los datos personales se mantienen). top_events viene
+    ordenado por puesto nacional ascendente; desempata por mayor número de
+    competidores y luego por nombre de prueba."""
+    ranks = swimmer_event_ranks(conn, swimmer_id, date_from, date_to)
+    if not ranks:
+        return None
+    events = [r for r in ranks if not pool_type or r["pool_type"] == pool_type]
+    events = sorted(
+        events,
+        key=lambda r: (r["national_rank"], -r["national_total"], r["event_name"]),
+    )
+    first = ranks[0]
+    birth = conn.execute(
+        """SELECT birth_date FROM ranking_results
+           WHERE swimmer_id = ? AND birth_date IS NOT NULL
+           ORDER BY result_date DESC LIMIT 1""",
+        (swimmer_id,),
+    ).fetchone()
+    return {
+        "swimmer_id": swimmer_id,
+        "swimmer_name": first["swimmer_name"],
+        "gender": first["gender"],
+        "age": first["age"],
+        "league": first["league"],
+        "club": first["club"],
+        "birth_date": birth["birth_date"] if birth else None,
+        "reference_year": int(date_to[:4]) if date_to else date.today().year,
+        "top_events": events[:top],
+    }

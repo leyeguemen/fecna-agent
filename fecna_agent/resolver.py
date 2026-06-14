@@ -33,9 +33,33 @@ class ParsedQuestion:
     raw: str
     intent: str = "best"
     swimmer_ids: list[str] = field(default_factory=list)
+    event_query: str | None = None
     pool_type: str | None = None
     gender: str | None = None
     category: str | None = None
+
+
+DISTANCE_WORDS = {
+    "veinticinco": "25",
+    "cincuenta": "50",
+    "cien": "100",
+    "doscientos": "200",
+    "cuatrocientos": "400",
+    "ochocientos": "800",
+    "mil quinientos": "1500",
+    "milquinientos": "1500",
+}
+
+STROKE_WORDS = (
+    "libre", "free", "crol", "crawl",
+    "espalda", "back", "dorso",
+    "pecho", "breast", "braza",
+    "mariposa", "fly", "butterfly",
+    "combinado", "medley",
+)
+
+STROKE_RE = "|".join(re.escape(word) for word in sorted(STROKE_WORDS, key=len, reverse=True))
+DISTANCE_WORD_RE = "|".join(re.escape(word) for word in sorted(DISTANCE_WORDS, key=len, reverse=True))
 
 
 def normalize(text: str) -> str:
@@ -43,11 +67,25 @@ def normalize(text: str) -> str:
     return "".join(ch for ch in text if not unicodedata.combining(ch))
 
 
+def extract_event_query(text: str) -> str | None:
+    """Extrae el fragmento de prueba: "800m libre", "cien espalda", etc."""
+    match = re.search(rf"\b(\d{{2,4}})\s*m?\s+({STROKE_RE})\b", text)
+    if match:
+        return f"{match.group(1)} {match.group(2)}"
+
+    match = re.search(rf"\b({DISTANCE_WORD_RE})\s+({STROKE_RE})\b", text)
+    if match:
+        return f"{DISTANCE_WORDS[match.group(1)]} {match.group(2)}"
+
+    return None
+
+
 def parse_question(question: str) -> ParsedQuestion:
     text = normalize(question)
     parsed = ParsedQuestion(raw=question)
 
     parsed.swimmer_ids = ID_RE.findall(text)
+    parsed.event_query = extract_event_query(text)
 
     for intent, pattern in INTENT_PATTERNS:
         if pattern.search(text):

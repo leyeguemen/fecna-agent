@@ -38,6 +38,31 @@ from fecna_agent.times import ms_to_time
 
 st.set_page_config(page_title="FECNA Natación", page_icon="🏊", layout="wide")
 
+# --- Responsivo: en pantallas angostas (móvil) las columnas se apilan en lugar
+# de comprimirse, las pestañas permiten scroll horizontal y se reducen los
+# márgenes para aprovechar el ancho. ---
+st.markdown(
+    """
+    <style>
+    @media (max-width: 640px) {
+      [data-testid="stMainBlockContainer"] { padding: 1rem 0.8rem 3rem; }
+      [data-testid="stHorizontalBlock"] { flex-wrap: wrap; gap: 0.5rem; }
+      [data-testid="stHorizontalBlock"] > [data-testid="stColumn"] {
+        flex: 1 1 100% !important;
+        width: 100% !important;
+        min-width: 100% !important;
+      }
+      [data-testid="stTabs"] [data-baseweb="tab-list"] {
+        overflow-x: auto;
+        flex-wrap: nowrap;
+      }
+      h1 { font-size: 1.6rem !important; }
+    }
+    </style>
+    """,
+    unsafe_allow_html=True,
+)
+
 
 # --- Modo público: anonimiza identificación y fecha de nacimiento ---
 # Se activa con la variable de entorno FECNA_PUBLIC o el secreto del mismo
@@ -235,10 +260,13 @@ with st.sidebar:
 
 # ---------------- Pestañas principales ----------------
 
-tab_ask, tab_rank, tab_comp, tab_evo, tab_swrank, tab_ficha, tab_new = st.tabs(
-    ["💬 Pregunta", "🏆 Ranking", "⚖️ Comparar", "📈 Evolución",
+tab_ask, tab_rank, tab_comp, tab_swrank, tab_ficha, tab_new = st.tabs(
+    ["💬 Pregunta", "🏆 Ranking", "⚖️ Comparar",
      "🎖️ Rankings del nadador", "🪪 Ficha", "🆕 Novedades"]
 )
+# Pestaña "📈 Evolución" oculta temporalmente: para restaurarla, vuelve a añadir
+# "📈 Evolución" a la lista de arriba (con su tab_evo) y cambia el `if False`
+# del bloque de abajo por `with tab_evo:`.
 
 with tab_ask:
     st.subheader("Pregunta en lenguaje natural")
@@ -438,7 +466,7 @@ with tab_new:
                  "pool_type", "gender", "club", "league"],
             ), hide_index=True, width="stretch")
 
-with tab_evo:
+if False:  # tab_evo — Evolución oculta temporalmente
     colf1, colf2 = st.columns(2)
     evo_category = colf1.selectbox(
         "Categoría", ["Todas"] + [label for _, label in

@@ -169,23 +169,26 @@ def render_html(
 
 _TEMPLATE = """<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <style>
   :root{
     --navy:#0b2447; --navy2:#0f3160; --gold:#f6b500; --gold2:#ffd45e;
     --ink:#10243f; --paper:#f4f6fb;
   }
   *{box-sizing:border-box;margin:0;padding:0;font-family:'Segoe UI',Arial,sans-serif;}
-  .card{width:760px;margin:0 auto;background:linear-gradient(160deg,#0b2447,#123a6b);
+  .card{width:100%;max-width:760px;margin:0 auto;
+        container-type:inline-size;container-name:ficha;
+        background:linear-gradient(160deg,#0b2447,#123a6b);
         color:#fff;overflow:hidden;border-radius:14px;}
-  .hero{position:relative;display:flex;gap:18px;padding:22px 26px 16px;}
+  .hero{position:relative;display:flex;flex-wrap:wrap;gap:18px;padding:22px 26px 16px;}
   .hero .photo{width:210px;height:230px;object-fit:cover;border-radius:10px;
         border:3px solid rgba(255,255,255,.15);}
   .hero-main{flex:1;display:flex;flex-direction:column;}
   .toprow{display:flex;align-items:center;gap:12px;}
   .logo{width:88px;height:88px;object-fit:contain;}
-  .name{margin-top:6px;line-height:.92;}
-  .name .first{font-size:54px;font-weight:800;letter-spacing:1px;}
-  .name .last{font-size:54px;font-weight:800;color:var(--gold);letter-spacing:1px;}
+  .name{margin-top:6px;line-height:.95;overflow-wrap:anywhere;word-break:break-word;}
+  .name .first{font-size:clamp(26px,8cqw,54px);font-weight:800;letter-spacing:1px;}
+  .name .last{font-size:clamp(26px,8cqw,54px);font-weight:800;color:var(--gold);letter-spacing:1px;}
   .badge{display:inline-block;margin-top:12px;background:var(--gold);color:var(--ink);
         font-weight:800;font-size:18px;padding:7px 16px;border-radius:20px;align-self:flex-start;}
   .club{margin-top:8px;color:var(--gold2);font-weight:700;letter-spacing:2px;font-size:14px;}
@@ -208,7 +211,9 @@ _TEMPLATE = """<!DOCTYPE html>
         display:flex;flex-direction:column;text-align:center;}
   .chip b{font-size:14px;}
   .chip span{font-size:13px;color:#dbe6ff;}
-  table{width:calc(100% - 52px);margin:10px 26px 6px;border-collapse:collapse;
+  .tablewrap{margin:12px 26px 6px;overflow-x:auto;-webkit-overflow-scrolling:touch;
+        border-radius:10px;}
+  table{width:100%;min-width:0;border-collapse:collapse;
         background:var(--paper);color:var(--ink);border-radius:10px;overflow:hidden;}
   thead th{background:var(--navy);color:#fff;font-size:13px;letter-spacing:.5px;
         padding:11px 12px;text-align:left;}
@@ -223,6 +228,27 @@ _TEMPLATE = """<!DOCTYPE html>
         font-size:14px;line-height:1.5;}
   .foot b{color:var(--gold);font-style:normal;}
   .ref{padding:0 26px 18px;text-align:center;color:#8aa3c9;font-size:11px;}
+  @container ficha (max-width:560px){
+    .hero{flex-direction:column;align-items:center;text-align:center;padding:18px 14px 12px;}
+    .hero .photo{width:100%;max-width:280px;height:auto;}
+    .name{margin-top:10px;}
+    .badge,.club,.champ{align-self:center;text-align:center;}
+    .badge{font-size:15px;}
+    .club{font-size:12px;}
+    .champ{margin-top:12px;}
+    .champ-name{font-size:14px;}
+    .hl{flex-direction:column;align-items:flex-start;gap:8px;}
+    .hl-title{font-size:18px;}
+    .hl-medal{font-size:30px;}
+    .hl-detail{margin-left:0;text-align:left;}
+    .chips{flex-direction:column;}
+    .tablewrap{margin:10px 10px 6px;}
+    thead th,tbody td{padding:7px 6px;font-size:12px;}
+    td.time{font-size:12px;}
+    .of{font-size:11px;}
+    td.ev .pool{font-size:10px;padding:1px 5px;}
+    .foot,.ref{padding-left:14px;padding-right:14px;}
+  }
 </style></head>
 <body>
   <div class="card">
@@ -240,13 +266,13 @@ _TEMPLATE = """<!DOCTYPE html>
     <div class="hls">
       $highlights
     </div>
-    <table>
+    <div class="tablewrap"><table>
       <thead><tr><th>Prueba</th><th>Mejor marca</th>
         <th>🏆 Ranking liga</th><th>🇨🇴 Ranking Colombia</th></tr></thead>
       <tbody>
         $rows
       </tbody>
-    </table>
+    </table></div>
     <div class="foot">“$quote”</div>
     <div class="ref">Categoría calculada al año $ref_year · Nacimiento: $birth ·
       Puesto por género y categoría · Fuente: ranking FECNA</div>

@@ -33,7 +33,7 @@ Tu base original (`data/fecna.db`) no se toca y sigue ignorada por git. Solo
 
 ```bash
 git add -f data/fecna_public.db
-git add app.py requirements.txt packages.txt .gitignore DEPLOY.md fecna_agent/
+git add app.py pages/ requirements.txt packages.txt .gitignore DEPLOY.md fecna_agent/
 git commit -m "Despliegue: base anonimizada y modo público"
 git push
 ```
@@ -70,13 +70,34 @@ git add -f data/fecna_public.db && git commit -m "Datos actualizados" && git pus
 
 Streamlit redespliega solo al detectar el push.
 
+## Descarga de la ficha en PNG/PDF (Playwright)
+
+La página **Ficha** genera PNG (para redes) y PDF (para imprimir) renderizando
+el HTML con el Chromium de Playwright. Para que funcione en la nube:
+
+- `requirements.txt` ya incluye `playwright`.
+- `packages.txt` ya incluye las librerías del sistema que Chromium necesita
+  (libnss3, libgbm1, libasound2, etc.) y `fonts-noto-color-emoji` (medallas a
+  color).
+- El **build de Streamlit Cloud no corre `playwright install`**, así que la app
+  descarga el navegador la **primera vez** que se abre la página de Ficha
+  (`fecna_agent/ficha.py::ensure_browser`, cacheado). Esa primera vez tarda ~1
+  min; después es inmediato.
+
+Si por algún motivo el navegador no queda disponible, la página sigue
+funcionando y ofrece la descarga en **HTML** (que puedes imprimir a PDF o
+capturar como imagen desde el navegador). Localmente no hace falta nada: el
+Chromium de Playwright ya viene instalado.
+
 ## Archivos de despliegue ya preparados
 
 - `requirements.txt` — dependencias + `pysqlite3-binary` (ChromaDB lo necesita
-  en Linux).
-- `packages.txt` — fuente DejaVu para la exportación a PNG.
-- `app.py` — modo público (`FECNA_PUBLIC`), base configurable (`FECNA_DB`),
-  swap de sqlite y reconstrucción del índice semántico si falta.
+  en Linux) + `playwright` (ficha PNG/PDF).
+- `packages.txt` — fuente DejaVu (export PNG de tablas), emojis a color y las
+  librerías de Chromium para la ficha.
+- `app.py` — host de navegación multipágina (menú con `st.navigation`); el
+  código común (modo público `FECNA_PUBLIC`, base `FECNA_DB`, swap de sqlite,
+  reconstrucción del índice) está en `fecna_agent/webui.py`.
 
 ## Notas
 

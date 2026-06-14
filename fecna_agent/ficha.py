@@ -167,6 +167,73 @@ def render_html(
     )
 
 
+def _chromium_ready() -> bool:
+    import pathlib
+
+    from playwright.sync_api import sync_playwright
+    try:
+        with sync_playwright() as p:
+            return pathlib.Path(p.chromium.executable_path).exists()
+    except Exception:
+        return False
+
+
+def ensure_browser() -> bool:
+    """Asegura que el Chromium de Playwright esté instalado y devuelve si quedó
+    disponible. En la nube (donde el build no corre `playwright install`) lo
+    descarga la primera vez; en local ya viene instalado."""
+    import subprocess
+    import sys
+
+    if _chromium_ready():
+        return True
+    try:
+        subprocess.run([sys.executable, "-m", "playwright", "install", "chromium"],
+                       check=True, capture_output=True, text=True, timeout=600)
+    except Exception:
+        return False
+    return _chromium_ready()
+
+
+def render_png(html: str, *, width: int = 760, scale: int = 2) -> bytes:
+    """PNG recortado a la tarjeta (.card) en alta resolución, para redes."""
+    return _render(html, width, scale, "png")
+
+
+def render_pdf(html: str, *, width: int = 760) -> bytes:
+    """PDF de una sola página del tamaño de la tarjeta, para imprimir."""
+    return _render(html, width, 1, "pdf")
+
+
+def _render(html: str, width: int, scale: int, kind: str) -> bytes:
+    # La API síncrona de Playwright se ejecuta en un hilo aparte para no chocar
+    # con un event loop activo (p. ej. dentro de Streamlit).
+    import concurrent.futures
+
+    with concurrent.futures.ThreadPoolExecutor(max_workers=1) as pool:
+        return pool.submit(_render_sync, html, width, scale, kind).result()
+
+
+def _render_sync(html: str, width: int, scale: int, kind: str) -> bytes:
+    from playwright.sync_api import sync_playwright
+
+    with sync_playwright() as p:
+        browser = p.chromium.launch(args=["--no-sandbox"])
+        try:
+            page = browser.new_page(viewport={"width": width, "height": 1000},
+                                    device_scale_factor=scale)
+            page.set_content(html, wait_until="networkidle")
+            card = page.wait_for_selector(".card")
+            box = card.bounding_box()
+            if kind == "png":
+                return card.screenshot(type="png")
+            zero = {"top": "0", "bottom": "0", "left": "0", "right": "0"}
+            return page.pdf(width=f"{box['width']}px", height=f"{box['height']}px",
+                            print_background=True, margin=zero)
+        finally:
+            browser.close()
+
+
 _TEMPLATE = """<!DOCTYPE html>
 <html lang="es"><head><meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">

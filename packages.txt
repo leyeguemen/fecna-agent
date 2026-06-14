@@ -1,6 +1,5 @@
 fonts-dejavu-core
 fonts-noto-color-emoji
-# Librerías que necesita el Chromium de Playwright para la ficha PNG/PDF (Debian).
 libnss3
 libnspr4
 libatk1.0-0

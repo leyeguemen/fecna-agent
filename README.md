@@ -45,8 +45,12 @@ python -m fecna_agent history 1105388915 --prueba 2
 python -m fecna_agent catalog   # descarga catálogos: pruebas, ligas, piscinas
 python -m fecna_agent index     # indexa pruebas (con alias) y nadadores en ChromaDB
 
-# 4. Interfaz web local (Streamlit)
+# 4. Interfaz web local (Streamlit, multipágina)
 streamlit run app.py
+# El menú lateral se genera desde los archivos de `pages/` (uno por sección).
+# Para administrarlo: agrega/renombra/reordena archivos en `pages/` (el prefijo
+# numérico define el orden). El código común está en `fecna_agent/webui.py`.
+# Secciones ocultas: en `disabled_pages/` (muévelas a `pages/` para activarlas).
 
 # 5. Preguntas en lenguaje natural (CLI)
 python -m fecna_agent ask "Compara el nadador 1105388915 con el 1094060609 en 50 libre piscina larga"

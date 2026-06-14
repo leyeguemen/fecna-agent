@@ -24,9 +24,12 @@ try:
     from chromadb.api.types import EmbeddingFunction
 
     CHROMADB_AVAILABLE = True
-except Exception:  # ImportError u otros (protobuf, etc.)
+    CHROMADB_IMPORT_ERROR = None
+except Exception as exc:  # ImportError u otros (sqlite viejo, protobuf, etc.)
     chromadb = None
     CHROMADB_AVAILABLE = False
+    # Guardamos el motivo real para poder diagnosticar en el despliegue.
+    CHROMADB_IMPORT_ERROR = f"{type(exc).__name__}: {exc}"
 
     class EmbeddingFunction:  # base de respaldo para definir la clase de abajo
         pass

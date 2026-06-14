@@ -11,6 +11,9 @@ if not semantic.CHROMADB_AVAILABLE:
     st.warning("Búsqueda semántica no disponible en este entorno: usa la "
                "identificación del nadador en la pregunta (las demás secciones "
                "funcionan con normalidad).")
+    if semantic.CHROMADB_IMPORT_ERROR:
+        with st.expander("Detalle técnico (por qué no cargó ChromaDB)"):
+            st.code(semantic.CHROMADB_IMPORT_ERROR, language=None)
 question = st.text_input(
     "Pregunta",
     placeholder="Compara el nadador 1105388915 con el 1094060609 en 50 libre piscina larga",

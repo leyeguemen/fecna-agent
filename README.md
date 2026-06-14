@@ -103,3 +103,22 @@ ChromaDB encuentra contexto.   (fase 3)
 Python compara.
 El LLM explica.                (fase 5)
 ```
+
+## Features por hacer
+
+- **Suscripción de pago para descargar la ficha** — ver
+  [docs/features/suscripcion-descarga-ficha.md](docs/features/suscripcion-descarga-ficha.md)
+  (login + pasarela colombiana + candado en la pestaña Ficha; decisiones y
+  advertencias legales pendientes).
+
+## Pendientes técnicos
+
+- **`st.components.v1.html` deprecado** (usado en la pestaña Ficha,
+  `pages/ficha.py`, para mostrar la infografía en un iframe aislado). Streamlit
+  marca su retiro tras 2026-06-01; por ahora sigue funcionando (solo advierte).
+  No hay reemplazo directo: `st.html` inyecta el HTML sin aislar su CSS y rompe
+  el diseño. Si una actualización de Streamlit lo elimina, migrar a un
+  componente con iframe propio o renderizar solo PNG/PDF (Playwright) sin
+  previsualización embebida.
+- **`packages.txt` no admite comentarios ni espacios**: una línea por paquete
+  (Streamlit Cloud pasa cada palabra a `apt-get`).

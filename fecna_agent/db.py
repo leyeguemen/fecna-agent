@@ -156,6 +156,32 @@ def list_swimmers(
     return [(row["swimmer_id"], row["swimmer_name"]) for row in rows]
 
 
+def list_swimmers_detailed(
+    conn: sqlite3.Connection,
+    league: str | None = None,
+    age_range: tuple[int, int] | None = None,
+    reference_year: int | None = None,
+) -> list[tuple[str, str, str | None, str | None]]:
+    """Como list_swimmers pero añade club y liga (los más recientes de cada
+    nadador) para identificarlo sin mostrar la cédula en los selectores."""
+    swimmers = list_swimmers(conn, league, age_range, reference_year)
+    if not swimmers:
+        return []
+    ids = [sid for sid, _ in swimmers]
+    placeholders = ",".join("?" * len(ids))
+    rows = conn.execute(
+        f"""SELECT swimmer_id, club, league FROM (
+              SELECT swimmer_id, club, league,
+                     ROW_NUMBER() OVER (PARTITION BY swimmer_id
+                         ORDER BY result_date DESC, fetched_at DESC) AS rn
+              FROM ranking_results WHERE swimmer_id IN ({placeholders})
+            ) WHERE rn = 1""",
+        ids,
+    ).fetchall()
+    affiliation = {r["swimmer_id"]: (r["club"], r["league"]) for r in rows}
+    return [(sid, name, *affiliation.get(sid, (None, None))) for sid, name in swimmers]
+
+
 def pseudonym(swimmer_id: str) -> str:
     """Código estable y no reversible que reemplaza la identificación real."""
     return "A" + hashlib.sha1(str(swimmer_id).encode()).hexdigest()[:9].upper()

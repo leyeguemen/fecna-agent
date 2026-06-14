@@ -196,6 +196,22 @@ def test_swimmer_event_ranks_usa_mejor_marca(conn):
     assert rows[0]["national_rank"] == 1  # 28.84 < 29.00 de X
 
 
+def test_list_swimmers_detailed_incluye_club_y_liga_reciente(conn):
+    database.insert_results(conn, [
+        make_row(league="VALLE", club="VIEJO", result_date="2025-01-01"),
+        make_row(league="VALLE", club="NAVEGANTES", result_date="2026-03-25",
+                 time_ms=29000, time_raw="00:00:29.00"),
+        make_row(swimmer_id="1094060609", swimmer_name="NADADOR B",
+                 league="ANTIOQUIA", club="COMFENALCO", time_ms=29680,
+                 time_raw="00:00:29.68"),
+    ])
+    detailed = database.list_swimmers_detailed(conn)
+    by_id = {s[0]: s for s in detailed}
+    # (swimmer_id, swimmer_name, club, league); el club es el más reciente.
+    assert by_id["1105388915"] == ("1105388915", "NADADOR A", "NAVEGANTES", "VALLE")
+    assert by_id["1094060609"][2:] == ("COMFENALCO", "ANTIOQUIA")
+
+
 def test_swimmer_profile_top5_y_datos_personales(conn):
     # El objetivo (A, VALLE / DELFINES, nacido 2014 → 12 años al 2026) nada 6
     # pruebas; en cada una agregamos k competidores más rápidos de su misma

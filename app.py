@@ -63,8 +63,12 @@ def mask_id(swimmer_id) -> str:
 
 
 def fmt_swimmer(s) -> str:
-    """Etiqueta de un nadador (id, nombre) para los selectores."""
-    return f"{s[1]} ({mask_id(s[0]) if PUBLIC else s[0]})"
+    """Etiqueta de un nadador para los selectores: nombre + club y liga (sin
+    cédula), para identificarlo más fácil."""
+    club = s[2] if len(s) > 2 else None
+    league = s[3] if len(s) > 3 else None
+    extra = " · ".join(x for x in (club, league) if x)
+    return f"{s[1]} ({extra})" if extra else s[1]
 
 
 def redact(text: str) -> str:
@@ -366,7 +370,7 @@ with tab_comp:
     comp_from = colf3.date_input("Desde", dt.date(2024, 1, 1), key="comp_from",
                                  help="Compara las mejores marcas dentro de este rango")
     comp_to = colf4.date_input("Hasta", dt.date.today(), key="comp_to")
-    swimmers = database.list_swimmers(
+    swimmers = database.list_swimmers_detailed(
         conn,
         league=None if comp_league == "Todas" else comp_league,
         age_range=(None if comp_category == "Todas"
@@ -450,7 +454,7 @@ with tab_evo:
     evo_from = colf3.date_input("Desde", dt.date(2024, 1, 1), key="evo_from",
                                 help="Acota la evolución a este rango de fechas")
     evo_to = colf4.date_input("Hasta", dt.date.today(), key="evo_to")
-    swimmers = database.list_swimmers(
+    swimmers = database.list_swimmers_detailed(
         conn,
         league=None if evo_league == "Todas" else evo_league,
         age_range=(None if evo_category == "Todas"
@@ -491,7 +495,7 @@ with tab_swrank:
         "Liga (para filtrar la lista de nadadores)",
         ["Todas"] + database.list_leagues(conn), key="swr_league_filter",
     )
-    swimmers = database.list_swimmers(
+    swimmers = database.list_swimmers_detailed(
         conn, league=None if swr_league == "Todas" else swr_league,
     )
     if not swimmers:
@@ -567,7 +571,7 @@ with tab_ficha:
         "Liga (para filtrar la lista de nadadores)",
         ["Todas"] + database.list_leagues(conn), key="fic_league_filter",
     )
-    fic_swimmers = database.list_swimmers(
+    fic_swimmers = database.list_swimmers_detailed(
         conn, league=None if fic_league == "Todas" else fic_league,
     )
     if not fic_swimmers:

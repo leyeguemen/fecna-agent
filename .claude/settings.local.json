@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(.venv/bin/python -m pytest tests/test_db.py -q)",
+      "Bash(.venv/bin/python -m py_compile app.py fecna_agent/db.py)",
+      "Bash(.venv/bin/python -m pytest tests/ -q)"
+    ]
+  }
+}

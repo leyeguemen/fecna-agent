@@ -24,7 +24,7 @@ def answer(
     embedding = semantic.load_embedding_name(persist_dir)
     client = semantic.get_client(persist_dir)
 
-    event = semantic.resolve_event(client, question, embedding)
+    event = semantic.resolve_event(client, parsed.event_query or question, embedding)
 
     if parsed.intent == "compare":
         facts = _compare(conn, parsed, event)

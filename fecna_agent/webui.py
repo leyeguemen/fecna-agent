@@ -131,6 +131,16 @@ def ensure_semantic_index() -> str | None:
     return None
 
 
+@st.cache_resource(show_spinner="Preparando el generador de imágenes/PDF "
+                                "(solo la primera vez)…")
+def ensure_browser() -> bool:
+    """Garantiza el navegador de Playwright (lo instala en la nube si falta).
+    Cacheado: corre una sola vez por arranque."""
+    from fecna_agent import ficha
+
+    return ficha.ensure_browser()
+
+
 def rows_to_df(rows, columns=None) -> pd.DataFrame:
     df = pd.DataFrame([dict(row) for row in rows])
     return df[columns] if columns is not None and not df.empty else df

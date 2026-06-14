@@ -8,6 +8,17 @@ import streamlit.components.v1 as components
 from fecna_agent import ficha, webui
 from fecna_agent import db as database
 
+
+@st.cache_data(show_spinner=False)
+def _ficha_png(html: str) -> bytes:
+    return ficha.render_png(html)
+
+
+@st.cache_data(show_spinner=False)
+def _ficha_pdf(html: str) -> bytes:
+    return ficha.render_pdf(html)
+
+
 conn = webui.page_header("Ficha", "🪪")
 
 colf1, colf2 = st.columns(2)
@@ -62,9 +73,41 @@ else:
 
         slug = "".join(c if c.isalnum() else "_"
                        for c in profile["swimmer_name"]).lower()
-        st.download_button(
-            "📥 Descargar ficha (HTML)", data=html.encode("utf-8"),
-            file_name=f"ficha_{slug}.html", mime="text/html", width="stretch",
-            help="Ábrela en el navegador y usa Imprimir → Guardar como PDF, o "
-                 "captura la pantalla para compartirla como imagen.",
-        )
+        st.markdown("**Descargar**")
+        render_error = None
+        png = pdf = None
+        if webui.ensure_browser():
+            try:
+                with st.spinner("Generando imagen y PDF..."):
+                    png = _ficha_png(html)
+                    pdf = _ficha_pdf(html)
+            except Exception as exc:
+                render_error = exc
+
+        if png and pdf:
+            c1, c2, c3 = st.columns(3)
+            c1.download_button(
+                "🖼️ PNG (redes)", data=png, file_name=f"ficha_{slug}.png",
+                mime="image/png", width="stretch",
+                help="Imagen lista para publicar en redes sociales.",
+            )
+            c2.download_button(
+                "📄 PDF (imprimir)", data=pdf, file_name=f"ficha_{slug}.pdf",
+                mime="application/pdf", width="stretch",
+                help="Una página del tamaño de la ficha, lista para imprimir.",
+            )
+            c3.download_button(
+                "🌐 HTML", data=html.encode("utf-8"), file_name=f"ficha_{slug}.html",
+                mime="text/html", width="stretch",
+                help="Versión editable; ábrela en el navegador.",
+            )
+        else:
+            st.warning("El generador de PNG/PDF no está disponible en este entorno. "
+                       "Descarga el HTML y conviértelo desde el navegador "
+                       "(Imprimir → Guardar como PDF, o captura para imagen).")
+            st.download_button(
+                "🌐 Descargar ficha (HTML)", data=html.encode("utf-8"),
+                file_name=f"ficha_{slug}.html", mime="text/html", width="stretch",
+            )
+            if render_error:
+                st.caption(f"Detalle técnico: {render_error}")

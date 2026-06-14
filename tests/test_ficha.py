@@ -1,3 +1,5 @@
+import pytest
+
 from fecna_agent import ficha
 
 
@@ -60,3 +62,25 @@ def test_render_html_sin_assets_no_falla():
     html = ficha.render_html(make_profile([ev()]))
     assert "SAMUEL GUERRERO BLANDON" in html
     assert "data:image" not in html  # sin foto/logo no se inserta ninguna
+
+
+def _browser_disponible() -> bool:
+    try:
+        import pathlib
+
+        from playwright.sync_api import sync_playwright
+        with sync_playwright() as p:
+            return pathlib.Path(p.chromium.executable_path).exists()
+    except Exception:
+        return False
+
+
+@pytest.mark.skipif(not _browser_disponible(),
+                    reason="Playwright/Chromium no disponible")
+def test_render_png_y_pdf_de_la_ficha():
+    html = ficha.render_html(make_profile([ev()]))
+    png = ficha.render_png(html)
+    pdf = ficha.render_pdf(html)
+    assert png[:8] == b"\x89PNG\r\n\x1a\n"   # firma PNG
+    assert pdf[:5] == b"%PDF-"               # firma PDF
+    assert len(png) > 1000 and len(pdf) > 1000

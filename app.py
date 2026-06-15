@@ -8,6 +8,22 @@ línea `st.Page(...)` y su archivo (el orden de la lista es el orden del menú).
 El código común está en `fecna_agent/webui.py`.
 """
 
+# IMPORTANTE: estos ajustes deben ir ANTES de `import streamlit`. Streamlit
+# importa protobuf al cargarse; si no forzamos la implementación pura de
+# protobuf antes, ChromaDB falla luego con "Descriptors cannot be created
+# directly". También se reemplaza sqlite por pysqlite3 (ChromaDB exige >= 3.35).
+import os as _os
+
+_os.environ.setdefault("PROTOCOL_BUFFERS_PYTHON_IMPLEMENTATION", "python")
+
+try:
+    __import__("pysqlite3")
+    import sys as _sys
+
+    _sys.modules["sqlite3"] = _sys.modules.pop("pysqlite3")
+except ImportError:
+    pass
+
 import streamlit as st
 
 from fecna_agent import webui

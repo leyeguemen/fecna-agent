@@ -168,7 +168,6 @@ def history_df(conn, swimmer_id, event_id, pool, date_from=None, date_to=None):
 def admin_controls(conn):
     """Controles de extracción/sincronización. Ocultos en modo público para que
     la app desplegada sea de solo lectura."""
-    st.divider()
     st.subheader("Extraer desde FECNA")
 
     catalog_events = database.get_catalog(conn, "prueba")
@@ -252,16 +251,8 @@ def bootstrap():
     conn = get_conn()
     ensure_semantic_index()
 
-    with st.sidebar:
-        st.header("🏊 Datos locales")
-        total = conn.execute("SELECT COUNT(*) FROM ranking_results").fetchone()[0]
-        swimmers_count = len(database.list_swimmers(conn))
-        events_count = len(database.list_events(conn))
-        st.write(f"**{total}** resultados · **{swimmers_count}** nadadores · "
-                 f"**{events_count}** pruebas con datos")
-        if PUBLIC:
-            st.caption("Vista pública de solo lectura · datos anonimizados.")
-        else:
+    if not PUBLIC:
+        with st.sidebar:
             admin_controls(conn)
 
 

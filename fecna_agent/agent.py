@@ -7,10 +7,26 @@ Flujo (sección 8 del spec):
   4. Formato de respuesta con los datos usados (sin inventar nada)
 """
 
+import re
+
 from . import db as database
 from . import semantic
-from .resolver import parse_question
+from .resolver import normalize, parse_question
 from .times import ms_to_time
+
+# Pronombres/referencias que indican una pregunta de seguimiento sobre el mismo
+# nadador del turno anterior ("¿y su evolución?", "compáralo con ...").
+_PRONOUN_RE = re.compile(r"\b(su|sus|ese|esa|este|esta|mismo|misma|suyo|suya|lo)\b")
+
+
+def _dispatch(conn, parsed, event, client, embedding) -> str:
+    if parsed.intent == "compare":
+        return _compare(conn, parsed, event)
+    if parsed.intent == "ranking":
+        return _ranking(conn, parsed, event)
+    if parsed.intent == "history":
+        return _history(conn, parsed, event, client, embedding)
+    return _best(conn, parsed, event, client, embedding)
 
 
 def answer(
@@ -23,21 +39,62 @@ def answer(
     parsed = parse_question(question)
     embedding = semantic.load_embedding_name(persist_dir)
     client = semantic.get_client(persist_dir)
-
     event = semantic.resolve_event(client, parsed.event_query or question, embedding)
-
-    if parsed.intent == "compare":
-        facts = _compare(conn, parsed, event)
-    elif parsed.intent == "ranking":
-        facts = _ranking(conn, parsed, event)
-    elif parsed.intent == "history":
-        facts = _history(conn, parsed, event, client, embedding)
-    else:
-        facts = _best(conn, parsed, event, client, embedding)
-
+    facts = _dispatch(conn, parsed, event, client, embedding)
     if use_llm:
         return redact_with_llm(question, facts, llm_model)
     return facts
+
+
+def _merge_context(parsed, context: dict):
+    """Completa la pregunta actual con el contexto del turno anterior cuando
+    faltan datos: prueba, piscina y género se heredan si no se mencionan; el
+    nadador se hereda solo si hay un pronombre de seguimiento (o para completar
+    el par en una comparación). Así 'y su evolución' o 'compáralo con X' usan el
+    nadador previo, pero una pregunta nueva con nombre/identificación no."""
+    if not parsed.event_query and context.get("event_query"):
+        parsed.event_query = context["event_query"]
+    if not parsed.pool_type and context.get("pool_type"):
+        parsed.pool_type = context["pool_type"]
+    if not parsed.gender and context.get("gender"):
+        parsed.gender = context["gender"]
+
+    prev_ids = context.get("swimmer_ids") or []
+    if parsed.intent == "compare":
+        for sid in prev_ids:
+            if len(parsed.swimmer_ids) >= 2:
+                break
+            if sid not in parsed.swimmer_ids:
+                parsed.swimmer_ids.append(sid)
+    elif not parsed.swimmer_ids and prev_ids and _PRONOUN_RE.search(normalize(parsed.raw)):
+        parsed.swimmer_ids = [prev_ids[0]]
+    return parsed
+
+
+def chat_answer(
+    conn,
+    question: str,
+    context: dict | None = None,
+    persist_dir=semantic.DEFAULT_PERSIST_DIR,
+    use_llm: bool = False,
+    llm_model: str | None = None,
+) -> tuple[str, dict]:
+    """Como answer(), pero conversacional: recuerda el contexto del turno previo.
+    Devuelve (respuesta, nuevo_contexto) para encadenar la conversación."""
+    parsed = _merge_context(parse_question(question), context or {})
+    embedding = semantic.load_embedding_name(persist_dir)
+    client = semantic.get_client(persist_dir)
+    event = semantic.resolve_event(client, parsed.event_query or question, embedding)
+    facts = _dispatch(conn, parsed, event, client, embedding)
+
+    new_context = {
+        "swimmer_ids": parsed.swimmer_ids,
+        "event_query": parsed.event_query or (event["event_name"] if event else None),
+        "pool_type": parsed.pool_type,
+        "gender": parsed.gender,
+    }
+    reply = redact_with_llm(question, facts, llm_model) if use_llm else facts
+    return reply, new_context
 
 
 def redact_with_llm(question: str, facts: str, model: str | None = None) -> str:

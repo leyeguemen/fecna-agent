@@ -15,9 +15,16 @@ if not semantic.CHROMADB_AVAILABLE:
         with st.expander("Detalle técnico (por qué no cargó ChromaDB)"):
             st.code(semantic.CHROMADB_IMPORT_ERROR, language=None)
 
-st.caption("Pregunta sobre la data: mejor marca, ranking, comparar o evolución. "
-           "Recuerda el contexto, así que puedes seguir con 'y su evolución?' o "
-           "'compáralo con 1094060609'. Los cálculos siempre son SQL/Python.")
+if webui.PUBLIC:
+    st.caption("Pregunta sobre la data: mejor marca, ranking, comparar o evolución. "
+               "En esta versión pública los nadadores se buscan **por nombre** "
+               "(la identificación está anonimizada). Recuerda el contexto: puedes "
+               "seguir con 'y su evolución?'. Los cálculos siempre son SQL/Python.")
+else:
+    st.caption("Pregunta sobre la data: mejor marca, ranking, comparar o evolución. "
+               "Busca por nombre o por identificación. Recuerda el contexto, así que "
+               "puedes seguir con 'y su evolución?' o 'compáralo con 1094060609'. "
+               "Los cálculos siempre son SQL/Python.")
 
 # --- Estado del chat ---
 if "chat_msgs" not in st.session_state:

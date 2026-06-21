@@ -100,6 +100,23 @@ labels = {f"{c['name']}  ·  {c['entradas']} inscripciones": c["id"]
 chosen = st.selectbox("Campeonato", list(labels.keys()))
 comp_id = labels[chosen]
 
+# --- Seguir nadadores (alertas) ----------------------------------------------
+all_swimmers = database.competition_swimmers(conn, comp_id)
+name_to_label = {n: f"{n} ({c})" for n, c in all_swimmers}
+label_to_name = {v: k for k, v in name_to_label.items()}
+watched = database.list_watched(conn, comp_id)
+picked = st.multiselect(
+    "🔔 Seguir nadadores",
+    options=list(label_to_name.keys()),
+    default=[name_to_label[n] for n in watched if n in name_to_label],
+    help="Los seguidos aparecen en la pestaña 🔔 Alertas con su próxima prueba y "
+         "cuenta regresiva.",
+)
+picked_names = sorted(label_to_name[lbl] for lbl in picked)
+if picked_names != sorted(watched):
+    database.set_watched(conn, comp_id, picked_names)
+    st.rerun()
+
 col_a, col_b, col_c = st.columns([3, 3, 1])
 clubs = ["— Todos —"] + database.competition_clubs(conn, comp_id)
 club_pick = col_a.selectbox("Club (código del PDF)", clubs)

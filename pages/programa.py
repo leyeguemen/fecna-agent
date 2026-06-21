@@ -5,6 +5,9 @@ las pruebas que debe presentar y a qué hora. Cruza los nombres con la base para
 enriquecer con la mejor marca de cada deportista cuando existe.
 """
 
+import hashlib
+import io
+
 import pandas as pd
 import streamlit as st
 
@@ -19,11 +22,30 @@ st.caption("Carga el programa (PDF) de un campeonato y filtra por club o nadador
            "para ver qué pruebas debe presentar y a qué hora.")
 
 # --- Cargar un nuevo programa -------------------------------------------------
+# El PDF se parsea UNA sola vez por archivo y el resultado se guarda en
+# session_state. Así sobrevive a los reruns (cada tecla del nombre o el clic en
+# Guardar reejecutan el script) sin volver a leer el buffer del uploader, que
+# tras la primera lectura queda al final y devolvería vacío.
+def _parse_uploaded(uploaded):
+    data = uploaded.getvalue()
+    key = hashlib.sha1(data).hexdigest()
+    if st.session_state.get("prog_key") == key:
+        return  # ya parseado en esta sesión
+    competition, entries = programa.parse_pdf(io.BytesIO(data))
+    if entries:
+        programa.map_event_ids(entries, database.event_index(conn))
+        stats = programa.match_swimmers(entries, database.list_swimmers(conn))
+    else:
+        stats = {"matched": 0, "ambiguous": 0, "total": 0}
+    st.session_state.update(prog_key=key, prog_comp=competition,
+                            prog_entries=entries, prog_stats=stats)
+
+
 with st.expander("➕ Cargar un nuevo programa (PDF)", expanded=False):
     uploaded = st.file_uploader("Programa del campeonato (PDF)", type=["pdf"])
     if uploaded is not None:
         try:
-            competition, entries = programa.parse_pdf(uploaded)
+            _parse_uploaded(uploaded)
         except ModuleNotFoundError:
             st.error("Falta la dependencia `pdfplumber`. Instálala: "
                      "pip install pdfplumber")
@@ -32,14 +54,13 @@ with st.expander("➕ Cargar un nuevo programa (PDF)", expanded=False):
             st.error(f"No pude leer el PDF: {exc}")
             st.stop()
 
+        competition = st.session_state["prog_comp"]
+        entries = st.session_state["prog_entries"]
+        stats = st.session_state["prog_stats"]
         if not entries:
             st.warning("No se reconocieron inscripciones en el PDF. "
                        "¿Es un programa con texto (no escaneado)?")
         else:
-            programa.map_event_ids(entries, database.event_index(conn))
-            stats = programa.match_swimmers(
-                entries, database.list_swimmers(conn)
-            )
             st.success(f"{len(entries)} inscripciones · "
                        f"{stats['matched']} nadadores cruzados con la base"
                        + (f" · {stats['ambiguous']} homónimos sin cruzar"
@@ -62,6 +83,9 @@ with st.expander("➕ Cargar un nuevo programa (PDF)", expanded=False):
                 if result["status"] == "unchanged":
                     st.info(msg)
                 else:
+                    # Limpia el parseo cacheado y refresca para mostrarlo guardado.
+                    for k in ("prog_key", "prog_comp", "prog_entries", "prog_stats"):
+                        st.session_state.pop(k, None)
                     st.success(msg)
                     st.rerun()
 

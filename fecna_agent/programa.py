@@ -108,6 +108,8 @@ _HY_HEAT = re.compile(r"Heat\s+\d+\s+of\s+\d+.*Starts at\s+(\d{1,2}:\d{2})\s*(AM
 _HY_ENTRY = re.compile(
     r"^(\d{1,2})\s+(.+?)\s+(\d{1,2})\s+([A-Z0-9]{2,5})\s+(NT|[\d:]*\d\.\d{2})\s*$"
 )
+# Encabezado de jornada (abarca todo el ancho): "... 1 Jornada Viernes 5 de Junio".
+_HY_JORNADA = re.compile(r"(\d+)\s+Jornada\s+\S+\s+(\d{1,2})\s+de\s+(\w+)", re.I)
 _GENDER = {"Women": "F", "Men": "M", "Mixed": "X"}
 
 
@@ -116,6 +118,7 @@ def _parse_hytek(lines: list[str]) -> tuple[dict, list[dict]]:
     entries: list[dict] = []
     ev: dict | None = None
     heat = start_time = None
+    year = session_no = session_date = None
 
     for line in lines:
         line = line.strip()
@@ -123,6 +126,15 @@ def _parse_hytek(lines: list[str]) -> tuple[dict, list[dict]]:
             continue
         if competition["name"] is None and _HY_TITLE.match(line):
             competition["name"] = line
+            ym = re.match(r"(\d{4})", line)
+            year = int(ym.group(1)) if ym else None
+            continue
+        m = _HY_JORNADA.search(line)
+        if m:
+            session_no = int(m.group(1))
+            mon = _MESES.get(normalize(m.group(3)))
+            if year and mon:
+                session_date = f"{year}-{mon:02d}-{int(m.group(2)):02d}"
             continue
         m = _HY_EVENT.match(line)
         if m:
@@ -144,7 +156,10 @@ def _parse_hytek(lines: list[str]) -> tuple[dict, list[dict]]:
             m = _HY_ENTRY.match(line)
             if m:
                 lane, name, age, team, seed = m.groups()
-                entries.append(_entry(ev, heat, start_time, lane, name, team, age, seed))
+                entry = _entry(ev, heat, start_time, lane, name, team, age, seed)
+                entry["session_no"] = session_no
+                entry["session_date"] = session_date
+                entries.append(entry)
     return competition, entries
 
 
@@ -211,6 +226,12 @@ def _parse_colombia(lines: list[str]) -> tuple[dict, list[dict]]:
     return competition, entries
 
 
+def _clean_name(name: str) -> str:
+    """Normaliza espacios y corrige la 'ñ' que el PDF extrae como 'nñ'."""
+    name = name.replace("nñ", "ñ").replace("Nñ", "Ñ")
+    return re.sub(r"\s+", " ", name).strip()
+
+
 def _entry(ev, heat, start_time, lane, name, club, age, seed) -> dict:
     return {
         "event_number": ev["event_number"], "event_label": ev["event_label"],
@@ -218,7 +239,7 @@ def _entry(ev, heat, start_time, lane, name, club, age, seed) -> dict:
         "gender": ev["gender"], "category": ev["category"],
         "session_no": None, "session_date": None,
         "heat": heat, "lane": int(lane), "start_time": start_time,
-        "swimmer_name": re.sub(r"\s+", " ", name).strip(), "club_code": club.strip(),
+        "swimmer_name": _clean_name(name), "club_code": club.strip(),
         "age": int(age), "seed_ms": seed_to_ms(seed), "seed_raw": seed.strip(),
         "swimmer_id": None,
     }
@@ -234,14 +255,134 @@ def parse_text(text: str) -> tuple[dict, list[dict]]:
 
 
 def parse_pdf(source) -> tuple[dict, list[dict]]:
-    """Lee un PDF (ruta o bytes/buffer) y lo parsea. Requiere pdfplumber."""
+    """Lee un PDF (ruta o bytes/buffer) y lo parsea. Requiere pdfplumber.
+
+    HY-TEK imprime el programa en dos columnas y los nombres largos se solapan
+    con la edad; por eso ese formato se reconstruye por posición (x) de cada
+    caracter en vez de confiar en el texto plano. Colombia Acuática es de una
+    columna y se parsea directo del texto."""
     import pdfplumber
 
-    text_parts = []
     with pdfplumber.open(source) as pdf:
-        for page in pdf.pages:
-            text_parts.append(page.extract_text() or "")
-    return parse_text("\n".join(text_parts))
+        full = "\n".join(pg.extract_text() or "" for pg in pdf.pages)
+        if detect_format(full) == "hytek":
+            return _parse_hytek(_hytek_lines(pdf))
+        return _parse_colombia(full.splitlines())
+
+
+# --- Reconstrucción posicional del PDF HY-TEK (dos columnas) ------------------
+def _split_x(page, bin_w: int = 5) -> float | None:
+    """x donde separar las dos columnas; None si la página es de una sola.
+
+    El hueco entre columnas se ve como una franja vertical por la que pasan muy
+    pocas filas (solo encabezados de ancho completo), frente a las columnas que
+    tienen decenas de filas. Mide cobertura por filas (tops) en cada franja."""
+    lo, hi = page.width * 0.40, page.width * 0.60
+    rows_at: dict[int, set] = {}
+    for c in page.chars:
+        if lo <= c["x0"] <= hi:
+            rows_at.setdefault(int(c["x0"] // bin_w) * bin_w, set()).add(round(c["top"]))
+    if not rows_at:
+        return None
+    cover = {k: len(v) for k, v in rows_at.items()}
+    threshold = max(3, max(cover.values()) * 0.3)
+    bins = sorted(range(int(lo) // bin_w * bin_w, int(hi) + bin_w, bin_w))
+    best_run, run = (0, None), []
+    for b in bins:
+        if cover.get(b, 0) <= threshold:
+            run.append(b)
+            if len(run) > best_run[0]:
+                best_run = (len(run), run[len(run) // 2])
+        else:
+            run = []
+    return float(best_run[1]) + bin_w / 2 if best_run[1] is not None else None
+
+
+def _column_bounds(line_chars: list) -> tuple[float, float, float] | None:
+    """(name_x, team_x, seed_x) del encabezado 'Lane Name Age Team Seed Time'.
+
+    Se calcula desde la x de cada caracter (no de palabras): en el recorte por
+    columna los espacios desaparecen y 'Lane Name Age' quedaría como un solo
+    token, así que se localiza cada rótulo en el texto sin espacios."""
+    seq = [(c["text"], c["x0"]) for c in sorted(line_chars, key=lambda c: c["x0"])
+           if c["text"].strip()]
+    text = "".join(t for t, _ in seq).lower()
+    if not all(k in text for k in ("lane", "name", "team", "seed")):
+        return None
+    return seq[text.find("name")][1], seq[text.find("team")][1], seq[text.find("seed")][1]
+
+
+def _rebuild_line(chars: list, bounds: tuple[float, float, float] | None) -> str:
+    """Reconstruye una línea; si es inscripción, separa campos por columna (x).
+
+    En la zona nombre/edad los dígitos son la edad y las letras son el nombre,
+    aunque se solapen físicamente (caso de apellidos largos)."""
+    chars = sorted(chars, key=lambda c: c["x0"])
+    raw = re.sub(r"\s+", " ", "".join(c["text"] for c in chars)).strip()
+    if not bounds:
+        return raw
+    name_x, team_x, seed_x = bounds
+    # Los datos arrancan unos píxeles a la izquierda de su rótulo; los márgenes
+    # evitan que el primer caracter de cada campo caiga en la columna anterior.
+    lane_c, zone, team_c, seed_c = [], [], [], []
+    for c in chars:
+        t, x = c["text"], c["x0"]
+        if x < name_x - 8:
+            lane_c.append(t)
+        elif x < team_x - 4:
+            zone.append((t, x))  # nombre y edad solapados: se separan abajo
+        elif x < seed_x - 6:
+            team_c.append(t)
+        else:
+            seed_c.append(t)
+    # En la zona nombre/edad: los dígitos son la edad; las letras son el nombre.
+    # Los apellidos largos invaden la columna de la edad y pdfplumber inserta un
+    # espacio en ese borde; ese espacio (el pegado a la izquierda de la edad) es
+    # espurio y partiría el apellido, así que se descarta. Los espacios reales
+    # entre nombres quedan bien a la izquierda de la edad y se conservan.
+    digit_xs = [x for t, x in zone if t.isdigit()]
+    age_left = min(digit_xs) if digit_xs else float("inf")
+    name_c = [t for t, x in zone
+              if not t.isdigit() and not (t == " " and x >= age_left - 6)]
+    lane = "".join(lane_c).strip()
+    name = re.sub(r"\s+", " ", "".join(name_c)).strip()
+    age = "".join(t for t, _ in zone if t.isdigit()).strip()
+    team = "".join(team_c).strip()
+    seed = "".join(seed_c).strip()
+    if (re.fullmatch(r"\d{1,2}", lane) and re.fullmatch(r"\d{1,2}", age)
+            and name and re.match(r"NT|[\d:]*\d\.\d{2}", seed)):
+        return f"{lane} {name} {age} {team} {seed}"
+    return raw
+
+
+def _hytek_lines(pdf) -> list[str]:
+    """Aplana el PDF HY-TEK a líneas limpias (título, jornada y inscripciones)."""
+    out: list[str] = []
+    title_done = False
+    last_jornada = None
+    for page in pdf.pages:
+        for line in (page.extract_text() or "").splitlines():
+            line = line.strip()
+            if not title_done and _HY_TITLE.match(line):
+                out.append(line)
+                title_done = True
+            elif _HY_JORNADA.search(line) and line != last_jornada:
+                out.append(line)
+                last_jornada = line
+        mid = _split_x(page)
+        crops = ([page.crop((0, 0, mid, page.height)),
+                  page.crop((mid, 0, page.width, page.height))]
+                 if mid else [page])
+        for crop in crops:
+            lines: dict[float, list] = {}
+            for c in sorted(crop.chars, key=lambda c: (c["top"], c["x0"])):
+                key = next((k for k in lines if abs(k - c["top"]) <= 2), None)
+                lines.setdefault(c["top"] if key is None else key, []).append(c)
+            ordered = [lines[top] for top in sorted(lines)]
+            bounds = next((b for b in map(_column_bounds, ordered) if b), None)
+            for line_chars in ordered:
+                out.append(_rebuild_line(line_chars, bounds))
+    return out
 
 
 # Campos del PDF que definen "la misma programación". Se excluyen los derivados

@@ -118,6 +118,48 @@ def test_save_competition_solo_actualiza_si_hay_cambios():
     assert len(db.list_competitions(conn)) == 1  # no duplica
 
 
+def _char(t, x):
+    return {"text": t, "x0": x}
+
+
+def test_rebuild_line_separa_columnas_con_nombre_solapado():
+    # Simula una inscripción HY-TEK donde el apellido invade la columna de la
+    # edad y pdfplumber inserta un espacio espurio: "Lopez" -> "Lope z" + "10".
+    bounds = (44.0, 150.0, 220.0)  # name_x, team_x, seed_x
+    chars = [
+        _char("0", 28),
+        _char("A", 44), _char("n", 52), _char("a", 60),
+        _char(" ", 70),
+        _char("L", 80), _char("o", 96), _char("p", 110), _char("e", 124),
+        _char(" ", 132),                       # espacio espurio antes de la edad
+        _char("1", 134), _char("z", 136), _char("0", 140),  # edad 10 + 'z' overflow
+        _char("C", 152), _char("L", 162), _char("U", 172),  # club
+        _char("1", 222), _char(":", 226), _char("0", 230),
+        _char("0", 234), _char(".", 238), _char("0", 242), _char("0", 246),
+    ]
+    out = programa._rebuild_line(chars, bounds)
+    assert out == "0 Ana Lopez 10 CLU 1:00.00"
+
+
+def test_clean_name_corrige_enie():
+    assert programa._clean_name("Valentina Londonño Urrea") == "Valentina Londoño Urrea"
+    assert programa._clean_name("Ana  Sofia   Canñon") == "Ana Sofia Cañon"
+
+
+def test_hytek_parsea_jornada_y_fecha():
+    text = (
+        "2026 CAMPEONATO NACIONAL - 5/06/2026 to 7/06/2026\n"
+        "Meet Program - 1 Jornada Viernes 5 de Junio Cal 07:00 Comp 08:30\n"
+        "Event 14 Men 11 Year Olds 100 LC Meter Freestyle\n"
+        "Lane Name Age Team Seed Time\n"
+        "Heat 1 of 1 Finals Starts at 09:00 AM\n"
+        "4 Pedro Perez Lopez 11 AQUS 1:10.51\n"
+    )
+    _comp, entries = programa.parse_text(text)
+    assert entries[0]["session_no"] == 1
+    assert entries[0]["session_date"] == "2026-06-05"
+
+
 def test_match_swimmers_por_nombre():
     _comp, entries = programa.parse_text(HYTEK)
     swimmers = [("123", "AARON DANIEL CAMACHO"), ("456", "OTRO NADADOR")]

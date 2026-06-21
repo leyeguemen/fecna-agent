@@ -4,6 +4,7 @@ Regla del proyecto: SQL/Python calcula, el LLM solo explica.
 """
 
 import hashlib
+import re
 import sqlite3
 from datetime import date
 from pathlib import Path
@@ -61,7 +62,48 @@ CREATE TABLE IF NOT EXISTS sync_log (
   inserted INTEGER,
   errors INTEGER
 );
+
+CREATE TABLE IF NOT EXISTS competition (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  name TEXT NOT NULL,
+  pool_type TEXT,
+  source_format TEXT,
+  content_hash TEXT,
+  loaded_at TIMESTAMP,
+  UNIQUE (name)
+);
+
+CREATE TABLE IF NOT EXISTS competition_entry (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  competition_id INTEGER NOT NULL,
+  event_number INTEGER,
+  event_label TEXT,
+  event_id TEXT,
+  distance INTEGER,
+  stroke TEXT,
+  gender TEXT,
+  category TEXT,
+  session_no INTEGER,
+  session_date DATE,
+  heat INTEGER,
+  lane INTEGER,
+  start_time TEXT,
+  swimmer_name TEXT NOT NULL,
+  club_code TEXT,
+  age INTEGER,
+  seed_ms INTEGER,
+  seed_raw TEXT,
+  swimmer_id TEXT,
+  FOREIGN KEY (competition_id) REFERENCES competition (id) ON DELETE CASCADE
+);
+CREATE INDEX IF NOT EXISTS idx_entry_comp ON competition_entry (competition_id);
 """
+
+ENTRY_COLUMNS = [
+    "event_number", "event_label", "event_id", "distance", "stroke", "gender",
+    "category", "session_no", "session_date", "heat", "lane", "start_time",
+    "swimmer_name", "club_code", "age", "seed_ms", "seed_raw", "swimmer_id",
+]
 
 COLUMNS = [
     "source", "ranking_position", "swimmer_id", "swimmer_name", "first_name",
@@ -77,7 +119,16 @@ def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
     conn = sqlite3.connect(db_path)
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
+    _migrate(conn)
     return conn
+
+
+def _migrate(conn: sqlite3.Connection) -> None:
+    """Migraciones suaves para bases creadas con un esquema anterior."""
+    cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition)")}
+    if "content_hash" not in cols:
+        conn.execute("ALTER TABLE competition ADD COLUMN content_hash TEXT")
+        conn.commit()
 
 
 def insert_results(conn: sqlite3.Connection, rows: list[dict]) -> int:
@@ -446,6 +497,132 @@ def swimmer_event_ranks(
         ORDER BY event_name, pool_type
         """,
         [*date_params, reference_year, swimmer_id],
+    ).fetchall()
+
+
+def event_index(conn: sqlite3.Connection) -> list[tuple[str, int, str]]:
+    """(event_id, distancia, estilo_canónico) para mapear las pruebas del PDF.
+
+    Se construye desde el catálogo de pruebas (o, en su defecto, de los eventos
+    presentes en la base). El estilo se deduce del nombre con programa.stroke_key."""
+    from . import programa
+
+    rows = get_catalog(conn, "prueba") or list_events(conn)
+    index = []
+    for _code, label in rows:
+        dist = next((int(m) for m in re.findall(r"(\d+)\s*m", label.lower())), None)
+        event_id = next(
+            (eid for eid, name in list_events(conn) if name == label), _code
+        )
+        stroke = programa.stroke_key(label)
+        if dist and stroke:
+            index.append((event_id, dist, stroke))
+    return index
+
+
+def save_competition(
+    conn: sqlite3.Connection, competition: dict, entries: list[dict]
+) -> dict:
+    """Guarda un programa de campeonato y sus inscripciones.
+
+    Si ya existe un campeonato con el mismo nombre y la programación NO cambió
+    (misma huella de contenido), no hace nada. Solo reescribe cuando hay cambios.
+
+    Devuelve {'competition_id': int, 'status': 'created'|'updated'|'unchanged'}.
+    """
+    from datetime import datetime
+
+    from . import programa
+
+    name = competition.get("name") or "Campeonato sin título"
+    new_hash = programa.fingerprint(competition, entries)
+    existing = conn.execute(
+        "SELECT id, content_hash FROM competition WHERE name = ?", (name,)
+    ).fetchone()
+
+    if existing and existing["content_hash"] == new_hash:
+        return {"competition_id": existing["id"], "status": "unchanged"}
+
+    status = "updated" if existing else "created"
+    conn.execute(
+        """INSERT INTO competition (name, pool_type, source_format, content_hash, loaded_at)
+           VALUES (?, ?, ?, ?, ?)
+           ON CONFLICT(name) DO UPDATE SET
+             pool_type=excluded.pool_type, source_format=excluded.source_format,
+             content_hash=excluded.content_hash, loaded_at=excluded.loaded_at""",
+        (name, competition.get("pool_type"), competition.get("source_format"),
+         new_hash, datetime.now().isoformat(timespec="seconds")),
+    )
+    comp_id = conn.execute(
+        "SELECT id FROM competition WHERE name = ?", (name,)
+    ).fetchone()[0]
+    conn.execute("DELETE FROM competition_entry WHERE competition_id = ?", (comp_id,))
+    placeholders = ", ".join(f":{c}" for c in ENTRY_COLUMNS)
+    conn.executemany(
+        f"""INSERT INTO competition_entry (competition_id, {', '.join(ENTRY_COLUMNS)})
+            VALUES ({comp_id}, {placeholders})""",
+        entries,
+    )
+    conn.commit()
+    return {"competition_id": comp_id, "status": status}
+
+
+def list_competitions(conn: sqlite3.Connection) -> list[sqlite3.Row]:
+    return conn.execute(
+        """SELECT c.id, c.name, c.pool_type, c.loaded_at,
+                  COUNT(e.id) AS entradas
+           FROM competition c LEFT JOIN competition_entry e
+                ON e.competition_id = c.id
+           GROUP BY c.id ORDER BY c.loaded_at DESC"""
+    ).fetchall()
+
+
+def delete_competition(conn: sqlite3.Connection, comp_id: int) -> None:
+    conn.execute("DELETE FROM competition_entry WHERE competition_id = ?", (comp_id,))
+    conn.execute("DELETE FROM competition WHERE id = ?", (comp_id,))
+    conn.commit()
+
+
+def competition_clubs(conn: sqlite3.Connection, comp_id: int) -> list[str]:
+    rows = conn.execute(
+        """SELECT DISTINCT club_code FROM competition_entry
+           WHERE competition_id = ? AND club_code IS NOT NULL
+           ORDER BY club_code""",
+        (comp_id,),
+    ).fetchall()
+    return [r["club_code"] for r in rows]
+
+
+def competition_swimmers(conn: sqlite3.Connection, comp_id: int) -> list[tuple[str, str]]:
+    """(nombre, club_code) distintos del programa, para el selector de nadador."""
+    rows = conn.execute(
+        """SELECT DISTINCT swimmer_name, club_code FROM competition_entry
+           WHERE competition_id = ? ORDER BY swimmer_name""",
+        (comp_id,),
+    ).fetchall()
+    return [(r["swimmer_name"], r["club_code"]) for r in rows]
+
+
+def competition_schedule(
+    conn: sqlite3.Connection,
+    comp_id: int,
+    club_code: str | None = None,
+    swimmer_name: str | None = None,
+) -> list[sqlite3.Row]:
+    """Cronograma del campeonato, ordenado por jornada y hora de inicio."""
+    where, params = "", [comp_id]
+    if club_code:
+        where += " AND club_code = ?"
+        params.append(club_code)
+    if swimmer_name:
+        where += " AND swimmer_name = ?"
+        params.append(swimmer_name)
+    return conn.execute(
+        f"""SELECT * FROM competition_entry
+            WHERE competition_id = ? {where}
+            ORDER BY session_date IS NULL, session_date,
+                     start_time IS NULL, start_time, event_number, heat, lane""",
+        params,
     ).fetchall()
 
 

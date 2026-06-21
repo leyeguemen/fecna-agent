@@ -14,6 +14,8 @@ opentelemetry-sdk>=1.42
 opentelemetry-api>=1.42
 fpdf2>=2.7
 Pillow>=10
+# Lectura del programa (heat sheet) de campeonatos en PDF (texto nativo).
+pdfplumber>=0.11
 # Render de la ficha a PNG/PDF. Requiere el navegador: `playwright install chromium`.
 # Si no está disponible, la página de Ficha ofrece la descarga en HTML.
 playwright>=1.40

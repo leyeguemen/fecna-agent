@@ -38,6 +38,7 @@ PAGINAS = [
     st.Page("pages/comparar.py", title="Comparar", icon="⚖️"),
     st.Page("pages/rankings_nadador.py", title="Rankings del nadador", icon="🎖️"),
     st.Page("pages/ficha.py", title="Ficha", icon="🪪"),
+    st.Page("pages/programa.py", title="Programa", icon="📋"),
     st.Page("pages/novedades.py", title="Novedades", icon="🆕"),
     # Oculta: para activarla, descomenta y crea pages/evolucion.py
     # (hay una versión lista en disabled_pages/Evolucion.py).

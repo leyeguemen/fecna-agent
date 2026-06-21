@@ -97,6 +97,13 @@ CREATE TABLE IF NOT EXISTS competition_entry (
   FOREIGN KEY (competition_id) REFERENCES competition (id) ON DELETE CASCADE
 );
 CREATE INDEX IF NOT EXISTS idx_entry_comp ON competition_entry (competition_id);
+
+CREATE TABLE IF NOT EXISTS competition_watch (
+  competition_id INTEGER NOT NULL,
+  swimmer_name TEXT NOT NULL,
+  PRIMARY KEY (competition_id, swimmer_name),
+  FOREIGN KEY (competition_id) REFERENCES competition (id) ON DELETE CASCADE
+);
 """
 
 ENTRY_COLUMNS = [
@@ -623,6 +630,40 @@ def competition_schedule(
             ORDER BY session_date IS NULL, session_date,
                      start_time IS NULL, start_time, event_number, heat, lane""",
         params,
+    ).fetchall()
+
+
+def list_watched(conn: sqlite3.Connection, comp_id: int) -> list[str]:
+    """Nombres de nadadores seguidos (con alerta) en un campeonato."""
+    rows = conn.execute(
+        "SELECT swimmer_name FROM competition_watch WHERE competition_id = ? "
+        "ORDER BY swimmer_name",
+        (comp_id,),
+    ).fetchall()
+    return [r["swimmer_name"] for r in rows]
+
+
+def set_watched(conn: sqlite3.Connection, comp_id: int, swimmer_names: list[str]) -> None:
+    """Reemplaza el conjunto de nadadores seguidos del campeonato."""
+    conn.execute("DELETE FROM competition_watch WHERE competition_id = ?", (comp_id,))
+    conn.executemany(
+        "INSERT OR IGNORE INTO competition_watch (competition_id, swimmer_name) "
+        "VALUES (?, ?)",
+        [(comp_id, n) for n in swimmer_names],
+    )
+    conn.commit()
+
+
+def watched_schedule(conn: sqlite3.Connection, comp_id: int) -> list[sqlite3.Row]:
+    """Cronograma solo de las inscripciones de los nadadores seguidos."""
+    return conn.execute(
+        """SELECT e.* FROM competition_entry e
+           JOIN competition_watch w
+             ON w.competition_id = e.competition_id AND w.swimmer_name = e.swimmer_name
+           WHERE e.competition_id = ?
+           ORDER BY session_date IS NULL, session_date,
+                    start_time IS NULL, start_time, event_number, heat, lane""",
+        (comp_id,),
     ).fetchall()
 
 

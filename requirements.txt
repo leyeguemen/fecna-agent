@@ -1,5 +1,5 @@
 requests>=2.31
-streamlit>=1.30
+streamlit>=1.37
 pandas>=2.0
 # chromadb >= 1.5: sus archivos _pb2 son compatibles con protobuf moderno (5/6).
 chromadb>=1.5,<2

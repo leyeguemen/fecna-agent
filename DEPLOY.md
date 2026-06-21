@@ -33,7 +33,7 @@ Tu base original (`data/fecna.db`) no se toca y sigue ignorada por git. Solo
 
 ```bash
 git add -f data/fecna_public.db
-git add app.py pages/ requirements.txt packages.txt .gitignore DEPLOY.md fecna_agent/
+git add app.py pages/ requirements.txt packages.txt .gitignore DEPLOY.md README.md fecna_agent/
 git commit -m "Despliegue: base anonimizada y modo público"
 git push
 ```
@@ -98,6 +98,10 @@ Chromium de Playwright ya viene instalado.
 - `app.py` — host de navegación multipágina (menú con `st.navigation`); el
   código común (modo público `FECNA_PUBLIC`, base `FECNA_DB`, swap de sqlite,
   reconstrucción del índice) está en `fecna_agent/webui.py`.
+- `pages/programa.py` — pestaña Programa: carga del heat sheet (PDF) y
+  cronograma filtrable por club/nadador. Requiere `pdfplumber` (ya en
+  `requirements.txt`). Los programas cargados quedan en las tablas `competition`
+  y `competition_entry` de `fecna_public.db` (se generan al correr `anonymize`).
 
 ## Notas
 

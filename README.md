@@ -11,6 +11,7 @@ reportes públicos de FECNA/Ecoapplet. Ver especificación completa en
 - [x] Fase 3: Índice semántico (ChromaDB) + preguntas en lenguaje natural
 - [x] Fase 4: Interfaz Streamlit
 - [x] Fase 5: Agente IA local (Ollama)
+- [x] Fase 6: Programa de campeonato (heat sheet desde PDF)
 
 ## Instalación
 
@@ -47,9 +48,9 @@ python -m fecna_agent index     # indexa pruebas (con alias) y nadadores en Chro
 
 # 4. Interfaz web local (Streamlit, multipágina)
 streamlit run app.py
-# El menú lateral se genera desde los archivos de `pages/` (uno por sección).
-# Para administrarlo: agrega/renombra/reordena archivos en `pages/` (el prefijo
-# numérico define el orden). El código común está en `fecna_agent/webui.py`.
+# Páginas disponibles: Inicio, Pregunta, Ranking, Comparar, Rankings del nadador,
+# Ficha, Programa, Novedades.
+# El código común está en `fecna_agent/webui.py`.
 # Secciones ocultas: en `disabled_pages/` (muévelas a `pages/` para activarlas).
 
 # 5. Preguntas en lenguaje natural (CLI)
@@ -102,6 +103,25 @@ SQLite guarda y calcula.
 ChromaDB encuentra contexto.   (fase 3)
 Python compara.
 El LLM explica.                (fase 5)
+```
+
+## Programa de campeonato (Fase 6)
+
+La pestaña **📋 Programa** permite cargar el heat sheet (PDF) de un campeonato
+y ver, filtrado por club o nadador, qué pruebas debe presentar y a qué hora.
+
+- Soporta dos formatos habituales en Colombia:
+  - **HY-TEK MEET MANAGER** (nacionales): `Event 1 Women 10 Year Olds 200 LC Meter IM`
+  - **Colombia Acuática / Web Service** (ligas): `67 (M) 11Y - 12Y - 13Y | M`
+- Cruza nadadores por nombre normalizado con la base local (los códigos de club
+  del PDF son abreviaciones de 4 letras que no coinciden con los nombres completos).
+- Los relevos se omiten (no hay ranking individual).
+- **Detección de cambios**: si se recarga el mismo PDF sin modificaciones, la
+  base no se actualiza (huella SHA-1 del contenido, independiente del orden).
+
+```bash
+# Abrir la app y subir el PDF desde la pestaña "Programa"
+streamlit run app.py
 ```
 
 ## Features por hacer

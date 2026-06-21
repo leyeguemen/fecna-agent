@@ -102,7 +102,8 @@ records = []
 for r in rows:
     seed = ms_to_time(r["seed_ms"])[3:] if r["seed_ms"] else "—"
     records.append({
-        "Jornada": r["session_date"] or "—",
+        "Fecha": r["session_date"] or "—",
+        "Jornada": r["session_no"] if r["session_no"] is not None else "—",
         "Hora": r["start_time"] or "—",
         "Nº": r["event_number"],
         "Prueba": r["event_label"] or "—",

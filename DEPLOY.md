@@ -109,6 +109,9 @@ Chromium de Playwright ya viene instalado.
   determinísticas.
 - El sistema de archivos de la nube es efímero: la fuente de verdad es el
   `data/fecna_public.db` del repo.
+- Si activas `FECNA_AUTH`, las cuentas se guardan en SQLite y **no sobreviven a
+  un redeploy** (disco efímero). Persistirlas requiere una base externa — ver
+  `docs/features/persistencia-programa-despliegue.md` (mismo pendiente).
 
 ## Alternativa: Hugging Face Spaces
 

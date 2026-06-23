@@ -124,6 +124,22 @@ y ver, filtrado por club o nadador, qué pruebas debe presentar y a qué hora.
 streamlit run app.py
 ```
 
+## Acceso (login y registro)
+
+Opcional. La app pide login solo si activas `FECNA_AUTH`:
+
+```bash
+FECNA_AUTH=1 FECNA_ADMIN_EMAIL="tu@correo.com" streamlit run app.py
+```
+
+- Registro y login con email + contraseña (hash pbkdf2, sin dependencias extra).
+- `FECNA_ADMIN_EMAIL` (lista separada por comas) define quién es **admin**; el
+  resto son usuarios normales. Solo admin carga/borra programas y sincroniza.
+- Sin `FECNA_AUTH`, la app funciona sin login (modo local de siempre).
+- Las cuentas viven en `data/fecna.db` (no se publican). **Pendiente (Fase 2):**
+  datos por usuario, sesión con cookie y persistencia en la nube — ver
+  `docs/superpowers/specs/2026-06-21-login-registro-usuario-design.md`.
+
 ## Features por hacer
 
 - **Suscripción de pago para descargar la ficha** — ver

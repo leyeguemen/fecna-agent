@@ -31,6 +31,10 @@ from fecna_agent import webui
 # Barra lateral común (estadísticas + controles). Antes de st.navigation.
 webui.bootstrap()
 
+# Candado de acceso: si FECNA_AUTH está activo y no hay sesión, muestra el
+# formulario de acceso y detiene el render del resto de la app.
+webui.require_auth()
+
 PAGINAS = [
     st.Page("pages/inicio.py", title="Inicio", icon="🏊", default=True),
     st.Page("pages/pregunta.py", title="Pregunta", icon="💬"),

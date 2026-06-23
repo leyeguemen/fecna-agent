@@ -41,53 +41,54 @@ def _parse_uploaded(uploaded):
                             prog_entries=entries, prog_stats=stats)
 
 
-with st.expander("➕ Cargar un nuevo programa (PDF)", expanded=False):
-    uploaded = st.file_uploader("Programa del campeonato (PDF)", type=["pdf"])
-    if uploaded is not None:
-        try:
-            _parse_uploaded(uploaded)
-        except ModuleNotFoundError:
-            st.error("Falta la dependencia `pdfplumber`. Instálala: "
-                     "pip install pdfplumber")
-            st.stop()
-        except Exception as exc:
-            st.error(f"No pude leer el PDF: {exc}")
-            st.stop()
+if webui.is_admin():
+    with st.expander("➕ Cargar un nuevo programa (PDF)", expanded=False):
+        uploaded = st.file_uploader("Programa del campeonato (PDF)", type=["pdf"])
+        if uploaded is not None:
+            try:
+                _parse_uploaded(uploaded)
+            except ModuleNotFoundError:
+                st.error("Falta la dependencia `pdfplumber`. Instálala: "
+                         "pip install pdfplumber")
+                st.stop()
+            except Exception as exc:
+                st.error(f"No pude leer el PDF: {exc}")
+                st.stop()
 
-        competition = st.session_state["prog_comp"]
-        entries = st.session_state["prog_entries"]
-        stats = st.session_state["prog_stats"]
-        if not entries:
-            st.warning("No se reconocieron inscripciones en el PDF. "
-                       "¿Es un programa con texto (no escaneado)?")
-        else:
-            st.success(f"{len(entries)} inscripciones · "
-                       f"{stats['matched']} nadadores cruzados con la base"
-                       + (f" · {stats['ambiguous']} homónimos sin cruzar"
-                          if stats["ambiguous"] else ""))
-            name = st.text_input("Nombre del campeonato",
-                                 value=competition.get("name") or "")
-            pool = st.selectbox(
-                "Piscina", ["LC", "SC"],
-                index=0 if (competition.get("pool_type") or "LC") == "LC" else 1,
-            )
-            if st.button("💾 Guardar programa", type="primary", disabled=not name):
-                competition["name"] = name
-                competition["pool_type"] = pool
-                result = database.save_competition(conn, competition, entries)
-                msg = {
-                    "created": "Programa guardado.",
-                    "updated": "Había cambios: programa actualizado.",
-                    "unchanged": "Sin cambios: la programación ya estaba al día.",
-                }[result["status"]]
-                if result["status"] == "unchanged":
-                    st.info(msg)
-                else:
-                    # Limpia el parseo cacheado y refresca para mostrarlo guardado.
-                    for k in ("prog_key", "prog_comp", "prog_entries", "prog_stats"):
-                        st.session_state.pop(k, None)
-                    st.success(msg)
-                    st.rerun()
+            competition = st.session_state["prog_comp"]
+            entries = st.session_state["prog_entries"]
+            stats = st.session_state["prog_stats"]
+            if not entries:
+                st.warning("No se reconocieron inscripciones en el PDF. "
+                           "¿Es un programa con texto (no escaneado)?")
+            else:
+                st.success(f"{len(entries)} inscripciones · "
+                           f"{stats['matched']} nadadores cruzados con la base"
+                           + (f" · {stats['ambiguous']} homónimos sin cruzar"
+                              if stats["ambiguous"] else ""))
+                name = st.text_input("Nombre del campeonato",
+                                     value=competition.get("name") or "")
+                pool = st.selectbox(
+                    "Piscina", ["LC", "SC"],
+                    index=0 if (competition.get("pool_type") or "LC") == "LC" else 1,
+                )
+                if st.button("💾 Guardar programa", type="primary", disabled=not name):
+                    competition["name"] = name
+                    competition["pool_type"] = pool
+                    result = database.save_competition(conn, competition, entries)
+                    msg = {
+                        "created": "Programa guardado.",
+                        "updated": "Había cambios: programa actualizado.",
+                        "unchanged": "Sin cambios: la programación ya estaba al día.",
+                    }[result["status"]]
+                    if result["status"] == "unchanged":
+                        st.info(msg)
+                    else:
+                        # Limpia el parseo cacheado y refresca para mostrarlo guardado.
+                        for k in ("prog_key", "prog_comp", "prog_entries", "prog_stats"):
+                            st.session_state.pop(k, None)
+                        st.success(msg)
+                        st.rerun()
 
 # --- Seleccionar un programa guardado -----------------------------------------
 competitions = database.list_competitions(conn)
@@ -129,7 +130,7 @@ swim_labels = {"— Todos —": None} | {f"{n} ({c})": n for n, c in swimmers}
 swim_pick = col_b.selectbox("Nadador", list(swim_labels.keys()))
 swimmer = swim_labels[swim_pick]
 
-if not webui.PUBLIC and col_c.button("🗑️", help="Eliminar este programa"):
+if webui.is_admin() and col_c.button("🗑️", help="Eliminar este programa"):
     database.delete_competition(conn, comp_id)
     st.rerun()
 

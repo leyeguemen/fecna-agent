@@ -31,8 +31,10 @@ aparte).
 4. Candado de la app: `webui.require_auth()` llamado en `app.py` antes de
    `st.navigation`. Si `FECNA_AUTH=1` y no hay sesión → muestra login/registro y
    `st.stop()`.
-5. Rol `admin`/`user`. El primer usuario registrado, o el email en
-   `FECNA_ADMIN_EMAIL`, queda como `admin`.
+5. Rol `admin`/`user`. El rol `admin` se asigna **solo** a los emails listados
+   en `FECNA_ADMIN_EMAIL` (uno o varios, separados por coma); el resto son
+   `user`. Se descarta "primer usuario = admin" por el riesgo de que un
+   desconocido se registre primero en un despliegue público.
 6. Botón "Cerrar sesión" en la barra lateral.
 7. Las acciones sensibles (cargar/borrar programa, sincronizar) pasan a requerir
    rol **admin**. En Fase 1 los **programas siguen siendo compartidos**: cualquier
@@ -78,8 +80,9 @@ Funciones puras, sin Streamlit, testeables de forma aislada:
 - `verify_password(password, hash_hex, salt_hex) -> bool`: comparación en tiempo
   constante con `hmac.compare_digest`.
 - `normalize_email(email) -> str`.
-- `valid_email(email) -> bool` y `valid_password(password) -> str|None` (regla
-  mínima: ≥ 8 caracteres; devuelve mensaje de error o None).
+- `valid_email(email) -> bool` y `valid_password(password) -> str|None` (regla:
+  ≥ 8 caracteres, con al menos una letra y un dígito; devuelve mensaje de error
+  o None).
 
 ### `fecna_agent/db.py` (funciones nuevas)
 - `create_user(conn, email, password, role='user') -> dict`: valida unicidad,
@@ -87,9 +90,10 @@ Funciones puras, sin Streamlit, testeables de forma aislada:
 - `get_user_by_email(conn, email) -> Row|None`.
 - `authenticate(conn, email, password) -> Row|None`: busca, verifica hash,
   exige `active=1`.
-- `count_users(conn) -> int`: para decidir si el registro es el primer usuario
-  (→ admin).
 - `set_role(conn, user_id, role)` (utilitario para administración futura).
+
+El rol al crear se decide así: si el email (normalizado) está en la lista de
+`FECNA_ADMIN_EMAIL` ⇒ `admin`; si no ⇒ `user`.
 
 ### `fecna_agent/webui.py`
 - `current_user() -> Row|None`: lee `st.session_state['auth_user']`.
@@ -104,7 +108,7 @@ Dos pestañas: **Iniciar sesión** y **Registrarse**.
 - Login: email + password → `db.authenticate` → si ok, guarda el usuario en
   `session_state` y `st.rerun()`; si no, error.
 - Registro: email + password + confirmación → valida → `db.create_user`
-  (el primer usuario o `FECNA_ADMIN_EMAIL` ⇒ admin) → inicia sesión.
+  (admin si el email está en `FECNA_ADMIN_EMAIL`) → inicia sesión.
 
 ### `app.py`
 Tras `webui.bootstrap()` y antes de construir/`run` la navegación:
@@ -138,8 +142,9 @@ Unidad (sin Streamlit), en `tests/test_auth.py`:
 - `create_user` + `authenticate` (caso ok, contraseña errada, email inexistente,
   inactivo).
 - email duplicado rechazado.
-- primer usuario obtiene rol admin; los siguientes, user.
-- `normalize_email`/`valid_email`/`valid_password` casos borde.
+- email en `FECNA_ADMIN_EMAIL` obtiene rol admin; los demás, user.
+- `normalize_email`/`valid_email`/`valid_password` casos borde (incluida la
+  regla de letra + dígito).
 
 ## Privacidad y secretos (CLAUDE.md)
 - Sin secretos reales en el repo. `FECNA_ADMIN_EMAIL` y `FECNA_AUTH` por

@@ -9,3 +9,7 @@ data/*
 __pycache__/
 *.pyc
 .pytest_cache/
+
+# Secretos locales de Streamlit (FECNA_AUTH, FECNA_ADMIN_EMAIL, etc.)
+.streamlit/secrets.toml
+secrets.toml

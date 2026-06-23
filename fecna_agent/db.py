@@ -706,21 +706,26 @@ def create_user(
     return dict(get_user_by_email(conn, email))
 
 
-def get_user_by_email(conn: sqlite3.Connection, email: str):
+def get_user_by_email(conn: sqlite3.Connection, email: str) -> sqlite3.Row | None:
     from . import auth
     return conn.execute(
         "SELECT * FROM app_user WHERE email = ?", (auth.normalize_email(email),)
     ).fetchone()
 
 
-def authenticate(conn: sqlite3.Connection, email: str, password: str):
-    """Devuelve el Row del usuario si las credenciales son válidas y está activo."""
+def authenticate(conn: sqlite3.Connection, email: str, password: str) -> sqlite3.Row | None:
+    """Devuelve el Row del usuario si las credenciales son válidas y está activo.
+
+    Si el usuario no existe o está inactivo, igualmente se ejecuta un hash de
+    descarte para que el tiempo de respuesta no revele qué emails existen
+    (evita enumeración de usuarios por temporización)."""
     from . import auth
     row = get_user_by_email(conn, email)
-    if not row or not row["active"]:
+    if row and row["active"]:
+        if auth.verify_password(password, row["password_hash"], row["salt"]):
+            return row
         return None
-    if auth.verify_password(password, row["password_hash"], row["salt"]):
-        return row
+    auth.hash_password(password)  # gasta el mismo costo de PBKDF2 que el camino normal
     return None
 
 

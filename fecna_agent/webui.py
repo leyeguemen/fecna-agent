@@ -70,6 +70,93 @@ def _public_mode() -> bool:
 PUBLIC = _public_mode()
 
 
+def _auth_mode() -> bool:
+    if os.environ.get("FECNA_AUTH"):
+        return True
+    try:
+        return bool(st.secrets.get("FECNA_AUTH", False))
+    except Exception:
+        return False
+
+
+AUTH = _auth_mode()
+
+
+def admin_emails() -> list[str]:
+    raw = os.environ.get("FECNA_ADMIN_EMAIL")
+    if not raw:
+        try:
+            raw = st.secrets.get("FECNA_ADMIN_EMAIL", "")
+        except Exception:
+            raw = ""
+    from . import auth
+    return auth.parse_admin_emails(raw)
+
+
+def current_user():
+    """Usuario en sesión (dict) o None."""
+    return st.session_state.get("auth_user")
+
+
+def is_admin() -> bool:
+    """Sin candado, acceso total (modo local). Con candado, solo rol admin."""
+    if not AUTH:
+        return True
+    user = current_user()
+    return bool(user and user.get("role") == "admin")
+
+
+def logout() -> None:
+    st.session_state.pop("auth_user", None)
+    st.rerun()
+
+
+def render_login_register(conn) -> None:
+    """Formularios de inicio de sesión y registro (pestañas)."""
+    from . import auth, db as database
+
+    st.title("🔐 Acceso")
+    tab_login, tab_reg = st.tabs(["Iniciar sesión", "Registrarse"])
+
+    with tab_login:
+        with st.form("login"):
+            email = st.text_input("Email")
+            pwd = st.text_input("Contraseña", type="password")
+            if st.form_submit_button("Entrar", type="primary"):
+                user = database.authenticate(conn, email, pwd)
+                if user:
+                    st.session_state["auth_user"] = dict(user)
+                    st.rerun()
+                else:
+                    st.error("Email o contraseña incorrectos.")
+
+    with tab_reg:
+        with st.form("registro"):
+            email = st.text_input("Email", key="reg_email")
+            pwd = st.text_input("Contraseña", type="password", key="reg_pwd")
+            pwd2 = st.text_input("Repite la contraseña", type="password", key="reg_pwd2")
+            if st.form_submit_button("Crear cuenta", type="primary"):
+                if pwd != pwd2:
+                    st.error("Las contraseñas no coinciden.")
+                else:
+                    try:
+                        role = auth.role_for(email, admin_emails())
+                        user = database.create_user(conn, email, pwd, role=role)
+                        st.session_state["auth_user"] = user
+                        st.success("Cuenta creada.")
+                        st.rerun()
+                    except ValueError as exc:
+                        st.error(str(exc))
+
+
+def require_auth() -> None:
+    """Si el candado está activo y no hay sesión, muestra el acceso y detiene."""
+    if not AUTH or current_user():
+        return
+    render_login_register(get_conn())
+    st.stop()
+
+
 def mask_id(swimmer_id) -> str:
     """Código pseudónimo estable, no reversible, para distinguir homónimos."""
     digest = hashlib.sha1(str(swimmer_id).encode()).hexdigest()[:5].upper()
@@ -251,8 +338,13 @@ def bootstrap():
     conn = get_conn()
     ensure_semantic_index()
 
-    if not PUBLIC:
-        with st.sidebar:
+    with st.sidebar:
+        user = current_user()
+        if AUTH and user:
+            st.caption(f"👤 {user['email']}")
+            if st.button("Cerrar sesión"):
+                logout()
+        if not PUBLIC and is_admin():
             admin_controls(conn)
 
 

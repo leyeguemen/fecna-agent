@@ -50,6 +50,18 @@ git push
    FECNA_DB = "data/fecna_public.db"
    ```
 
+   Para **exigir login** (candado total: nadie ve la app sin registrarse),
+   añade además:
+
+   ```toml
+   FECNA_AUTH = "1"
+   FECNA_ADMIN_EMAIL = "tu@correo.com"   # uno o varios, separados por coma
+   ```
+
+   Advertencia: con el disco efímero de la nube, **las cuentas se borran en cada
+   redeploy** (todos deben volver a registrarse) hasta resolver la persistencia
+   externa — ver `docs/features/persistencia-programa-despliegue.md`.
+
 4. "Deploy" (la primera vez tarda unos minutos instalando dependencias).
 
 ### 4. Listo

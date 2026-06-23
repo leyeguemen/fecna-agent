@@ -21,3 +21,16 @@ def test_is_admin_con_auth_y_rol(monkeypatch):
     assert webui.is_admin() is True
     monkeypatch.setattr(webui, "current_user", lambda: {"role": "user"})
     assert webui.is_admin() is False
+
+
+def test_needs_login(monkeypatch):
+    # Sin candado: nunca pide login.
+    monkeypatch.setattr(webui, "AUTH", False)
+    monkeypatch.setattr(webui, "current_user", lambda: None)
+    assert webui.needs_login() is False
+    # Con candado y sin sesión: pide login.
+    monkeypatch.setattr(webui, "AUTH", True)
+    assert webui.needs_login() is True
+    # Con candado y con sesión: no pide login.
+    monkeypatch.setattr(webui, "current_user", lambda: {"role": "user"})
+    assert webui.needs_login() is False

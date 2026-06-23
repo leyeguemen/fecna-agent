@@ -31,10 +31,6 @@ from fecna_agent import webui
 # Barra lateral común (estadísticas + controles). Antes de st.navigation.
 webui.bootstrap()
 
-# Candado de acceso: si FECNA_AUTH está activo y no hay sesión, muestra el
-# formulario de acceso y detiene el render del resto de la app.
-webui.require_auth()
-
 PAGINAS = [
     st.Page("pages/inicio.py", title="Inicio", icon="🏊", default=True),
     st.Page("pages/pregunta.py", title="Pregunta", icon="💬"),
@@ -50,4 +46,11 @@ PAGINAS = [
     # st.Page("pages/evolucion.py", title="Evolución", icon="📈"),
 ]
 
-st.navigation(PAGINAS).run()
+# Candado de acceso: cuando el login está activo y no hay sesión, la ÚNICA
+# página disponible es Acceso. Es clave que `st.navigation` se ejecute siempre
+# (no usar st.stop antes): si no, Streamlit muestra la navegación automática de
+# `pages/` y esas páginas quedan accesibles por URL, saltándose el candado.
+if webui.needs_login():
+    st.navigation([st.Page(webui.login_page, title="Acceso", icon="🔐")]).run()
+else:
+    st.navigation(PAGINAS).run()

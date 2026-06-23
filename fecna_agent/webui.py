@@ -149,12 +149,14 @@ def render_login_register(conn) -> None:
                         st.error(str(exc))
 
 
-def require_auth() -> None:
-    """Si el candado está activo y no hay sesión, muestra el acceso y detiene."""
-    if not AUTH or current_user():
-        return
+def needs_login() -> bool:
+    """True si el candado está activo y no hay sesión iniciada."""
+    return AUTH and not current_user()
+
+
+def login_page() -> None:
+    """Página de acceso para `st.navigation` (login + registro)."""
     render_login_register(get_conn())
-    st.stop()
 
 
 def mask_id(swimmer_id) -> str:

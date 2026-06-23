@@ -104,6 +104,16 @@ CREATE TABLE IF NOT EXISTS competition_watch (
   PRIMARY KEY (competition_id, swimmer_name),
   FOREIGN KEY (competition_id) REFERENCES competition (id) ON DELETE CASCADE
 );
+
+CREATE TABLE IF NOT EXISTS app_user (
+  id            INTEGER PRIMARY KEY AUTOINCREMENT,
+  email         TEXT NOT NULL UNIQUE,
+  password_hash TEXT NOT NULL,
+  salt          TEXT NOT NULL,
+  role          TEXT NOT NULL DEFAULT 'user',
+  active        INTEGER NOT NULL DEFAULT 1,
+  created_at    TIMESTAMP
+);
 """
 
 ENTRY_COLUMNS = [
@@ -665,6 +675,58 @@ def watched_schedule(conn: sqlite3.Connection, comp_id: int) -> list[sqlite3.Row
                     start_time IS NULL, start_time, event_number, heat, lane""",
         (comp_id,),
     ).fetchall()
+
+
+def create_user(
+    conn: sqlite3.Connection, email: str, password: str, role: str = "user"
+) -> dict:
+    """Crea un usuario (valida email/contraseña/unicidad). Devuelve el registro.
+
+    Lanza ValueError con mensaje en español si algo no cumple."""
+    from datetime import datetime
+
+    from . import auth
+
+    email = auth.normalize_email(email)
+    if not auth.valid_email(email):
+        raise ValueError("Email inválido.")
+    err = auth.valid_password(password)
+    if err:
+        raise ValueError(err)
+    if get_user_by_email(conn, email) is not None:
+        raise ValueError("Ese email ya está registrado.")
+    hash_hex, salt_hex = auth.hash_password(password)
+    conn.execute(
+        """INSERT INTO app_user (email, password_hash, salt, role, active, created_at)
+           VALUES (?, ?, ?, ?, 1, ?)""",
+        (email, hash_hex, salt_hex, role,
+         datetime.now().isoformat(timespec="seconds")),
+    )
+    conn.commit()
+    return dict(get_user_by_email(conn, email))
+
+
+def get_user_by_email(conn: sqlite3.Connection, email: str):
+    from . import auth
+    return conn.execute(
+        "SELECT * FROM app_user WHERE email = ?", (auth.normalize_email(email),)
+    ).fetchone()
+
+
+def authenticate(conn: sqlite3.Connection, email: str, password: str):
+    """Devuelve el Row del usuario si las credenciales son válidas y está activo."""
+    from . import auth
+    row = get_user_by_email(conn, email)
+    if not row or not row["active"]:
+        return None
+    if auth.verify_password(password, row["password_hash"], row["salt"]):
+        return row
+    return None
+
+
+def set_role(conn: sqlite3.Connection, user_id: int, role: str) -> None:
+    conn.execute("UPDATE app_user SET role = ? WHERE id = ?", (role, user_id))
+    conn.commit()
 
 
 def swimmer_profile(

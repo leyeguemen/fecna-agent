@@ -41,8 +41,9 @@ git push
 ### 3. Desplegar en Streamlit Community Cloud
 
 1. Entra a https://share.streamlit.io e inicia sesión con GitHub.
-2. "Create app" → desde el repo `leyeguemen/fecna-agent`, rama `main`,
-   archivo `app.py`.
+2. "Create app" → desde el repo `leyeguemen/fecna-agent`, rama **`develop`**,
+   archivo `app.py`. (La app desplegada sigue `develop`, no `main`: las nuevas
+   funciones llegan al desplegado al hacer push a `develop`.)
 3. En **Advanced settings → Secrets**, pega:
 
    ```toml
@@ -80,7 +81,8 @@ python -m fecna_agent anonymize        # regenera data/fecna_public.db
 git add -f data/fecna_public.db && git commit -m "Datos actualizados" && git push
 ```
 
-Streamlit redespliega solo al detectar el push.
+Streamlit redespliega solo al detectar el push **a `develop`** (la rama que
+sigue la app). Haz los commits sobre `develop`.
 
 ## Descarga de la ficha en PNG/PDF (Playwright)
 

@@ -130,6 +130,10 @@ streamlit run app.py
   [docs/features/suscripcion-descarga-ficha.md](docs/features/suscripcion-descarga-ficha.md)
   (login + pasarela colombiana + candado en la pestaña Ficha; decisiones y
   advertencias legales pendientes).
+- **Persistir el programa entre despliegues** — ver
+  [docs/features/persistencia-programa-despliegue.md](docs/features/persistencia-programa-despliegue.md)
+  (el disco de Streamlit Cloud es efímero; opciones: solo local, base externa
+  privada o versionar; pendiente por la privacidad de datos de menores).
 
 ## Pendientes técnicos
 

@@ -46,11 +46,20 @@ PAGINAS = [
     # st.Page("pages/evolucion.py", title="Evolución", icon="📈"),
 ]
 
+PAGINAS_USUARIO = [
+    st.Page("pages/rankings_nadador.py", title="Rankings del nadador", icon="🎖️", default=True),
+    st.Page("pages/ficha.py", title="Ficha", icon="🪪"),
+    st.Page("pages/programa.py", title="Programa", icon="📋"),
+    st.Page("pages/alertas.py", title="Alertas", icon="🔔"),
+]
+
 # Candado de acceso: cuando el login está activo y no hay sesión, la ÚNICA
 # página disponible es Acceso. Es clave que `st.navigation` se ejecute siempre
 # (no usar st.stop antes): si no, Streamlit muestra la navegación automática de
 # `pages/` y esas páginas quedan accesibles por URL, saltándose el candado.
 if webui.needs_login():
     st.navigation([st.Page(webui.login_page, title="Acceso", icon="🔐")]).run()
+elif webui.AUTH and not webui.is_admin():
+    st.navigation(PAGINAS_USUARIO).run()
 else:
     st.navigation(PAGINAS).run()

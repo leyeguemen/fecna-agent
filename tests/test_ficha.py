@@ -70,7 +70,11 @@ def _browser_disponible() -> bool:
 
         from playwright.sync_api import sync_playwright
         with sync_playwright() as p:
-            return pathlib.Path(p.chromium.executable_path).exists()
+            if not pathlib.Path(p.chromium.executable_path).exists():
+                return False
+            browser = p.chromium.launch(args=["--no-sandbox"])
+            browser.close()
+            return True
     except Exception:
         return False
 

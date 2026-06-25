@@ -27,6 +27,7 @@ import datetime as dt
 import hashlib
 import os
 import re
+from html import escape
 
 import pandas as pd
 import streamlit as st
@@ -98,6 +99,12 @@ def current_user():
     return st.session_state.get("auth_user")
 
 
+def current_user_id() -> int:
+    """Id del usuario actual; 0 representa el modo local sin autenticación."""
+    user = current_user()
+    return int(user["id"]) if user and user.get("id") is not None else 0
+
+
 def is_admin() -> bool:
     """Sin candado, acceso total (modo local). Con candado, solo rol admin."""
     if not AUTH:
@@ -111,14 +118,53 @@ def logout() -> None:
     st.rerun()
 
 
+def _auth_switch(prompt: str, label: str, target: str, key: str) -> None:
+    st.markdown(
+        f"<div style='text-align:center;margin-top:.75rem'>{prompt}</div>",
+        unsafe_allow_html=True,
+    )
+    left, center, right = st.columns([1, 1, 1])
+    with center:
+        if st.button(label, key=key, type="tertiary", use_container_width=True):
+            st.query_params["auth"] = target
+            st.rerun()
+
+
 def render_login_register(conn) -> None:
-    """Formularios de inicio de sesión y registro (pestañas)."""
+    """Formularios de acceso. Inicia en login; registro queda tras enlace."""
     from . import auth, db as database
 
-    st.title("🔐 Acceso")
-    tab_login, tab_reg = st.tabs(["Iniciar sesión", "Registrarse"])
+    view = st.query_params.get("auth", "login")
+    if isinstance(view, list):
+        view = view[0] if view else "login"
 
-    with tab_login:
+    _, access_col, _ = st.columns([1, 1.1, 1])
+    with access_col:
+        st.title("🔐 Acceso")
+
+        if view == "register":
+            st.subheader("Crear cuenta")
+            with st.form("registro"):
+                email = st.text_input("Email", key="reg_email")
+                pwd = st.text_input("Contraseña", type="password", key="reg_pwd")
+                pwd2 = st.text_input("Repite la contraseña", type="password", key="reg_pwd2")
+                if st.form_submit_button("Crear cuenta", type="primary"):
+                    if pwd != pwd2:
+                        st.error("Las contraseñas no coinciden.")
+                    else:
+                        try:
+                            role = auth.role_for(email, admin_emails())
+                            user = database.create_user(conn, email, pwd, role=role)
+                            st.session_state["auth_user"] = user
+                            st.query_params.clear()
+                            st.success("Cuenta creada.")
+                            st.rerun()
+                        except ValueError as exc:
+                            st.error(str(exc))
+            _auth_switch("¿Ya tienes cuenta?", "Inicia sesión", "login", "auth_login")
+            return
+
+        st.subheader("Iniciar sesión")
         with st.form("login"):
             email = st.text_input("Email")
             pwd = st.text_input("Contraseña", type="password")
@@ -126,27 +172,11 @@ def render_login_register(conn) -> None:
                 user = database.authenticate(conn, email, pwd)
                 if user:
                     st.session_state["auth_user"] = dict(user)
+                    st.query_params.clear()
                     st.rerun()
                 else:
                     st.error("Email o contraseña incorrectos.")
-
-    with tab_reg:
-        with st.form("registro"):
-            email = st.text_input("Email", key="reg_email")
-            pwd = st.text_input("Contraseña", type="password", key="reg_pwd")
-            pwd2 = st.text_input("Repite la contraseña", type="password", key="reg_pwd2")
-            if st.form_submit_button("Crear cuenta", type="primary"):
-                if pwd != pwd2:
-                    st.error("Las contraseñas no coinciden.")
-                else:
-                    try:
-                        role = auth.role_for(email, admin_emails())
-                        user = database.create_user(conn, email, pwd, role=role)
-                        st.session_state["auth_user"] = user
-                        st.success("Cuenta creada.")
-                        st.rerun()
-                    except ValueError as exc:
-                        st.error(str(exc))
+        _auth_switch("¿No tienes cuenta?", "Regístrate", "register", "auth_register")
 
 
 def needs_login() -> bool:
@@ -254,6 +284,196 @@ def history_df(conn, swimmer_id, event_id, pool, date_from=None, date_to=None):
     return df
 
 
+def _entry_dt(row):
+    if not row["session_date"] or not row["start_time"]:
+        return None
+    try:
+        return dt.datetime.fromisoformat(f"{row['session_date']}T{row['start_time']}")
+    except ValueError:
+        return None
+
+
+def _relative_time(entry_dt: dt.datetime | None, now: dt.datetime) -> str:
+    if entry_dt is None:
+        return "horario pendiente"
+    if entry_dt < now:
+        return "ya pasó"
+    mins = int((entry_dt - now).total_seconds() // 60)
+    if mins < 60:
+        return f"faltan {mins} min"
+    hours, mins = divmod(mins, 60)
+    if hours < 24:
+        return f"faltan {hours} h {mins} min"
+    return f"faltan {hours // 24} d"
+
+
+def _alert_items(conn, user_id: int, limit: int = 8) -> list[dict]:
+    now = dt.datetime.now()
+    items = []
+    for comp in database.list_competitions(conn):
+        for row in database.watched_schedule(conn, comp["id"], user_id):
+            when = _entry_dt(row)
+            items.append({
+                "id": row["id"],
+                "swimmer": row["swimmer_name"],
+                "event": row["event_label"] or "Prueba sin nombre",
+                "time": row["start_time"] or "—",
+                "date": row["session_date"] or "Fecha por confirmar",
+                "heat": row["heat"] if row["heat"] is not None else "—",
+                "lane": row["lane"] if row["lane"] is not None else "—",
+                "competition": comp["name"],
+                "when": when,
+                "relative": _relative_time(when, now),
+            })
+    items.sort(key=lambda item: (item["when"] is None, item["when"] or dt.datetime.max))
+    return items[:limit]
+
+
+def render_alert_bell(conn) -> None:
+    """Campana global con lista flotante de próximas pruebas seguidas."""
+    if AUTH and not current_user():
+        return
+    items = _alert_items(conn, current_user_id())
+    count = len(items)
+    st.markdown(
+        """<style>
+.st-key-global_alert_bell {
+          position: fixed;
+          top: 16px;
+          right: 86px;
+          z-index: 999999;
+          width: auto !important;
+}
+.st-key-global_alert_bell button {
+          background: transparent !important;
+          border: 0 !important;
+          box-shadow: none !important;
+          color: #fff !important;
+          padding: 0.2rem 0.35rem !important;
+}
+.st-key-global_alert_bell button:hover {
+          background: rgba(255,255,255,.08) !important;
+}
+.fv-pop-title {
+          margin: 0 0 2px;
+          font-weight: 800;
+          font-size: 15px;
+          color: #f5f5f5;
+}
+.fv-pop-subtitle {
+          margin: 0 0 5px;
+          font-size: 12px;
+          color: #a8a8a8;
+}
+.fv-pop-item {
+          padding: 6px 0 6px;
+          border-top: 1px solid rgba(255,255,255,.10);
+}
+.fv-pop-item:first-of-type {
+          border-top: 0;
+}
+.fv-pop-row {
+          display: grid;
+          grid-template-columns: 28px minmax(0, 1fr);
+          align-items: flex-start;
+          gap: 9px;
+}
+.fv-pop-dot {
+          width: 28px;
+          height: 28px;
+          flex: 0 0 28px;
+          border-radius: 999px;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          background: linear-gradient(135deg, #0ea5e9, #14b8a6);
+          font-size: 13px;
+          font-weight: 800;
+          color: #fff;
+}
+.fv-pop-copy {
+          min-width: 0;
+          flex: 1;
+}
+.fv-pop-name {
+          font-size: 13px;
+          line-height: 1.18;
+          font-weight: 800;
+          color: #fff;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+}
+.fv-pop-event {
+          margin-top: 2px;
+          font-size: 12px;
+          line-height: 1.18;
+          color: #f1f1f1;
+          white-space: nowrap;
+          overflow: hidden;
+          text-overflow: ellipsis;
+}
+.fv-pop-meta {
+          margin-top: 4px;
+          font-size: 11px;
+          line-height: 1.25;
+          color: #ababab;
+}
+.st-key-global_alert_bell [data-testid="stPopoverBody"] {
+          padding: 9px 11px 8px !important;
+          width: 380px;
+}
+.st-key-global_alert_bell [data-testid="stButton"] button {
+          min-height: 0 !important;
+          padding: 0.12rem 0.42rem !important;
+          font-size: 11px !important;
+          border: 1px solid rgba(255,255,255,.18) !important;
+          border-radius: 6px !important;
+          background: rgba(255,255,255,.04) !important;
+}
+@media (max-width: 720px) {
+  .st-key-global_alert_bell { top: 14px; right: 54px; }
+  .st-key-global_alert_bell [data-testid="stPopoverBody"] { width: min(360px, calc(100vw - 24px)); }
+}
+</style>""",
+        unsafe_allow_html=True,
+    )
+    label = f"🔔 {count}" if count else "🔔"
+    with st.container(key="global_alert_bell"):
+        with st.popover(label):
+            st.markdown(
+                "<div class='fv-pop-title'>Notificaciones</div>"
+                "<div class='fv-pop-subtitle'>Próximas pruebas</div>",
+                unsafe_allow_html=True,
+            )
+            if not items:
+                st.info("No tienes alertas activas. Selecciona nadadores en Programa.")
+                return
+            for item in items:
+                cols = st.columns([1, 0.18], vertical_alignment="center")
+                with cols[0]:
+                    st.markdown(
+                        "<div class='fv-pop-item'>"
+                        "<div class='fv-pop-row'>"
+                        "<div class='fv-pop-dot'>🔔</div>"
+                        "<div class='fv-pop-copy'>"
+                        f"<div class='fv-pop-name'>{escape(item['swimmer'])}</div>"
+                        f"<div class='fv-pop-event'>{escape(item['event'])}</div>"
+                        f"<div class='fv-pop-meta'>{escape(item['relative'])} · "
+                        f"{escape(item['date'])} {escape(item['time'])} · "
+                        f"serie {escape(str(item['heat']))} carril {escape(str(item['lane']))}</div>"
+                        "</div>"
+                        "</div>"
+                        "</div>",
+                        unsafe_allow_html=True,
+                    )
+                with cols[1]:
+                    if st.button("..", key=f"alert_detail_{item['id']}", type="secondary"):
+                        st.session_state["alert_entry_id"] = item["id"]
+                        st.query_params["entry_id"] = str(item["id"])
+                        st.switch_page("pages/alertas.py")
+
+
 def admin_controls(conn):
     """Controles de extracción/sincronización. Ocultos en modo público para que
     la app desplegada sea de solo lectura."""
@@ -339,6 +559,7 @@ def bootstrap():
 
     conn = get_conn()
     ensure_semantic_index()
+    render_alert_bell(conn)
 
     with st.sidebar:
         user = current_user()

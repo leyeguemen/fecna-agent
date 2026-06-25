@@ -118,8 +118,86 @@ def test_save_competition_solo_actualiza_si_hay_cambios():
     assert len(db.list_competitions(conn)) == 1  # no duplica
 
 
+def test_alertas_quedan_aisladas_por_usuario():
+    from fecna_agent import db
+
+    conn = db.connect(":memory:")
+    comp, entries = programa.parse_text(HYTEK)
+    result = db.save_competition(conn, comp, entries)
+    comp_id = result["competition_id"]
+
+    db.set_watched(conn, comp_id, ["Aaron Daniel Camacho"], user_id=1)
+    db.set_watched(conn, comp_id, ["Luciana Sanchez Gutierrez"], user_id=2)
+
+    assert db.list_watched(conn, comp_id, user_id=1) == ["Aaron Daniel Camacho"]
+    assert db.list_watched(conn, comp_id, user_id=2) == ["Luciana Sanchez Gutierrez"]
+
+    rows_1 = db.watched_schedule(conn, comp_id, user_id=1)
+    rows_2 = db.watched_schedule(conn, comp_id, user_id=2)
+    assert {r["swimmer_name"] for r in rows_1} == {"Aaron Daniel Camacho"}
+    assert {r["swimmer_name"] for r in rows_2} == {"Luciana Sanchez Gutierrez"}
+
+    entry = db.watched_entry(conn, rows_1[0]["id"], user_id=1)
+    assert entry["swimmer_name"] == "Aaron Daniel Camacho"
+    assert entry["competition_name"] == comp["name"]
+    assert db.watched_entry(conn, rows_1[0]["id"], user_id=2) is None
+
+
+def test_migra_alertas_anteriores_a_modo_local(tmp_path):
+    import sqlite3
+
+    from fecna_agent import db
+
+    path = tmp_path / "old.db"
+    raw = sqlite3.connect(path)
+    raw.executescript(
+        """
+        CREATE TABLE competition_watch (
+          competition_id INTEGER NOT NULL,
+          swimmer_name TEXT NOT NULL,
+          PRIMARY KEY (competition_id, swimmer_name)
+        );
+        INSERT INTO competition_watch (competition_id, swimmer_name)
+        VALUES (7, 'Nadador Antiguo');
+        """
+    )
+    raw.close()
+
+    conn = db.connect(path)
+    rows = conn.execute(
+        "SELECT user_id, competition_id, swimmer_name FROM competition_watch"
+    ).fetchall()
+    assert [(r["user_id"], r["competition_id"], r["swimmer_name"]) for r in rows] == [
+        (0, 7, "Nadador Antiguo")
+    ]
+
+
 def _char(t, x):
-    return {"text": t, "x0": x}
+    return {"text": t, "x0": x, "x1": x + 5}
+
+
+def test_chars_to_line_reconstruye_espacios_por_posicion():
+    chars = [
+        {"text": "5", "x0": 0, "x1": 5},
+        {"text": "1", "x0": 14, "x1": 19},
+        {"text": "2", "x0": 20, "x1": 25},
+        {"text": "M", "x0": 26, "x1": 31},
+        {"text": "S", "x0": 40, "x1": 45},
+        {"text": "a", "x0": 46, "x1": 51},
+        {"text": "m", "x0": 52, "x1": 57},
+        {"text": "n", "x0": 84, "x1": 89},
+        {"text": "a", "x0": 90, "x1": 95},
+        {"text": "v", "x0": 96, "x1": 101},
+        {"text": "v", "x0": 102, "x1": 107},
+        {"text": "1", "x0": 118, "x1": 123},
+        {"text": ":", "x0": 124, "x1": 129},
+        {"text": "0", "x0": 130, "x1": 135},
+        {"text": "9", "x0": 136, "x1": 141},
+        {"text": ".", "x0": 142, "x1": 147},
+        {"text": "7", "x0": 148, "x1": 153},
+        {"text": "6", "x0": 154, "x1": 159},
+    ]
+    assert programa._chars_to_line(chars) == "5 12M Sam navv 1:09.76"
 
 
 def test_rebuild_line_separa_columnas_con_nombre_solapado():
@@ -167,3 +245,15 @@ def test_match_swimmers_por_nombre():
     assert stats["matched"] == 1
     aaron = next(e for e in entries if e["swimmer_name"] == "Aaron Daniel Camacho")
     assert aaron["swimmer_id"] == "123"
+
+
+def test_pdf_hytek_existente_sigue_parseando_bien():
+    comp, entries = programa.parse_pdf("data/programa_prueba.pdf.pdf")
+    assert comp["source_format"] == "hytek"
+    assert comp["pool_type"] == "LC"
+    assert len(entries) == 305
+    first = entries[0]
+    assert first["event_number"] == 1
+    assert first["event_label"] == "200 IM"
+    assert first["swimmer_name"] == "Luciana Sanchez Gutierrez"
+    assert first["club_code"] == "CDDQ"

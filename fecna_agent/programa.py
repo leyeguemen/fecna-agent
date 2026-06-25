@@ -267,7 +267,7 @@ def parse_pdf(source) -> tuple[dict, list[dict]]:
         full = "\n".join(pg.extract_text() or "" for pg in pdf.pages)
         if detect_format(full) == "hytek":
             return _parse_hytek(_hytek_lines(pdf))
-        return _parse_colombia(full.splitlines())
+        return _parse_colombia(_colombia_lines(pdf))
 
 
 # --- Reconstrucción posicional del PDF HY-TEK (dos columnas) ------------------
@@ -382,6 +382,52 @@ def _hytek_lines(pdf) -> list[str]:
             bounds = next((b for b in map(_column_bounds, ordered) if b), None)
             for line_chars in ordered:
                 out.append(_rebuild_line(line_chars, bounds))
+    return out
+
+
+def _chars_to_line(chars: list, gap: float = 1.5) -> str:
+    """Reconstruye una línea desde caracteres, agregando espacios por distancia x."""
+    chars = sorted(chars, key=lambda c: c["x0"])
+    out, prev = [], None
+    for c in chars:
+        if prev is not None and c["x0"] - prev["x1"] > gap:
+            out.append(" ")
+        out.append(c["text"])
+        prev = c
+    return re.sub(r"\s+", " ", "".join(out)).strip()
+
+
+def _positional_lines(page, bands: int = 3) -> list[str]:
+    """Líneas de una página por bandas verticales.
+
+    Algunos PDFs de Colombia Acuática imprimen dos o tres bloques horizontales.
+    `extract_text()` mezcla bloques que comparten la misma altura y convierte
+    media columna en parte del nombre. Leer por bandas preserva el flujo."""
+    out: list[str] = []
+    width = page.width / bands
+    for i in range(bands):
+        x0, x1 = i * width, (i + 1) * width
+        chars = [c for c in page.chars if x0 <= c["x0"] < x1]
+        grouped: dict[float, list] = {}
+        for c in sorted(chars, key=lambda c: (c["top"], c["x0"])):
+            key = next((k for k in grouped if abs(k - c["top"]) <= 2), None)
+            grouped.setdefault(c["top"] if key is None else key, []).append(c)
+        for top in sorted(grouped):
+            line = _chars_to_line(grouped[top])
+            if line:
+                out.append(line)
+    return out
+
+
+def _colombia_lines(pdf) -> list[str]:
+    """Aplana PDFs Colombia Acuática, separando columnas/bloques por posición."""
+    out: list[str] = []
+    for page in pdf.pages:
+        text_lines = [(page.extract_text() or "").splitlines()]
+        for line in text_lines[0]:
+            if "liga" in line.lower() or _CO_SESSION.search(line):
+                out.append(line.strip())
+        out.extend(_positional_lines(page, bands=3))
     return out
 
 

@@ -99,9 +99,10 @@ CREATE TABLE IF NOT EXISTS competition_entry (
 CREATE INDEX IF NOT EXISTS idx_entry_comp ON competition_entry (competition_id);
 
 CREATE TABLE IF NOT EXISTS competition_watch (
+  user_id INTEGER NOT NULL DEFAULT 0,
   competition_id INTEGER NOT NULL,
   swimmer_name TEXT NOT NULL,
-  PRIMARY KEY (competition_id, swimmer_name),
+  PRIMARY KEY (user_id, competition_id, swimmer_name),
   FOREIGN KEY (competition_id) REFERENCES competition (id) ON DELETE CASCADE
 );
 
@@ -145,6 +146,26 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition)")}
     if "content_hash" not in cols:
         conn.execute("ALTER TABLE competition ADD COLUMN content_hash TEXT")
+        conn.commit()
+
+    watch_cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition_watch)")}
+    if watch_cols and "user_id" not in watch_cols:
+        conn.execute("ALTER TABLE competition_watch RENAME TO competition_watch_old")
+        conn.execute(
+            """CREATE TABLE competition_watch (
+                 user_id INTEGER NOT NULL DEFAULT 0,
+                 competition_id INTEGER NOT NULL,
+                 swimmer_name TEXT NOT NULL,
+                 PRIMARY KEY (user_id, competition_id, swimmer_name),
+                 FOREIGN KEY (competition_id) REFERENCES competition (id) ON DELETE CASCADE
+               )"""
+        )
+        conn.execute(
+            """INSERT OR IGNORE INTO competition_watch
+               (user_id, competition_id, swimmer_name)
+               SELECT 0, competition_id, swimmer_name FROM competition_watch_old"""
+        )
+        conn.execute("DROP TABLE competition_watch_old")
         conn.commit()
 
 
@@ -595,6 +616,7 @@ def list_competitions(conn: sqlite3.Connection) -> list[sqlite3.Row]:
 
 
 def delete_competition(conn: sqlite3.Connection, comp_id: int) -> None:
+    conn.execute("DELETE FROM competition_watch WHERE competition_id = ?", (comp_id,))
     conn.execute("DELETE FROM competition_entry WHERE competition_id = ?", (comp_id,))
     conn.execute("DELETE FROM competition WHERE id = ?", (comp_id,))
     conn.commit()
@@ -643,38 +665,63 @@ def competition_schedule(
     ).fetchall()
 
 
-def list_watched(conn: sqlite3.Connection, comp_id: int) -> list[str]:
-    """Nombres de nadadores seguidos (con alerta) en un campeonato."""
+def list_watched(conn: sqlite3.Connection, comp_id: int, user_id: int = 0) -> list[str]:
+    """Nombres de nadadores seguidos por un usuario en un campeonato."""
     rows = conn.execute(
-        "SELECT swimmer_name FROM competition_watch WHERE competition_id = ? "
+        "SELECT swimmer_name FROM competition_watch WHERE competition_id = ? AND user_id = ? "
         "ORDER BY swimmer_name",
-        (comp_id,),
+        (comp_id, user_id),
     ).fetchall()
     return [r["swimmer_name"] for r in rows]
 
 
-def set_watched(conn: sqlite3.Connection, comp_id: int, swimmer_names: list[str]) -> None:
-    """Reemplaza el conjunto de nadadores seguidos del campeonato."""
-    conn.execute("DELETE FROM competition_watch WHERE competition_id = ?", (comp_id,))
+def set_watched(
+    conn: sqlite3.Connection,
+    comp_id: int,
+    swimmer_names: list[str],
+    user_id: int = 0,
+) -> None:
+    """Reemplaza los nadadores seguidos por un usuario en un campeonato."""
+    conn.execute(
+        "DELETE FROM competition_watch WHERE competition_id = ? AND user_id = ?",
+        (comp_id, user_id),
+    )
     conn.executemany(
-        "INSERT OR IGNORE INTO competition_watch (competition_id, swimmer_name) "
-        "VALUES (?, ?)",
-        [(comp_id, n) for n in swimmer_names],
+        "INSERT OR IGNORE INTO competition_watch (user_id, competition_id, swimmer_name) "
+        "VALUES (?, ?, ?)",
+        [(user_id, comp_id, n) for n in swimmer_names],
     )
     conn.commit()
 
 
-def watched_schedule(conn: sqlite3.Connection, comp_id: int) -> list[sqlite3.Row]:
-    """Cronograma solo de las inscripciones de los nadadores seguidos."""
+def watched_schedule(
+    conn: sqlite3.Connection, comp_id: int, user_id: int = 0
+) -> list[sqlite3.Row]:
+    """Cronograma de inscripciones de los nadadores seguidos por un usuario."""
     return conn.execute(
         """SELECT e.* FROM competition_entry e
            JOIN competition_watch w
              ON w.competition_id = e.competition_id AND w.swimmer_name = e.swimmer_name
-           WHERE e.competition_id = ?
+           WHERE e.competition_id = ? AND w.user_id = ?
            ORDER BY session_date IS NULL, session_date,
                     start_time IS NULL, start_time, event_number, heat, lane""",
-        (comp_id,),
+        (comp_id, user_id),
     ).fetchall()
+
+
+def watched_entry(
+    conn: sqlite3.Connection, entry_id: int, user_id: int = 0
+) -> sqlite3.Row | None:
+    """Detalle de una inscripción seguida por el usuario."""
+    return conn.execute(
+        """SELECT e.*, c.name AS competition_name, c.pool_type AS competition_pool
+           FROM competition_entry e
+           JOIN competition c ON c.id = e.competition_id
+           JOIN competition_watch w
+             ON w.competition_id = e.competition_id AND w.swimmer_name = e.swimmer_name
+           WHERE e.id = ? AND w.user_id = ?""",
+        (entry_id, user_id),
+    ).fetchone()
 
 
 def create_user(

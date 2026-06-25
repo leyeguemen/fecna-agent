@@ -21,6 +21,18 @@ source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
+Verificación rápida del entorno:
+
+```bash
+python3 --version
+python -m fecna_agent --help
+python -m pytest tests/ -q
+```
+
+Si no activas la `.venv`, en algunos sistemas `python` no existe o apunta a un
+intérprete sin dependencias (`pandas`, `streamlit`, etc.). En ese caso usa
+siempre `source .venv/bin/activate` antes de correr la app o la CLI.
+
 ## Uso
 
 ```bash
@@ -87,6 +99,42 @@ Notas:
 
 La base de datos se guarda en `data/fecna.db` (ignorada por git: contiene
 datos personales, incluyendo posibles menores — no publicar).
+
+La app Streamlit usa `data/fecna.db` cuando existe. Si no existe, intenta abrir
+`data/fecna_public.db` como respaldo de solo lectura/publicable. Para forzar una
+base concreta:
+
+```bash
+FECNA_DB=data/fecna_public.db streamlit run app.py
+```
+
+## Estabilización local
+
+Secuencia recomendada cuando el agente queda inconsistente por cambios de datos,
+catálogos o dependencias:
+
+```bash
+source .venv/bin/activate
+python -m fecna_agent catalog
+python -m fecna_agent sync --inicio 2026-06-01
+python -m fecna_agent recent --limit 50
+python -m fecna_agent index
+python -m pytest tests/ -q
+streamlit run app.py
+```
+
+Notas de diagnóstico:
+
+- Si `catalog` o `sync` abortan con error 415, “being verified” o varios errores
+  consecutivos, es bloqueo temporal de Ecoapplet. No borres la base: espera y
+  reintenta con `sync --inicio` reciente.
+- Si `ask` no identifica pruebas o nadadores por nombre, reconstruye el índice:
+  `python -m fecna_agent index`.
+- Si la ficha no descarga PNG/PDF, instala el navegador de Playwright:
+  `python -m playwright install chromium`. La app seguirá ofreciendo HTML si el
+  navegador no está disponible.
+- En despliegue público, actualiza datos localmente y publica solo
+  `data/fecna_public.db` generado con `python -m fecna_agent anonymize`.
 
 ## Pruebas
 

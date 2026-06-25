@@ -17,9 +17,14 @@ from fecna_agent import programa
 from fecna_agent.times import ms_to_time
 
 conn = webui.page_header("Programa", "📋")
+is_admin = webui.is_admin()
 
-st.caption("Carga el programa (PDF) de un campeonato y filtra por club o nadador "
-           "para ver qué pruebas debe presentar y a qué hora.")
+if is_admin:
+    st.caption("Carga el programa (PDF) de un campeonato y filtra por club o nadador "
+               "para ver qué pruebas debe presentar y a qué hora.")
+else:
+    st.caption("Consulta el programa cargado por el administrador y filtra por club "
+               "o nadador para ver pruebas, series, carriles y horarios.")
 
 # --- Cargar un nuevo programa -------------------------------------------------
 # El PDF se parsea UNA sola vez por archivo y el resultado se guarda en
@@ -41,7 +46,7 @@ def _parse_uploaded(uploaded):
                             prog_entries=entries, prog_stats=stats)
 
 
-if webui.is_admin():
+if is_admin:
     with st.expander("➕ Cargar un nuevo programa (PDF)", expanded=False):
         uploaded = st.file_uploader("Programa del campeonato (PDF)", type=["pdf"])
         if uploaded is not None:
@@ -93,7 +98,10 @@ if webui.is_admin():
 # --- Seleccionar un programa guardado -----------------------------------------
 competitions = database.list_competitions(conn)
 if not competitions:
-    st.info("Aún no hay programas cargados. Usa el panel de arriba para subir uno.")
+    if is_admin:
+        st.info("Aún no hay programas cargados. Usa el panel de arriba para subir uno.")
+    else:
+        st.info("Aún no hay programas cargados. Un administrador debe cargar el PDF primero.")
     st.stop()
 
 labels = {f"{c['name']}  ·  {c['entradas']} inscripciones": c["id"]
@@ -131,7 +139,7 @@ swim_labels = {"— Todos —": None} | {f"{n} ({c})": n for n, c in swimmers}
 swim_pick = col_b.selectbox("Nadador", list(swim_labels.keys()))
 swimmer = swim_labels[swim_pick]
 
-if webui.is_admin() and col_c.button("🗑️", help="Eliminar este programa"):
+if is_admin and col_c.button("🗑️", help="Eliminar este programa"):
     database.delete_competition(conn, comp_id)
     st.rerun()
 

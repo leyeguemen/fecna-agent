@@ -35,6 +35,22 @@ Heat # 2 ~ 17:53
 Program generated from the Web Service sistemas@ColombiaAcuatica.com
 """
 
+COLOMBIA_CODIGOS = """\
+TUSNAMI ENDURANCE TEAM
+Chequeo Departamental de Natación
+Session: 1 2026-Jun-27 Warm Up: 07:00 Start Competition: 08:00
+1 (F) INF AB 10Y-13Y | F
+50m Pecho/50m Breast
+Heat # 1
+1 Iaf Dulce Maria Gonzales Gonzales accv 1:05.36
+2 Ibf Gabriela Camacho Linares accv 56.56
+2 (M) INF AB 10Y-13Y | M
+50m Pecho/50m Breast
+Heat # 4
+1 Iam Juan Jose Villota Melo navv 51.32
+2 Ibm Cristobal Castrillon Aguirre estv 50.37
+"""
+
 
 def test_detecta_formato():
     assert programa.detect_format(HYTEK) == "hytek"
@@ -84,6 +100,21 @@ def test_colombia_parsea_jornada_hora_y_club():
     pavel = next(e for e in entries if e["swimmer_name"] == "Pavel Dueñas Salinas")
     assert pavel["heat"] == 2
     assert pavel["start_time"] == "17:53"
+
+
+def test_colombia_parsea_variante_con_codigos_de_categoria():
+    comp, entries = programa.parse_text(COLOMBIA_CODIGOS)
+    assert comp["source_format"] == "colombia"
+    assert comp["name"] == "TUSNAMI ENDURANCE TEAM"
+    assert len(entries) == 4
+    villota = next(e for e in entries if e["swimmer_name"] == "Juan Jose Villota Melo")
+    assert villota["event_number"] == 2
+    assert villota["event_label"] == "50 Pecho"
+    assert villota["heat"] == 4
+    assert villota["start_time"] is None
+    assert villota["club_code"] == "navv"
+    assert villota["age"] is None
+    assert villota["seed_raw"] == "51.32"
 
 
 def test_fingerprint_estable_e_independiente_del_orden():

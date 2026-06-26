@@ -167,9 +167,12 @@ def _parse_hytek(lines: list[str]) -> tuple[dict, list[dict]]:
 _CO_EVENT = re.compile(r"^(\d+)\s+\(([MFX])\)\s+(.+?)\s+\|\s+([MFX])\s*$")
 _CO_DIST = re.compile(r"^(\d+)\s*m\s+(.+?)(?:/.*)?$")
 _CO_SESSION = re.compile(r"Session:\s*(\d+)\s+(\d{4})-([A-Za-z]{3})-(\d{1,2})")
-_CO_HEAT = re.compile(r"Heat\s*#\s*(\d+)\s*~\s*(\d{1,2}:\d{2})")
+_CO_HEAT = re.compile(r"Heat\s*#\s*(\d+)(?:\s*~\s*(\d{1,2}:\d{2}))?")
 _CO_ENTRY = re.compile(
     r"^(\d{1,2})\s+(\d{1,2})([MF])\s+(.+?)\s+([a-z0-9&]{2,6})\s+(n\.t\.|[\d:]*\d\.\d{1,2})\s*$"
+)
+_CO_ENTRY_CODE = re.compile(
+    r"^(\d{1,2})\s+([A-Za-z]+)\s+(.+?)\s+([a-z0-9&]{2,6})\s+(n\.t\.|[\d:]*\d\.\d{1,2})\s*$"
 )
 
 
@@ -184,7 +187,10 @@ def _parse_colombia(lines: list[str]) -> tuple[dict, list[dict]]:
         line = raw_line.strip()
         if not line:
             continue
-        if competition["name"] is None and "liga" in line.lower():
+        if (competition["name"] is None and line and not line.startswith("Session:")
+                and not _CO_EVENT.match(line) and not _CO_DIST.match(line)
+                and not _CO_HEAT.search(line) and not line.startswith("R1:")
+                and not _CO_ENTRY.match(line) and not _CO_ENTRY_CODE.match(line)):
             competition["name"] = line
         m = _CO_SESSION.search(line)
         if m:
@@ -213,13 +219,21 @@ def _parse_colombia(lines: list[str]) -> tuple[dict, list[dict]]:
         m = _CO_HEAT.search(line)
         if m:
             heat = int(m.group(1))
-            start_time = _to_24h(m.group(2), None)
+            start_time = _to_24h(m.group(2), None) if m.group(2) else None
             continue
         if ev and ev.get("stroke") and ev["stroke"] != "relevo":
             m = _CO_ENTRY.match(line)
             if m:
                 lane, age, _g, name, club, seed = m.groups()
                 entry = _entry(ev, heat, start_time, lane, name, club, age, seed)
+                entry["session_no"] = session_no
+                entry["session_date"] = session_date
+                entries.append(entry)
+                continue
+            m = _CO_ENTRY_CODE.match(line)
+            if m:
+                lane, _code, name, club, seed = m.groups()
+                entry = _entry(ev, heat, start_time, lane, name, club, None, seed)
                 entry["session_no"] = session_no
                 entry["session_date"] = session_date
                 entries.append(entry)
@@ -240,7 +254,8 @@ def _entry(ev, heat, start_time, lane, name, club, age, seed) -> dict:
         "session_no": None, "session_date": None,
         "heat": heat, "lane": int(lane), "start_time": start_time,
         "swimmer_name": _clean_name(name), "club_code": club.strip(),
-        "age": int(age), "seed_ms": seed_to_ms(seed), "seed_raw": seed.strip(),
+        "age": int(age) if age else None,
+        "seed_ms": seed_to_ms(seed), "seed_raw": seed.strip(),
         "swimmer_id": None,
     }
 
@@ -422,10 +437,17 @@ def _positional_lines(page, bands: int = 3) -> list[str]:
 def _colombia_lines(pdf) -> list[str]:
     """Aplana PDFs Colombia Acuática, separando columnas/bloques por posición."""
     out: list[str] = []
+    title_done = False
     for page in pdf.pages:
-        text_lines = [(page.extract_text() or "").splitlines()]
-        for line in text_lines[0]:
-            if "liga" in line.lower() or _CO_SESSION.search(line):
+        for line in (page.extract_text() or "").splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            low = line.lower()
+            if not title_done and not low.startswith("page ") and not line.startswith("Session:"):
+                out.append(line)
+                title_done = True
+            if _CO_SESSION.search(line):
                 out.append(line.strip())
         out.extend(_positional_lines(page, bands=3))
     return out

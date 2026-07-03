@@ -11,6 +11,9 @@ EVENTS = [
 SWIMMERS = [
     ("1105388915", "JORGE MARIO MURILLO GALLEGO"),
     ("1094060609", "SANTIAGO HERRERA SABOGAL"),
+    # Homónimos para probar la desambiguación:
+    ("111", "JUAN PEREZ GOMEZ"),
+    ("222", "JUAN PEREZ LOPEZ"),
 ]
 
 
@@ -44,3 +47,24 @@ def test_embedding_estable_entre_llamadas():
     embed = semantic.HashEmbeddingFunction._embed
     assert embed("50 libre") == embed("50 libre")
     assert embed("50 libre") == embed("Cincuenta LIBRE".lower().replace("cincuenta", "50"))
+
+
+def test_no_inventa_nadador_inexistente(client):
+    # Antes devolvía el vecino más cercano aunque no tuviera nada que ver.
+    assert semantic.resolve_swimmer(client, "pedro picapiedra") is None
+
+
+def test_no_inventa_prueba_si_no_se_menciona(client):
+    # Una pregunta sin prueba no debe resolver a un evento arbitrario.
+    assert semantic.resolve_event(client, "mejor marca de jorge murillo") is None
+
+
+def test_candidatos_homonimos(client):
+    cands = semantic.resolve_swimmer_candidates(client, "juan perez")
+    assert {c["swimmer_id"] for c in cands} == {"111", "222"}
+
+
+def test_nombre_mas_especifico_desambigua_solo(client):
+    cands = semantic.resolve_swimmer_candidates(client, "juan perez gomez")
+    assert cands[0]["swimmer_id"] == "111"
+    assert len([c for c in cands if c["score"] == cands[0]["score"]]) == 1

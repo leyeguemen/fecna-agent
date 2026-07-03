@@ -40,3 +40,36 @@ def test_sin_contexto_no_cambia_nada():
     p = _merge_context(parse_question("ranking 50 libre"), ctx())
     assert p.swimmer_ids == []
     assert p.event_query == "50 libre"
+
+
+def test_ayuda_cuando_no_entiende():
+    from fecna_agent import agent, db
+
+    conn = db.connect(":memory:")
+    reply = agent.answer(conn, "hola, ¿qué puedes hacer?", persist_dir=None)
+    assert "ranking" in reply.lower() and "compara" in reply.lower()
+
+
+def test_desambigua_homonimos():
+    from fecna_agent import agent, db, semantic
+
+    conn = db.connect(":memory:")
+    client = semantic.get_client(persist_dir=None)
+    semantic.index_swimmers(
+        client, [("111", "JUAN PEREZ GOMEZ"), ("222", "JUAN PEREZ LOPEZ")],
+        embedding="hash",
+    )
+    parsed = parse_question("mejor marca de juan perez en 50 libre")
+    reply = agent._best(conn, parsed, None, client, "hash")
+    assert "111" in reply and "222" in reply  # pide elegir entre los dos
+
+
+def test_no_encontrado_menciona_el_nombre_buscado():
+    from fecna_agent import agent, db, semantic
+
+    conn = db.connect(":memory:")
+    client = semantic.get_client(persist_dir=None)
+    semantic.index_swimmers(client, [("111", "JUAN PEREZ GOMEZ")], embedding="hash")
+    parsed = parse_question("mejor marca de pedro picapiedra en 50 libre")
+    reply = agent._best(conn, parsed, None, client, "hash")
+    assert "pedro picapiedra" in reply.lower()

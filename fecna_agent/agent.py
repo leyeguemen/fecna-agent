@@ -19,7 +19,21 @@ from .times import ms_to_time
 _PRONOUN_RE = re.compile(r"\b(su|sus|ese|esa|este|esta|mismo|misma|suyo|suya|lo)\b")
 
 
+_HELP = (
+    "No entendí la pregunta. Puedo responder, por ejemplo:\n"
+    "  - mejor marca de <nombre o identificación> en 50 libre\n"
+    "  - compara <id1> con <id2> en 100 espalda piscina larga\n"
+    "  - ranking femenino de 12 años en 200 combinado\n"
+    "  - evolución de <nombre> en 100 pecho"
+)
+
+
 def _dispatch(conn, parsed, event, client, embedding) -> str:
+    # Nada reconocible (ni intención, ni nadador, ni prueba): guía en vez de
+    # adivinar y responder cualquier cosa con seguridad.
+    if (not parsed.explicit_intent and not parsed.swimmer_ids
+            and not parsed.name_query and not event):
+        return _HELP
     if parsed.intent == "compare":
         return _compare(conn, parsed, event)
     if parsed.intent == "ranking":
@@ -111,14 +125,30 @@ def redact_with_llm(question: str, facts: str, model: str | None = None) -> str:
     return f"{natural}\n\n— Datos calculados (SQL/Python) —\n{facts}"
 
 
-def _swimmer_id(parsed, client, embedding) -> tuple[str | None, str | None]:
-    """Identificación del nadador: por id explícito o por nombre (semántico)."""
+def _swimmer_id(parsed, client, embedding) -> tuple[str | None, str | None, str | None]:
+    """Identificación del nadador → (id, nombre_interpretado, error).
+
+    Por id explícito, o por nombre validado contra la base. Si el nombre no
+    está o es ambiguo (homónimos), devuelve el mensaje en `error` en vez de
+    adivinar."""
     if parsed.swimmer_ids:
-        return parsed.swimmer_ids[0], None
-    match = semantic.resolve_swimmer(client, parsed.raw, embedding)
-    if match:
-        return match["swimmer_id"], match["swimmer_name"]
-    return None, None
+        return parsed.swimmer_ids[0], None, None
+    query = parsed.name_query or parsed.raw
+    candidates = semantic.resolve_swimmer_candidates(client, query, embedding)
+    if not candidates:
+        who = f" «{parsed.name_query}»" if parsed.name_query else ""
+        return None, None, (
+            f"No encontré al nadador{who} en la base. "
+            "Prueba con el nombre completo o su identificación."
+        )
+    top = [c for c in candidates if c["score"] == candidates[0]["score"]]
+    if len(top) > 1:
+        options = "\n".join(f"  - {c['swimmer_name']} ({c['swimmer_id']})" for c in top)
+        return None, None, (
+            "Hay varios nadadores que coinciden:\n" + options +
+            "\nRepite la pregunta con la identificación del que te interesa."
+        )
+    return top[0]["swimmer_id"], top[0]["swimmer_name"], None
 
 
 def _compare(conn, parsed, event) -> str:
@@ -150,9 +180,9 @@ def _compare(conn, parsed, event) -> str:
 
 
 def _best(conn, parsed, event, client, embedding) -> str:
-    swimmer_id, matched_name = _swimmer_id(parsed, client, embedding)
+    swimmer_id, matched_name, error = _swimmer_id(parsed, client, embedding)
     if not swimmer_id:
-        return "No pude identificar al nadador (usa su identificación o indexa los nombres)."
+        return error or "No pude identificar al nadador."
 
     row = database.best_time(
         conn, swimmer_id,
@@ -194,9 +224,9 @@ def _ranking(conn, parsed, event) -> str:
 
 
 def _history(conn, parsed, event, client, embedding) -> str:
-    swimmer_id, matched_name = _swimmer_id(parsed, client, embedding)
+    swimmer_id, matched_name, error = _swimmer_id(parsed, client, embedding)
     if not swimmer_id:
-        return "No pude identificar al nadador para ver su evolución."
+        return error or "No pude identificar al nadador para ver su evolución."
     rows = database.history(
         conn, swimmer_id,
         event["event_id"] if event else None,

@@ -51,3 +51,28 @@ def test_dos_ids_sin_verbo_es_compare():
 def test_piscina_corta():
     q = parse_question("mejor tiempo de 1105388915 en piscina corta")
     assert q.pool_type == "SC"
+
+
+def test_intents_ampliados():
+    assert parse_question("¿quién es el más rápido en 50 libre?").intent == "ranking"
+    assert parse_question("¿cómo va Juan Pérez en 100 pecho?").intent == "history"
+    assert parse_question("récord de 1105388915 en 50 libre").intent == "best"
+
+
+def test_explicit_intent_marca_si_se_entendio_la_intencion():
+    assert parse_question("ranking 50 libre").explicit_intent is True
+    assert parse_question("1105388915 y 1094060609 en 50 libre").explicit_intent is True
+    assert parse_question("hola, ¿qué puedes hacer?").explicit_intent is False
+
+
+def test_extrae_nombre_del_nadador():
+    q = parse_question("¿cuál es la mejor marca de Juan Pérez en 100 espalda piscina corta?")
+    assert q.name_query == "juan perez"
+    q = parse_question("evolución de maria camila torres en cincuenta libre")
+    assert q.name_query == "maria camila torres"
+
+
+def test_nombre_none_si_solo_hay_id_prueba_o_saludo():
+    assert parse_question("mejor marca de 1105388915 en 50 libre").name_query is None
+    assert parse_question("ranking femenino de 12 años en 50 libre").name_query is None
+    assert parse_question("hola, ¿qué puedes hacer?").name_query is None

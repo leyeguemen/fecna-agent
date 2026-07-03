@@ -103,7 +103,9 @@ def save_embedding_name(persist_dir: Path | str, name: str) -> None:
     (Path(persist_dir) / EMBEDDING_MARKER).write_text(name)
 
 
-def load_embedding_name(persist_dir: Path | str) -> str:
+def load_embedding_name(persist_dir: Path | str | None) -> str:
+    if persist_dir is None:
+        return "hash"
     marker = Path(persist_dir) / EMBEDDING_MARKER
     return marker.read_text().strip() if marker.exists() else "hash"
 
@@ -152,7 +154,11 @@ def index_swimmers(client, swimmers: list[tuple[str, str]], embedding: str = "ha
     return len(swimmers)
 
 
-def _resolve(client, collection_name: str, text: str, embedding: str) -> dict | None:
+def _query_candidates(client, collection_name: str, text: str, embedding: str,
+                      n: int = 5) -> list[tuple[dict, str]]:
+    """Vecinos más cercanos: [(metadata, documento), ...] (puede ser vacío)."""
+    if client is None:
+        return []
     kwargs = {}
     fn = get_embedding_fn(embedding)
     if fn is not None:
@@ -160,10 +166,30 @@ def _resolve(client, collection_name: str, text: str, embedding: str) -> dict | 
     try:
         collection = client.get_collection(collection_name, **kwargs)
     except Exception:
-        return None
-    result = collection.query(query_texts=[text], n_results=1)
-    metadatas = result.get("metadatas") or [[]]
-    return metadatas[0][0] if metadatas[0] else None
+        return []
+    result = collection.query(query_texts=[text], n_results=n,
+                              include=["metadatas", "documents"])
+    metadatas = (result.get("metadatas") or [[]])[0]
+    documents = (result.get("documents") or [[]])[0]
+    return list(zip(metadatas, documents))
+
+
+def _name_score(query: str, name: str) -> float:
+    """Fracción de tokens de la consulta presentes en el nombre.
+
+    El vecino más cercano del índice puede estar lejísimos (ChromaDB siempre
+    devuelve algo); esta validación léxica evita responder con un nadador que
+    no tiene nada que ver con lo preguntado. Acepta prefijos (≥4 letras) para
+    tolerar nombres escritos a medias ("gonza" → GONZALEZ)."""
+    q_tokens = _tokens(query)
+    if not q_tokens:
+        return 0.0
+    name_tokens = _tokens(name)
+    hits = sum(
+        1 for t in q_tokens
+        if any(w == t or (len(t) >= 4 and w.startswith(t)) for w in name_tokens)
+    )
+    return hits / len(q_tokens)
 
 
 def rebuild_from_db(conn, embedding: str = "hash", persist_dir=DEFAULT_PERSIST_DIR) -> str:
@@ -184,10 +210,44 @@ def rebuild_from_db(conn, embedding: str = "hash", persist_dir=DEFAULT_PERSIST_D
 
 
 def resolve_event(client, text: str, embedding: str = "hash") -> dict | None:
-    """Mejor prueba para el texto: {'event_id', 'event_name'} o None."""
-    return _resolve(client, EVENTS_COLLECTION, text, embedding)
+    """Mejor prueba para el texto: {'event_id', 'event_name'} o None.
+
+    Solo acepta el resultado si el alias coincidente aparece de verdad en el
+    texto (por tokens): una pregunta que no menciona ninguna prueba devuelve
+    None en vez de un evento arbitrario."""
+    candidates = _query_candidates(client, EVENTS_COLLECTION, text, embedding, n=1)
+    if not candidates:
+        return None
+    metadata, document = candidates[0]
+    query_tokens = set(_tokens(text))
+    doc_tokens = _tokens(document)
+    if doc_tokens and all(t in query_tokens for t in doc_tokens):
+        return metadata
+    return None
+
+
+def resolve_swimmer_candidates(client, text: str, embedding: str = "hash",
+                               n: int = 5, min_score: float = 0.6) -> list[dict]:
+    """Nadadores que coinciden con el texto, validados léxicamente.
+
+    Devuelve [{'swimmer_id', 'swimmer_name', 'score'}, ...] ordenados por score
+    descendente. Vacío si nadie supera min_score (el texto no es un nombre de
+    la base). Si hay varios con el mismo score máximo son homónimos y quien
+    llama debe pedir desambiguación."""
+    from .resolver import extract_name_query
+
+    query = extract_name_query(text) or text
+    scored = []
+    for metadata, _doc in _query_candidates(client, SWIMMERS_COLLECTION, query,
+                                            embedding, n=n):
+        score = _name_score(query, metadata.get("swimmer_name", ""))
+        if score >= min_score:
+            scored.append({**metadata, "score": score})
+    scored.sort(key=lambda c: c["score"], reverse=True)
+    return scored
 
 
 def resolve_swimmer(client, text: str, embedding: str = "hash") -> dict | None:
     """Mejor nadador para el texto: {'swimmer_id', 'swimmer_name'} o None."""
-    return _resolve(client, SWIMMERS_COLLECTION, text, embedding)
+    candidates = resolve_swimmer_candidates(client, text, embedding)
+    return candidates[0] if candidates else None

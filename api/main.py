@@ -10,6 +10,8 @@ from slowapi.middleware import SlowAPIMiddleware
 
 from api.deps import read_conn
 from api.routers import auth as auth_router
+from api.routers import rankings as rankings_router
+from api.routers import swimmers as swimmers_router
 
 app = FastAPI(title="FECNA API")
 
@@ -28,6 +30,8 @@ app.add_middleware(
 )
 
 app.include_router(auth_router.router)
+app.include_router(rankings_router.router)
+app.include_router(swimmers_router.router)
 
 
 @app.get("/health")

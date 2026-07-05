@@ -14,7 +14,7 @@
 
 import { useEffect, useSyncExternalStore } from "react";
 
-import { api } from "@/lib/api";
+import { api, ApiError } from "@/lib/api";
 import type { AuthResponse, MeResponse, UserRole } from "@/lib/types";
 
 const TOKEN_KEY = "fecna_token";
@@ -91,8 +91,12 @@ async function initFromStorage() {
   try {
     const me = await api.get<MeResponse>("/auth/me", token);
     setState({ user: { email: me.email, role: me.role }, loading: false });
-  } catch {
-    clearToken();
+  } catch (err) {
+    // Solo un rechazo HTTP real (401/token inválido) invalida la sesión.
+    // Un fallo de red no invalida la sesión guardada; se revalidará en el próximo arranque.
+    if (err instanceof ApiError && err.kind === "http") {
+      clearToken();
+    }
     setState({ user: null, loading: false });
   }
 }

@@ -128,3 +128,29 @@
     @apply font-sans;
   }
 }
+
+/* Impresión (ficha del nadador): fondo blanco y texto oscuro sin importar el
+ * tema activo — redefine los tokens de color en lugar de tocar cada
+ * utilidad, así cualquier componente que use bg-background/text-foreground/
+ * etc. queda legible en papel automáticamente. header/nav, botones y la
+ * sección de evolución se ocultan con `print:hidden` en sus componentes. */
+@media print {
+  :root,
+  .dark {
+    --background: oklch(1 0 0);
+    --foreground: oklch(0.145 0 0);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.145 0 0);
+    --muted: oklch(0.97 0 0);
+    --muted-foreground: oklch(0.35 0 0);
+    --border: oklch(0.85 0 0);
+  }
+
+  @page {
+    margin: 1.2cm;
+  }
+
+  body {
+    background: white !important;
+  }
+}

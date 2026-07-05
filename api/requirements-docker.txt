@@ -1,0 +1,35 @@
+# Dependencias de runtime para la imagen Docker de la API (Hugging Face
+# Spaces, SDK Docker). Deliberadamente NO usa requirements.txt (raíz): ese
+# archivo trae streamlit, playwright y fpdf2, pensados para el despliegue de
+# Streamlit Cloud, que aquí no hacen falta y solo pesan la imagen.
+#
+# Cubre exactamente lo que tocan api/ + los módulos de fecna_agent/ que la
+# API importa (db, auth, agent, semantic, resolver, times, programa,
+# categories): ninguno de ellos requiere pandas ni requests.
+
+fastapi>=0.115
+uvicorn[standard]>=0.30
+
+# Cliente de Turso (solo se usa si TURSO_DATABASE_URL está configurado; sin
+# ella, api/deps.py cae a SQLite local).
+libsql>=0.1
+
+# Autenticación JWT (api/security.py) y rate limiting de /auth/* y /ask.
+PyJWT>=2.8
+slowapi>=0.1
+
+# fecna_agent.programa.parse_pdf: lectura del programa (heat sheet) en PDF
+# para POST /competitions y su cruce de nadadores/pruebas.
+pdfplumber>=0.11
+
+# fecna_agent.semantic / agent.chat_answer (POST /ask). Mismas versiones que
+# el requirements.txt raíz: chromadb >= 1.5 es compatible con protobuf
+# moderno (5/6); versiones más viejas de la cadena protobuf/opentelemetry
+# rompen con "Descriptors cannot be created directly".
+chromadb>=1.5,<2
+protobuf>=6.30,<7
+opentelemetry-proto>=1.42
+opentelemetry-sdk>=1.42
+opentelemetry-api>=1.42
+# python:3.12-slim ya trae sqlite3 >= 3.35 (requisito de ChromaDB); a
+# diferencia del requirements.txt raíz, aquí no hace falta pysqlite3-binary.

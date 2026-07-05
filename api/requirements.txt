@@ -11,3 +11,7 @@ libsql>=0.1
 # Solo para pruebas (TestClient de FastAPI/starlette usa httpx2; el paquete
 # httpx clásico quedó deprecado para ese uso), no es dependencia de runtime.
 httpx2>=0.1
+
+# Autenticación JWT (api/security.py) y rate limiting básico en /auth/*.
+PyJWT>=2.8
+slowapi>=0.1

@@ -15,6 +15,13 @@ Por defecto usa `data/fecna_public.db` (lectura) y `data/fecna_app.db`
 (usuarios/programas, SQLite local). Docs interactivas en
 `http://localhost:8000/docs`.
 
+**Ojo:** `api/requirements.txt` trae solo el runtime de la API. Para que `/ask`
+resuelva nombres/pruebas (ChromaDB) y funcione la subida de programas en PDF
+(`pdfplumber`), instala también el `requirements.txt` de la raíz (que ya trae
+ambos con sus pines) — es lo normal si desarrollas todo el proyecto en el mismo
+venv. En la imagen Docker esto no aplica: `api/requirements-docker.txt` ya los
+incluye.
+
 ## Variables de entorno
 
 | Variable               | Uso                                                                 | Default                 |

@@ -74,7 +74,10 @@ export function SwimmerSearch() {
         });
     }, DEBOUNCE_MS);
 
-    return () => window.clearTimeout(timer);
+    return () => {
+      window.clearTimeout(timer);
+      requestIdRef.current += 1;
+    };
   }, [query]);
 
   useEffect(() => {
@@ -129,6 +132,7 @@ export function SwimmerSearch() {
         aria-expanded={showDropdown}
         aria-controls="swimmer-search-listbox"
         aria-autocomplete="list"
+        aria-activedescendant={activeIndex >= 0 ? `swimmer-option-${items[activeIndex]?.swimmer_id}` : undefined}
         className="h-10 text-base"
       />
 
@@ -152,7 +156,7 @@ export function SwimmerSearch() {
           {status === "done" && items.length > 0 && (
             <ul>
               {items.map((item, index) => (
-                <li key={item.swimmer_id} role="option" aria-selected={index === activeIndex}>
+                <li key={item.swimmer_id} id={`swimmer-option-${item.swimmer_id}`} role="option" aria-selected={index === activeIndex}>
                   <button
                     type="button"
                     className={cn(

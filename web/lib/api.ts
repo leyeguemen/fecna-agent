@@ -3,7 +3,11 @@
  *
  * Base URL configurable vía `NEXT_PUBLIC_API_URL` (por defecto apunta al
  * backend local en desarrollo). Lanza `ApiError` con el `detail` que
- * devuelve FastAPI (`{"detail": "..."}`) cuando la respuesta no es 2xx.
+ * devuelve FastAPI (`{"detail": "..."}`) cuando la respuesta no es 2xx
+ * (`kind: "http"`), o con un mensaje en español cuando el fetch falla a
+ * nivel de red —DNS, CORS, conexión rechazada, timeout/abort— (`kind:
+ * "network"`, `status: 0`). Los llamadores pueden discriminar por `kind`
+ * sin recurrir a `instanceof TypeError`.
  */
 
 const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
@@ -11,12 +15,14 @@ const BASE_URL = process.env.NEXT_PUBLIC_API_URL ?? "http://localhost:8000";
 export class ApiError extends Error {
   status: number;
   detail: string;
+  kind: "http" | "network";
 
-  constructor(status: number, detail: string) {
+  constructor(status: number, detail: string, kind: "http" | "network" = "http") {
     super(detail);
     this.name = "ApiError";
     this.status = status;
     this.detail = detail;
+    this.kind = kind;
   }
 }
 
@@ -42,10 +48,18 @@ async function request<T>(path: string, init: RequestInit = {}, token?: string):
   }
   if (token) headers.set("Authorization", `Bearer ${token}`);
 
-  const res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+  let res: Response;
+  try {
+    res = await fetch(`${BASE_URL}${path}`, { ...init, headers });
+  } catch {
+    // fetch solo rechaza por fallos de red: DNS, conexión rechazada, CORS,
+    // abort/timeout. Nunca por respuestas HTTP no-2xx (eso lo maneja el
+    // bloque de abajo), así que aquí siempre es un problema de conectividad.
+    throw new ApiError(0, "No se pudo conectar con el servidor.", "network");
+  }
 
   if (!res.ok) {
-    throw new ApiError(res.status, await extractDetail(res));
+    throw new ApiError(res.status, await extractDetail(res), "http");
   }
 
   if (res.status === 204) {

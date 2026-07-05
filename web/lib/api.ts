@@ -87,4 +87,11 @@ export const api = {
     ),
 
   delete: <T>(path: string, token?: string) => request<T>(path, { method: "DELETE" }, token),
+
+  /** POST multipart (subida de archivos). `request()` ya detecta `FormData`
+   * y evita el `JSON.stringify` y el header `Content-Type` (el navegador
+   * debe fijar el boundary correcto). Usado por B5 para subir el PDF del
+   * programa (`POST /competitions`, campo "file"). */
+  postForm: <T>(path: string, form: FormData, token?: string) =>
+    request<T>(path, { method: "POST", body: form }, token),
 };

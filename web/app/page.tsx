@@ -1,15 +1,8 @@
-import {
-  Card,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from "@/components/ui/card";
+import { Suspense } from "react";
 
-const RANKING_PLACEHOLDERS = [
-  { title: "50m Libre", note: "Ranking nacional" },
-  { title: "100m Espalda", note: "Ranking nacional" },
-  { title: "200m Pecho", note: "Ranking por liga" },
-];
+import { RankingSection } from "@/components/ranking/ranking-section";
+import { RankingSkeleton } from "@/components/ranking/ranking-skeleton";
+import { SwimmerSearch } from "@/components/ranking/swimmer-search";
 
 export default function HomePage() {
   return (
@@ -22,29 +15,17 @@ export default function HomePage() {
           FECNA Natación
         </h1>
         <p className="max-w-2xl text-muted-foreground">
-          Rankings, fichas de nadadores y programas de campeonato de la
-          federación, en un solo lugar. Busca un nadador, revisa sus mejores
-          tiempos o sigue el cronograma de un campeonato.
+          Rankings de natación de Colombia — datos públicos FECNA.
         </p>
+        <div className="w-full max-w-md">
+          <SwimmerSearch />
+        </div>
       </section>
 
       <section className="flex flex-col gap-4">
-        <h2 className="text-lg font-medium">
-          Ranking{" "}
-          <span className="font-normal text-muted-foreground">
-            (próximamente en B3)
-          </span>
-        </h2>
-        <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-          {RANKING_PLACEHOLDERS.map((item) => (
-            <Card key={item.title}>
-              <CardHeader>
-                <CardTitle>{item.title}</CardTitle>
-                <CardDescription>{item.note}</CardDescription>
-              </CardHeader>
-            </Card>
-          ))}
-        </div>
+        <Suspense fallback={<RankingSkeleton />}>
+          <RankingSection />
+        </Suspense>
       </section>
     </div>
   );

@@ -4,11 +4,21 @@ import os
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from slowapi import _rate_limit_exceeded_handler
+from slowapi.errors import RateLimitExceeded
+from slowapi.middleware import SlowAPIMiddleware
 
 from api.deps import read_conn
+from api.routers import auth as auth_router
 
 app = FastAPI(title="FECNA API")
 
+app.state.limiter = auth_router.limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+app.add_middleware(SlowAPIMiddleware)
+
+# CORS se agrega al final para quedar como middleware más externo (envuelve a
+# SlowAPI también), así los headers CORS llegan incluso en respuestas 429.
 _origins = os.environ.get("FECNA_CORS_ORIGINS", "*")
 app.add_middleware(
     CORSMiddleware,
@@ -16,6 +26,8 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+app.include_router(auth_router.router)
 
 
 @app.get("/health")

@@ -36,7 +36,7 @@ def _turso_conn(turso_url: str):
             "(ver api/requirements.txt) para conectar a Turso."
         ) from exc
 
-    auth_token = os.environ.get("TURSO_AUTH_TOKEN")
+    auth_token = os.environ.get("TURSO_AUTH_TOKEN", "")
     try:
         conn = libsql.connect(turso_url, auth_token=auth_token)
     except Exception as exc:

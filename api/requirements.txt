@@ -3,9 +3,9 @@
 fastapi>=0.115
 uvicorn>=0.30
 
-# Solo necesario en producción cuando TURSO_DATABASE_URL está configurado
-# (doble conexión: lectura local + escritura en Turso). En dev/tests, sin
-# esta variable, la app usa SQLite local y no requiere esta dependencia.
+# Cliente de Turso (usado solo cuando TURSO_DATABASE_URL está configurado; en
+# dev/tests la app usa SQLite local). Verificado en PyPI (0.1.11): instala,
+# importa y su connect(database, auth_token=...) es el que usa api/deps.py.
 libsql>=0.1
 
 # Solo para pruebas (TestClient de FastAPI usa httpx), no es dependencia de runtime.

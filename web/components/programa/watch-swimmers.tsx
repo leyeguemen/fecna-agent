@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 
 import { Input } from "@/components/ui/input";
 import { api } from "@/lib/api";
@@ -24,6 +24,9 @@ export function WatchSwimmers({ compId, swimmers, watchNames, onSaved }: WatchSw
   const [selected, setSelected] = useState<Set<string>>(() => new Set(watchNames));
   const [pending, setPending] = useState<Set<string>>(new Set());
   const [error, setError] = useState<string | null>(null);
+  // Guarda secuencial: previene que respuestas fuera de orden sobrescriban
+  // cambios más recientes cuando hay toggles rápidos consecutivos.
+  const saveSeqRef = useRef(0);
 
   // Al cambiar de campeonato (o tras un guardado exitoso) sincroniza con la
   // verdad del servidor propagada por el padre. Ajustar estado durante el
@@ -51,6 +54,8 @@ export function WatchSwimmers({ compId, swimmers, watchNames, onSaved }: WatchSw
     setSelected(next);
     setError(null);
     setPending((p) => new Set(p).add(name));
+    // Captura el número de secuencia ANTES de hacer la petición.
+    const seq = ++saveSeqRef.current;
 
     try {
       const res = await api.put<WatchResponse>(
@@ -58,10 +63,16 @@ export function WatchSwimmers({ compId, swimmers, watchNames, onSaved }: WatchSw
         { names: Array.from(next) },
         token,
       );
-      onSaved(res.names);
+      // Solo aplicar si esta es la respuesta más reciente.
+      if (seq === saveSeqRef.current) {
+        onSaved(res.names);
+      }
     } catch (err) {
-      setSelected(previous);
-      setError(networkAwareMessage(err, "No se pudo actualizar. Intenta de nuevo."));
+      // Solo revertir si esta es la respuesta de error más reciente.
+      if (seq === saveSeqRef.current) {
+        setSelected(previous);
+        setError(networkAwareMessage(err, "No se pudo actualizar. Intenta de nuevo."));
+      }
     } finally {
       setPending((p) => {
         const copy = new Set(p);

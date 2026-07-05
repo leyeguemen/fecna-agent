@@ -198,6 +198,10 @@ FECNA_AUTH=1 FECNA_ADMIN_EMAIL="tu@correo.com" streamlit run app.py
   [docs/features/persistencia-programa-despliegue.md](docs/features/persistencia-programa-despliegue.md)
   (el disco de Streamlit Cloud es efímero; opciones: solo local, base externa
   privada o versionar; pendiente por la privacidad de datos de menores).
+- **Demo web (API + Next.js)** — ranking, ficha de nadador, programa/alertas
+  y login desde un front aparte del Streamlit actual; ver
+  [docs/superpowers/specs/2026-06-21-web-app-demo-design.md](docs/superpowers/specs/2026-06-21-web-app-demo-design.md)
+  y `DEPLOY.md` ("API + Web (demo nueva)") para el despliegue.
 
 ## Pendientes técnicos
 

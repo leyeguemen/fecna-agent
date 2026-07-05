@@ -189,3 +189,38 @@ uso (`fecna_agent.db.SCHEMA`, ejecutado por `api/deps.py::_turso_conn`).
 El front en Next.js se despliega en Vercel apuntando a `web/`, con
 `NEXT_PUBLIC_API_URL` hacia la URL pública del Space. Queda fuera de esta
 fase (Fase A = solo API).
+
+### Front en Vercel
+
+1. Entra a https://vercel.com, "Add New… → Project" e importa el repo de
+   GitHub (`leyeguemen/fecna-agent`).
+2. **Root Directory**: `web` (Vercel detecta Next.js solo — framework preset
+   automático, no toques build/output command).
+3. **Branch**: el proyecto debe apuntar a `feature/web-app` (mientras la demo
+   vive ahí) o a `develop` una vez se fusione — ajusta la "Production Branch"
+   en *Settings → Git* según en cuál de las dos estés desplegando.
+4. En *Environment Variables* agrega:
+
+   | Nombre                  | Valor                                      |
+   |--------------------------|---------------------------------------------|
+   | `NEXT_PUBLIC_API_URL`   | URL del Space, p. ej. `https://<usuario>-<space>.hf.space` |
+
+5. "Deploy". Al terminar, Vercel da un dominio `https://<proyecto>.vercel.app`.
+6. Vuelve al Space (Settings → Variables and secrets) y fija
+   `FECNA_CORS_ORIGINS` al dominio de Vercel, **sin barra final**:
+   `https://<proyecto>.vercel.app`. Mientras no lo hagas, `*` (el valor por
+   defecto) sigue funcionando para probar, pero es menos estricto — conviene
+   cerrarlo a este dominio antes de compartir la demo.
+
+### Checklist de salida
+
+1. Turso: crear DB + generar `TURSO_DATABASE_URL` / `TURSO_AUTH_TOKEN`.
+2. Space: crear (SDK Docker) + cargar secrets (Turso, `FECNA_JWT_SECRET`,
+   `FECNA_ADMIN_EMAIL`).
+3. Vercel: importar repo, Root Directory `web`, env `NEXT_PUBLIC_API_URL`.
+4. CORS: fijar `FECNA_CORS_ORIGINS` al dominio de Vercel.
+5. Registrar el usuario admin (el email de `FECNA_ADMIN_EMAIL`) desde el front
+   ya desplegado.
+6. Subir el programa del campeonato vigente (pestaña Programa, como admin).
+7. Probar en el celular: abrir la URL de Vercel, revisar ranking, ficha,
+   programa y alertas desde una red distinta a la de desarrollo.

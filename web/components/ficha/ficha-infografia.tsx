@@ -14,9 +14,9 @@ const POOL_LABELS: Record<string, string> = {
 };
 
 const RANK_BADGE_STYLES: Record<number, string> = {
-  1: "bg-amber-500/15 text-amber-600 dark:text-amber-400",
-  2: "bg-slate-400/20 text-slate-600 dark:text-slate-300",
-  3: "bg-orange-700/15 text-orange-700 dark:text-orange-400",
+  1: "bg-amber-500/15 text-amber-600 dark:text-amber-400 print:text-amber-600",
+  2: "bg-slate-400/20 text-slate-600 dark:text-slate-300 print:text-slate-600",
+  3: "bg-orange-700/15 text-orange-700 dark:text-orange-400 print:text-orange-700",
 };
 
 function ordinal(n: number): string {

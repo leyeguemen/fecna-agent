@@ -124,6 +124,8 @@ export function ProgramaSection() {
     setCompetitionsRetryToken((t) => t + 1);
     const params = new URLSearchParams(searchParams.toString());
     params.set("comp", String(result.competition_id));
+    params.delete("club");
+    params.delete("swimmer");
     router.replace(`/programa?${params.toString()}`, { scroll: false });
   }
 

@@ -132,3 +132,60 @@ Chromium de Playwright ya viene instalado.
 Crea un Space (SDK Streamlit), sube los archivos + `data/fecna_public.db`, y en
 *Settings → Variables and secrets* agrega `FECNA_PUBLIC=1` y
 `FECNA_DB=data/fecna_public.db`. Mismo `requirements.txt` y `packages.txt`.
+
+## API + Web (demo nueva)
+
+La demo nueva (FastAPI + Next.js, ver
+`docs/superpowers/specs/2026-06-21-web-app-demo-design.md`) se despliega aparte
+del Streamlit actual, que sigue intacto. Fase A es solo la API; el front
+(Vercel) llega en Fase B.
+
+### API en Hugging Face Spaces (SDK: Docker)
+
+1. Crea un Space nuevo → **SDK: Docker**.
+2. El Dockerfile de la API vive en `api/Dockerfile` (no en la raíz del repo).
+   Dos formas de apuntarlo, según lo que soporte tu Space:
+   - Si el Space permite indicar la ruta del Dockerfile en el README (front
+     matter `dockerfile: api/Dockerfile`), úsala directamente conectando el
+     repo de GitHub.
+   - Si no, copia/enlaza `api/Dockerfile` como `Dockerfile` en la raíz del
+     repo que subas al Space (el contexto de build sigue siendo la raíz: el
+     Dockerfile copia `fecna_agent/`, `api/` y `data/fecna_public.db` con
+     rutas relativas a la raíz).
+3. El Space expone el puerto **7860** (ya fijado en el Dockerfile con `EXPOSE`
+   y `--port 7860`).
+4. En *Settings → Variables and secrets* configura:
+
+   | Nombre                | Tipo     | Notas                                        |
+   |------------------------|----------|-----------------------------------------------|
+   | `TURSO_DATABASE_URL`   | secret   | de `turso db show` (paso siguiente)           |
+   | `TURSO_AUTH_TOKEN`     | secret   | de `turso db tokens create`                   |
+   | `FECNA_JWT_SECRET`     | secret   | cadena aleatoria larga, propia de este Space  |
+   | `FECNA_ADMIN_EMAIL`    | variable | email(s) admin, separados por coma            |
+   | `FECNA_CORS_ORIGINS`   | variable | dominio de Vercel cuando exista (Fase B); `*` mientras tanto |
+
+   Sin `TURSO_DATABASE_URL`, la API cae a SQLite local (`data/fecna_app.db`),
+   que en Spaces es efímero (se pierde en cada rebuild) — solo sirve para
+   probar la imagen, no para producción.
+5. El índice semántico (`data/chroma/`, en `.gitignore`) no viaja con el repo:
+   la API lo reconstruye sola al arrancar (`api/startup.py`, desde
+   `data/fecna_public.db`). Si ChromaDB no está disponible en el Space, la API
+   sigue funcionando y `/ask` responde `503`.
+
+### Base de datos en Turso
+
+```bash
+turso db create fecna-app
+turso db show fecna-app --url          # → TURSO_DATABASE_URL
+turso db tokens create fecna-app       # → TURSO_AUTH_TOKEN
+```
+
+Pega ambos valores como secrets del Space (paso anterior). El esquema
+(`app_user`, `competition`, `competition_watch`, etc.) se crea solo al primer
+uso (`fecna_agent.db.SCHEMA`, ejecutado por `api/deps.py::_turso_conn`).
+
+### Web (Fase B)
+
+El front en Next.js se despliega en Vercel apuntando a `web/`, con
+`NEXT_PUBLIC_API_URL` hacia la URL pública del Space. Queda fuera de esta
+fase (Fase A = solo API).

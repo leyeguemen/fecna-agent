@@ -1,5 +1,8 @@
 import { Suspense } from "react";
 
+import { faPersonSwimming, faStopwatch } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import { ContentHeader } from "@/components/layout/content-header";
 import { SmallBox } from "@/components/layout/small-box";
 import { RankingSection } from "@/components/ranking/ranking-section";
@@ -40,10 +43,20 @@ export default async function HomePage() {
       {(resultados || nadadores) && (
         <div className="grid gap-4 sm:grid-cols-2">
           {resultados && (
-            <SmallBox value={resultados} label="Resultados oficiales" color="info" icon="⏱️" />
+            <SmallBox
+              value={resultados}
+              label="Resultados oficiales"
+              color="info"
+              icon={<FontAwesomeIcon icon={faStopwatch} />}
+            />
           )}
           {nadadores && (
-            <SmallBox value={nadadores} label="Nadadores en la base" color="success" icon="🏊" />
+            <SmallBox
+              value={nadadores}
+              label="Nadadores en la base"
+              color="success"
+              icon={<FontAwesomeIcon icon={faPersonSwimming} />}
+            />
           )}
         </div>
       )}

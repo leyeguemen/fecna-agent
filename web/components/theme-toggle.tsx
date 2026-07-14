@@ -1,7 +1,9 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { Moon, Sun } from "lucide-react";
+
+import { faMoon, faSun } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
 
 import { Button } from "@/components/ui/button";
 
@@ -60,9 +62,9 @@ export function ThemeToggle() {
       onClick={toggle}
     >
       {theme === "dark" ? (
-        <Moon className="size-4" />
+        <FontAwesomeIcon icon={faMoon} className="size-4" />
       ) : (
-        <Sun className="size-4" />
+        <FontAwesomeIcon icon={faSun} className="size-4" />
       )}
     </Button>
   );

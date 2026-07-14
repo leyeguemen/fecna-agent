@@ -2,6 +2,13 @@
 
 import { useState } from "react";
 
+import {
+  faRightFromBracket,
+  faRightToBracket,
+  faUser,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import { AuthDialog } from "@/components/auth/auth-dialog";
 import { Button } from "@/components/ui/button";
 import { useUser } from "@/lib/auth";
@@ -19,7 +26,8 @@ export function SessionButton() {
 
   if (loading) {
     return (
-      <Button variant="outline" size="sm" disabled>
+      <Button size="sm" disabled>
+        <FontAwesomeIcon icon={faRightToBracket} className="size-3.5" />
         Ingresar
       </Button>
     );
@@ -28,7 +36,8 @@ export function SessionButton() {
   if (!user) {
     return (
       <>
-        <Button variant="outline" size="sm" onClick={() => setDialogOpen(true)}>
+        <Button size="sm" onClick={() => setDialogOpen(true)}>
+          <FontAwesomeIcon icon={faRightToBracket} className="size-3.5" />
           Ingresar
         </Button>
         <AuthDialog open={dialogOpen} onOpenChange={setDialogOpen} />
@@ -44,12 +53,14 @@ export function SessionButton() {
         </span>
       )}
       <span
-        className="max-w-[10rem] truncate text-sm text-muted-foreground"
+        className="inline-flex max-w-[12rem] items-center gap-1.5 truncate text-sm text-muted-foreground"
         title={user.email}
       >
+        <FontAwesomeIcon icon={faUser} className="size-3.5 shrink-0" />
         {truncateEmail(user.email)}
       </span>
       <Button variant="outline" size="sm" onClick={logout}>
+        <FontAwesomeIcon icon={faRightFromBracket} className="size-3.5" />
         Cerrar sesión
       </Button>
     </div>

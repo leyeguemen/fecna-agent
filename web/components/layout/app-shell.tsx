@@ -4,6 +4,13 @@ import Link from "next/link";
 import { usePathname } from "next/navigation";
 import { useState } from "react";
 
+import {
+  faBars,
+  faCalendarDays,
+  faGaugeHigh,
+} from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+
 import { SessionButton } from "@/components/session-button";
 import { ThemeToggle } from "@/components/theme-toggle";
 import { cn } from "@/lib/utils";
@@ -15,8 +22,8 @@ import { cn } from "@/lib/utils";
  */
 
 const NAV_ITEMS = [
-  { href: "/", label: "Inicio", icon: HomeIcon },
-  { href: "/programa", label: "Programa", icon: CalendarIcon },
+  { href: "/", label: "Inicio", icon: faGaugeHigh },
+  { href: "/programa", label: "Programa", icon: faCalendarDays },
 ] as const;
 
 function isActive(pathname: string, href: string): boolean {
@@ -66,7 +73,6 @@ export function AppShell({ children }: { children: React.ReactNode }) {
           <ul className="flex flex-col gap-1">
             {NAV_ITEMS.map((item) => {
               const active = isActive(pathname, item.href);
-              const Icon = item.icon;
               return (
                 <li key={item.href}>
                   <Link
@@ -80,7 +86,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
                         : "hover:bg-sidebar-accent hover:text-sidebar-accent-foreground",
                     )}
                   >
-                    <Icon className="h-4 w-4 shrink-0" />
+                    <FontAwesomeIcon icon={item.icon} className="h-4 w-4 shrink-0" fixedWidth />
                     <span>{item.label}</span>
                   </Link>
                 </li>
@@ -103,7 +109,7 @@ export function AppShell({ children }: { children: React.ReactNode }) {
               aria-label="Abrir menú"
               onClick={() => setOpen(true)}
             >
-              <MenuIcon className="h-5 w-5" />
+              <FontAwesomeIcon icon={faBars} className="h-5 w-5" />
             </button>
 
             <nav aria-label="Secundaria" className="hidden items-center gap-1 text-sm lg:flex">
@@ -133,63 +139,5 @@ export function AppShell({ children }: { children: React.ReactNode }) {
         </footer>
       </div>
     </div>
-  );
-}
-
-// Iconos inline (trazos estilo lucide) para no sumar dependencias.
-function HomeIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" />
-      <polyline points="9 22 9 12 15 12 15 22" />
-    </svg>
-  );
-}
-
-function CalendarIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <rect x="3" y="4" width="18" height="18" rx="2" />
-      <line x1="16" y1="2" x2="16" y2="6" />
-      <line x1="8" y1="2" x2="8" y2="6" />
-      <line x1="3" y1="10" x2="21" y2="10" />
-    </svg>
-  );
-}
-
-function MenuIcon({ className }: { className?: string }) {
-  return (
-    <svg
-      className={className}
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-      aria-hidden="true"
-    >
-      <line x1="4" y1="6" x2="20" y2="6" />
-      <line x1="4" y1="12" x2="20" y2="12" />
-      <line x1="4" y1="18" x2="20" y2="18" />
-    </svg>
   );
 }

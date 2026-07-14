@@ -2,7 +2,7 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
-@custom-variant dark (&:is(.dark *));
+@custom-variant dark (&:is(.dark *, [data-bs-theme="dark"] *));
 
 @theme inline {
   --color-background: var(--background);
@@ -52,87 +52,51 @@
   --radius-4xl: calc(var(--radius) * 2.6);
 }
 
-/* Paleta AdminLTE 3 (https://adminlte.io): contenido gris #f4f6f9, tarjetas
- * blancas, azul primario #007bff y sidebar oscuro #343a40 fijo en ambos
- * temas (el sidebar de AdminLTE es "dark sidebar" también en modo claro). */
+/* Los tokens de Tailwind/shadcn se enlazan a Bootstrap 5, que viene incluido
+ * en AdminLTE 4. Así los componentes propios y los del tema comparten una
+ * única paleta en lugar de intentar reproducir AdminLTE con colores sueltos. */
 :root {
-  --background: #f4f6f9;
-  --foreground: #212529;
-  --card: #ffffff;
-  --card-foreground: #212529;
-  --popover: #ffffff;
-  --popover-foreground: #212529;
-  --primary: #007bff;
+  --background: var(--bs-tertiary-bg);
+  --foreground: var(--bs-body-color);
+  --card: var(--bs-body-bg);
+  --card-foreground: var(--bs-body-color);
+  --popover: var(--bs-body-bg);
+  --popover-foreground: var(--bs-body-color);
+  --primary: var(--bs-primary);
   --primary-foreground: #ffffff;
-  --secondary: #e9ecef;
-  --secondary-foreground: #212529;
-  --muted: #e9ecef;
-  --muted-foreground: #6c757d;
-  --accent: #e9ecef;
-  --accent-foreground: #212529;
-  --destructive: #dc3545;
-  --border: #dee2e6;
-  --input: #ced4da;
-  --ring: #007bff;
-  --chart-1: #007bff;
-  --chart-2: #17a2b8;
-  --chart-3: #28a745;
-  --chart-4: #ffc107;
-  --chart-5: #dc3545;
-  --radius: 0.5rem;
+  --secondary: var(--bs-secondary-bg);
+  --secondary-foreground: var(--bs-body-color);
+  --muted: var(--bs-secondary-bg);
+  --muted-foreground: var(--bs-secondary-color);
+  --accent: var(--bs-tertiary-bg);
+  --accent-foreground: var(--bs-emphasis-color);
+  --destructive: var(--bs-danger);
+  --border: var(--bs-border-color);
+  --input: var(--bs-border-color);
+  --ring: var(--bs-primary);
+  --chart-1: var(--bs-primary);
+  --chart-2: var(--bs-info);
+  --chart-3: var(--bs-success);
+  --chart-4: var(--bs-warning);
+  --chart-5: var(--bs-danger);
+  --radius: var(--bs-border-radius);
   --sidebar: #343a40;
   --sidebar-foreground: #c2c7d0;
-  --sidebar-primary: #007bff;
+  --sidebar-primary: var(--bs-primary);
   --sidebar-primary-foreground: #ffffff;
   --sidebar-accent: rgba(255, 255, 255, 0.1);
   --sidebar-accent-foreground: #ffffff;
   --sidebar-border: #4b545c;
-  --sidebar-ring: #007bff;
-  /* Colores de estado AdminLTE (small-boxes, badges). */
-  --lte-info: #17a2b8;
-  --lte-success: #28a745;
-  --lte-warning: #ffc107;
-  --lte-danger: #dc3545;
+  --sidebar-ring: var(--bs-primary);
+  --lte-info: var(--bs-info);
+  --lte-success: var(--bs-success);
+  --lte-warning: var(--bs-warning);
+  --lte-danger: var(--bs-danger);
 }
 
-/* Modo oscuro de AdminLTE 3 (`.dark-mode`): contenido #454d55 con tarjetas
- * #343a40; el sidebar se oscurece un paso más para conservar el contraste. */
-.dark {
-  --background: #454d55;
-  --foreground: #e9ecef;
-  --card: #343a40;
-  --card-foreground: #e9ecef;
-  --popover: #343a40;
-  --popover-foreground: #e9ecef;
-  --primary: #3f80ea;
-  --primary-foreground: #ffffff;
-  --secondary: #3f474e;
-  --secondary-foreground: #e9ecef;
-  --muted: #3f474e;
-  --muted-foreground: #adb5bd;
-  --accent: #3f474e;
-  --accent-foreground: #ffffff;
-  --destructive: #e74c3c;
-  --border: rgba(255, 255, 255, 0.15);
-  --input: rgba(255, 255, 255, 0.2);
-  --ring: #3f80ea;
-  --chart-1: #3f80ea;
-  --chart-2: #3ec9d6;
-  --chart-3: #00bc8c;
-  --chart-4: #f39c12;
-  --chart-5: #e74c3c;
-  --sidebar: #2b3035;
-  --sidebar-foreground: #c2c7d0;
-  --sidebar-primary: #3f80ea;
-  --sidebar-primary-foreground: #ffffff;
-  --sidebar-accent: rgba(255, 255, 255, 0.1);
-  --sidebar-accent-foreground: #ffffff;
-  --sidebar-border: #4b545c;
-  --sidebar-ring: #3f80ea;
-  --lte-info: #3ec9d6;
-  --lte-success: #00bc8c;
-  --lte-warning: #f39c12;
-  --lte-danger: #e74c3c;
+.dark,
+[data-bs-theme="dark"] {
+  --sidebar: #212529;
 }
 
 @layer base {
@@ -145,6 +109,236 @@
   html {
     @apply font-sans;
   }
+}
+
+/* DashboardLayout incluye búsqueda, pantalla completa y un usuario de demo
+ * por defecto. Esta app conserva en la barra únicamente utilidades reales;
+ * todos los enlaces de navegación viven en el sidebar. */
+.fecna-navbar button[title^="Search"],
+.fecna-navbar button[title="Fullscreen"],
+.fecna-navbar button[title="Exit fullscreen"],
+.fecna-navbar .user-body,
+.fecna-navbar .user-footer a:first-child {
+  display: none !important;
+}
+
+/* Ficha migrada desde Streamlit. La tarjeta conserva una paleta propia para
+ * que la pieza descargable se vea igual en tema claro y oscuro. */
+.ficha-page {
+  display: flex;
+  width: 100%;
+  flex-direction: column;
+  gap: 2rem;
+  padding-bottom: 2rem;
+}
+
+.ficha-page-title {
+  margin: 0.5rem 0 0;
+  font-size: clamp(2.4rem, 5vw, 3.8rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+}
+
+.ficha-page-title span { font-size: 0.78em; }
+
+.ficha-controls {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1.25rem 1.5rem;
+  padding: 0.5rem 0;
+}
+
+.ficha-controls h2,
+.ficha-downloads h2 {
+  width: 100%;
+  margin: 0.25rem 0 0;
+  font-size: 1.15rem;
+  font-weight: 700;
+}
+
+.ficha-controls h2 span {
+  font-weight: 400;
+  color: var(--muted-foreground);
+}
+
+.ficha-control {
+  display: flex;
+  min-width: 0;
+  flex-direction: column;
+  gap: 0.45rem;
+}
+
+.ficha-control-half { width: calc(50% - 0.75rem); }
+.ficha-control-third { width: calc(33.333% - 1rem); }
+
+.ficha-control > label:first-child {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.ficha-control select,
+.ficha-control input {
+  width: 100%;
+  height: 3rem;
+  border: 1px solid var(--input);
+  border-radius: 0.6rem;
+  background: var(--card);
+  color: var(--foreground);
+  padding: 0 0.9rem;
+  font-size: 0.95rem;
+  outline: none;
+}
+
+.ficha-control select:focus,
+.ficha-control input:focus {
+  border-color: var(--ring);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--ring) 20%, transparent);
+}
+
+.ficha-file {
+  display: flex;
+  min-height: 5rem;
+  cursor: pointer;
+  align-items: center;
+  gap: 1rem;
+  border: 1px solid var(--input);
+  border-radius: 0.65rem;
+  background: var(--card);
+  padding: 0.75rem 1rem;
+}
+
+.ficha-file > span {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  border: 1px solid var(--input);
+  border-radius: 0.55rem;
+  padding: 0.65rem 0.9rem;
+  font-weight: 700;
+}
+
+.ficha-file svg { width: 1rem; }
+.ficha-file small { color: var(--muted-foreground); }
+
+.ficha-message,
+.ficha-loading {
+  width: 100%;
+  margin: -0.25rem 0 0;
+  font-size: 0.9rem;
+}
+.ficha-message { color: var(--bs-warning-text-emphasis); }
+.ficha-loading { color: var(--muted-foreground); }
+
+.ficha-card {
+  --ficha-navy: #0b2447;
+  --ficha-navy-2: #0f3160;
+  --ficha-gold: #f6b500;
+  --ficha-gold-soft: #ffd45e;
+  container: ficha / inline-size;
+  width: min(100%, 760px);
+  margin: 0 auto;
+  overflow: hidden;
+  border-radius: 1rem;
+  background: linear-gradient(155deg, var(--ficha-navy), #17477d);
+  color: #fff;
+  box-shadow: 0 1.2rem 3rem rgba(5, 25, 50, 0.2);
+  font-family: var(--font-sans), "Segoe UI", sans-serif;
+}
+
+.ficha-hero {
+  position: relative;
+  display: flex;
+  gap: 1.25rem;
+  padding: 1.6rem 1.7rem 1rem;
+}
+
+.ficha-photo {
+  width: 210px;
+  height: 230px;
+  flex: 0 0 auto;
+  border: 3px solid rgba(255,255,255,.15);
+  border-radius: .75rem;
+  object-fit: cover;
+}
+
+.ficha-hero-main { display: flex; min-width: 0; flex: 1; flex-direction: column; }
+.ficha-logo { width: 88px; height: 88px; object-fit: contain; }
+.ficha-name { display: flex; flex-direction: column; margin-top: .25rem; line-height: .93; text-transform: uppercase; }
+.ficha-name span,
+.ficha-name strong { overflow-wrap: anywhere; font-size: clamp(2rem, 7cqw, 3.45rem); font-weight: 800; letter-spacing: .04em; }
+.ficha-name strong { color: var(--ficha-gold); }
+
+.ficha-category {
+  align-self: flex-start;
+  margin-top: .9rem;
+  border-radius: 2rem;
+  background: var(--ficha-gold);
+  color: #10243f;
+  padding: .45rem 1.1rem;
+  font-size: 1.05rem;
+  font-weight: 800;
+}
+.ficha-category span { padding: 0 .35rem; }
+.ficha-club { margin-top: .55rem; color: var(--ficha-gold-soft); font-size: .88rem; font-weight: 800; letter-spacing: .15em; text-transform: uppercase; }
+.ficha-club span { padding: 0 .35rem; }
+.ficha-championship { display: flex; flex-direction: column; margin-top: auto; text-align: right; text-transform: uppercase; }
+.ficha-championship strong { color: #cfe0ff; }
+.ficha-championship span { color: var(--ficha-gold-soft); font-size: .8rem; letter-spacing: .2em; }
+
+.ficha-highlights { display: flex; flex-direction: column; gap: .65rem; padding: .25rem 1.7rem .4rem; }
+.ficha-highlight { display: flex; align-items: center; gap: 1rem; border-radius: .7rem; padding: .8rem 1rem; }
+.ficha-highlight h2 { margin: 0; color: var(--ficha-gold); font-size: 1.35rem; font-weight: 850; letter-spacing: .04em; text-transform: uppercase; }
+.ficha-highlight-national { border: 1px solid var(--ficha-gold); background: linear-gradient(90deg, #14315e, #214f8d); }
+.ficha-highlight-medal { font-size: 2.5rem; }
+.ficha-highlight-detail { display: flex; margin-left: auto; flex-direction: column; text-align: right; }
+.ficha-highlight-detail span { color: #dbe6ff; }
+.ficha-highlight-detail span:last-child,
+.ficha-highlight-position { color: var(--ficha-gold-soft) !important; font-weight: 700; }
+.ficha-highlight-league { flex-direction: column; align-items: stretch; border: 1px solid rgba(255,255,255,.2); background: rgba(255,255,255,.06); }
+.ficha-highlight-chips { display: flex; gap: .65rem; }
+.ficha-highlight-chip { display: flex; min-width: 0; flex: 1; flex-direction: column; border-radius: .55rem; background: rgba(0,0,0,.25); padding: .65rem; text-align: center; }
+.ficha-highlight-chip span { color: #dbe6ff; font-size: .88rem; }
+
+.ficha-table-wrap { margin: .8rem 1.7rem .4rem; overflow-x: auto; border-radius: .7rem; }
+.ficha-table { width: 100%; min-width: 610px; border-collapse: collapse; background: #f4f6fb; color: #10243f; }
+.ficha-table th { background: var(--ficha-navy); color: #fff; padding: .75rem; text-align: left; font-size: .83rem; letter-spacing: .02em; }
+.ficha-table td { border-top: 1px solid #e3e8f2; padding: .75rem; font-size: .9rem; }
+.ficha-table tr:nth-child(even) { background: #eaf0f9; }
+.ficha-event { font-weight: 750; }
+.ficha-event > span { margin-left: .35rem; border-radius: 1rem; background: var(--ficha-navy-2); color: #fff; padding: .1rem .45rem; font-size: .67rem; vertical-align: middle; }
+.ficha-time { color: var(--ficha-navy-2); font-weight: 850; font-variant-numeric: tabular-nums; }
+.ficha-of { color: #6b7a92; font-size: .82rem; font-weight: 500; }
+.ficha-quote { margin: 0; padding: .9rem 1.7rem .5rem; color: #cfe0ff; text-align: center; font-size: .9rem; font-style: italic; line-height: 1.5; }
+.ficha-quote strong { color: var(--ficha-gold); font-style: normal; text-transform: uppercase; }
+.ficha-reference { padding: 0 1.7rem 1.25rem; color: #8aa3c9; text-align: center; font-size: .72rem; }
+
+.ficha-downloads { display: flex; flex-direction: column; gap: 1rem; padding-top: .5rem; }
+.ficha-downloads > div { display: grid; grid-template-columns: repeat(3, 1fr); gap: 1rem; }
+.ficha-downloads button { height: 3rem; }
+.ficha-downloads > p { display: flex; align-items: center; gap: .4rem; margin: 0; color: var(--muted-foreground); font-size: .82rem; }
+.ficha-downloads > p svg { width: 1rem; }
+
+@container ficha (max-width: 560px) {
+  .ficha-hero { flex-direction: column; align-items: center; padding: 1.1rem .9rem .8rem; text-align: center; }
+  .ficha-photo { width: min(100%, 280px); height: auto; aspect-ratio: 4 / 4.4; }
+  .ficha-logo { margin: 0 auto; }
+  .ficha-name { margin-top: .7rem; }
+  .ficha-category { align-self: center; font-size: .9rem; }
+  .ficha-club { font-size: .75rem; }
+  .ficha-championship { margin-top: .75rem; text-align: center; }
+  .ficha-highlights { padding-inline: .7rem; }
+  .ficha-highlight { align-items: flex-start; flex-direction: column; gap: .45rem; }
+  .ficha-highlight h2 { font-size: 1.05rem; }
+  .ficha-highlight-detail { margin-left: 0; text-align: left; }
+  .ficha-highlight-chips { width: 100%; flex-direction: column; }
+  .ficha-table-wrap { margin-inline: .7rem; }
+  .ficha-quote, .ficha-reference { padding-inline: .9rem; }
+}
+
+@media (max-width: 767px) {
+  .ficha-control-half,
+  .ficha-control-third { width: 100%; }
+  .ficha-downloads > div { grid-template-columns: 1fr; }
 }
 
 /* Impresión (ficha del nadador): fondo blanco y texto oscuro sin importar el
@@ -171,4 +365,9 @@
   body {
     background: white !important;
   }
+
+  .app-content { padding: 0 !important; }
+  .app-content .container-fluid { padding: 0 !important; }
+  .ficha-page { display: block; padding: 0; }
+  .ficha-card { width: 760px; max-width: 100%; border-radius: 0; box-shadow: none; print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }

@@ -10,16 +10,24 @@ export const metadata = {
 
 export default function ProgramaPage() {
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
-      <ContentHeader title="Programa" />
-      <p className="max-w-2xl text-sm text-muted-foreground">
-        Cronograma de campeonatos, alertas de tus nadadores seguidos y carga de nuevos
-        programas.
-      </p>
+    <>
+      <div className="app-content-header">
+        <div className="container-fluid">
+          <ContentHeader title="Programa" />
+        </div>
+      </div>
+      <div className="app-content">
+        <div className="container-fluid flex flex-col gap-4">
+          <p className="max-w-2xl text-sm text-muted-foreground">
+            Cronograma de campeonatos, alertas de tus nadadores seguidos y carga de
+            nuevos programas.
+          </p>
 
-      <Suspense fallback={<ProgramaSkeleton />}>
-        <ProgramaSection />
-      </Suspense>
-    </div>
+          <Suspense fallback={<ProgramaSkeleton />}>
+            <ProgramaSection />
+          </Suspense>
+        </div>
+      </div>
+    </>
   );
 }

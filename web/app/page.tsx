@@ -37,54 +37,61 @@ export default async function HomePage() {
   const nadadores = count(health, "nadadores");
 
   return (
-    <div className="mx-auto flex w-full max-w-6xl flex-col gap-4 px-4 py-4 sm:px-6 sm:py-6">
-      <ContentHeader title="Ranking nacional" home />
-
-      {(resultados || nadadores) && (
-        <div className="grid gap-4 sm:grid-cols-2">
-          {resultados && (
-            <SmallBox
-              value={resultados}
-              label="Resultados oficiales"
-              color="info"
-              icon={<FontAwesomeIcon icon={faStopwatch} />}
-            />
-          )}
-          {nadadores && (
-            <SmallBox
-              value={nadadores}
-              label="Nadadores en la base"
-              color="success"
-              icon={<FontAwesomeIcon icon={faPersonSwimming} />}
-            />
-          )}
+    <>
+      <div className="app-content-header">
+        <div className="container-fluid">
+          <ContentHeader title="Ranking nacional" home />
         </div>
-      )}
+      </div>
+      <div className="app-content">
+        <div className="container-fluid flex flex-col gap-4">
+          {(resultados || nadadores) && (
+            <div className="grid gap-4 sm:grid-cols-2">
+              {resultados && (
+                <SmallBox
+                  value={resultados}
+                  label="Resultados oficiales"
+                  color="info"
+                  icon={<FontAwesomeIcon icon={faStopwatch} />}
+                />
+              )}
+              {nadadores && (
+                <SmallBox
+                  value={nadadores}
+                  label="Nadadores en la base"
+                  color="success"
+                  icon={<FontAwesomeIcon icon={faPersonSwimming} />}
+                />
+              )}
+            </div>
+          )}
 
-      <Card className="border-t-[3px] border-t-lte-info">
-        <CardHeader className="border-b">
-          <CardTitle>Buscar nadador</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <p className="mb-3 text-sm text-muted-foreground">
-            Rankings de natación de Colombia — datos públicos FECNA.
-          </p>
-          <div className="max-w-md">
-            <SwimmerSearch />
-          </div>
-        </CardContent>
-      </Card>
+          <Card className="card-outline card-info">
+            <CardHeader>
+              <CardTitle>Buscar nadador</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <p className="mb-3 text-sm text-muted-foreground">
+                Rankings de natación de Colombia — datos públicos FECNA.
+              </p>
+              <div className="max-w-md">
+                <SwimmerSearch />
+              </div>
+            </CardContent>
+          </Card>
 
-      <Card className="border-t-[3px] border-t-primary">
-        <CardHeader className="border-b">
-          <CardTitle>Ranking</CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Suspense fallback={<RankingSkeleton />}>
-            <RankingSection />
-          </Suspense>
-        </CardContent>
-      </Card>
-    </div>
+          <Card className="card-outline card-primary">
+            <CardHeader>
+              <CardTitle>Ranking</CardTitle>
+            </CardHeader>
+            <CardContent>
+              <Suspense fallback={<RankingSkeleton />}>
+                <RankingSection />
+              </Suspense>
+            </CardContent>
+          </Card>
+        </div>
+      </div>
+    </>
   );
 }

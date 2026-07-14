@@ -1,10 +1,12 @@
 import type { Metadata, Viewport } from "next";
 import { Geist_Mono, Source_Sans_3 } from "next/font/google";
-import Script from "next/script";
 
 import { config } from "@fortawesome/fontawesome-svg-core";
+import "@adminlte/react/css";
+import "bootstrap-icons/font/bootstrap-icons.css";
 import "@fortawesome/fontawesome-svg-core/styles.css";
 
+import { BootstrapClient } from "@/components/bootstrap-client";
 import { AppShell } from "@/components/layout/app-shell";
 
 import "./globals.css";
@@ -13,10 +15,8 @@ import "./globals.css";
 // runtime y los iconos parpadearían gigantes en el primer paint (SSR).
 config.autoAddCss = false;
 
-// Source Sans (la fuente de AdminLTE 3). Nombres de variable alineados con
-// `--font-sans` / `--font-mono` en globals.css (@theme inline) para que
-// Tailwind resuelva la fuente real en vez de quedarse con la referencia
-// circular que deja el preset por defecto.
+// Nombres de variable alineados con `--font-sans` / `--font-mono` en
+// globals.css para que Tailwind y AdminLTE compartan la tipografía de la app.
 const sourceSans = Source_Sans_3({
   variable: "--font-sans",
   subsets: ["latin"],
@@ -44,23 +44,10 @@ export const metadata: Metadata = {
 
 export const viewport: Viewport = {
   themeColor: [
-    { media: "(prefers-color-scheme: light)", color: "#f4f6f9" },
-    { media: "(prefers-color-scheme: dark)", color: "#454d55" },
+    { media: "(prefers-color-scheme: light)", color: "#f8f9fa" },
+    { media: "(prefers-color-scheme: dark)", color: "#2b3035" },
   ],
 };
-
-// Evita el parpadeo de tema: aplica la clase "dark" antes de hidratar, según
-// la preferencia guardada (localStorage) o, si no hay ninguna, la del
-// sistema. Ver components/theme-toggle.tsx para el toggle persistido.
-const THEME_INIT_SCRIPT = `
-(function () {
-  try {
-    var stored = window.localStorage.getItem("fecna-theme");
-    var dark = stored ? stored === "dark" : window.matchMedia("(prefers-color-scheme: dark)").matches;
-    if (dark) document.documentElement.classList.add("dark");
-  } catch (e) {}
-})();
-`;
 
 export default function RootLayout({
   children,
@@ -70,13 +57,9 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${sourceSans.variable} ${geistMono.variable} antialiased`}
+        className={`${sourceSans.variable} ${geistMono.variable} app-loaded antialiased`}
       >
-        <Script
-          id="theme-init"
-          strategy="beforeInteractive"
-          dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }}
-        />
+        <BootstrapClient />
         <AppShell>{children}</AppShell>
       </body>
     </html>

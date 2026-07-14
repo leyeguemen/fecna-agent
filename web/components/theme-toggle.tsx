@@ -42,6 +42,7 @@ function getServerSnapshot(): Theme {
 
 function applyTheme(theme: Theme) {
   document.documentElement.classList.toggle("dark", theme === "dark");
+  document.documentElement.setAttribute("data-bs-theme", theme);
 }
 
 export function ThemeToggle() {

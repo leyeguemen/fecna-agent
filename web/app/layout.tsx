@@ -1,15 +1,23 @@
 import type { Metadata, Viewport } from "next";
-import { Geist, Geist_Mono } from "next/font/google";
+import { Geist_Mono, Source_Sans_3 } from "next/font/google";
 import Script from "next/script";
+
+import { config } from "@fortawesome/fontawesome-svg-core";
+import "@fortawesome/fontawesome-svg-core/styles.css";
 
 import { AppShell } from "@/components/layout/app-shell";
 
 import "./globals.css";
 
-// Nombres de variable alineados con `--font-sans` / `--font-mono` en
-// globals.css (@theme inline) para que Tailwind resuelva la fuente real en
-// vez de quedarse con la referencia circular que deja el preset por defecto.
-const geistSans = Geist({
+// Font Awesome: el CSS ya se importa arriba; sin esto inyectaría estilos en
+// runtime y los iconos parpadearían gigantes en el primer paint (SSR).
+config.autoAddCss = false;
+
+// Source Sans (la fuente de AdminLTE 3). Nombres de variable alineados con
+// `--font-sans` / `--font-mono` en globals.css (@theme inline) para que
+// Tailwind resuelva la fuente real en vez de quedarse con la referencia
+// circular que deja el preset por defecto.
+const sourceSans = Source_Sans_3({
   variable: "--font-sans",
   subsets: ["latin"],
 });
@@ -62,7 +70,7 @@ export default function RootLayout({
   return (
     <html lang="es" suppressHydrationWarning>
       <body
-        className={`${geistSans.variable} ${geistMono.variable} antialiased`}
+        className={`${sourceSans.variable} ${geistMono.variable} antialiased`}
       >
         <Script
           id="theme-init"

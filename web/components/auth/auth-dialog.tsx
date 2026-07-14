@@ -2,6 +2,10 @@
 
 import { useId, useState, type FormEvent } from "react";
 
+import { faEnvelope, faLock } from "@fortawesome/free-solid-svg-icons";
+import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
+import type { IconDefinition } from "@fortawesome/fontawesome-svg-core";
+
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -13,7 +17,6 @@ import {
 import { Input } from "@/components/ui/input";
 import { ApiError } from "@/lib/api";
 import { useUser } from "@/lib/auth";
-import { cn } from "@/lib/utils";
 
 type Mode = "login" | "register";
 
@@ -93,67 +96,38 @@ export function AuthDialog({ open, onOpenChange, defaultMode = "login" }: AuthDi
 
   return (
     <Dialog open={open} onOpenChange={handleOpenChange}>
-      <DialogContent>
-        <DialogHeader>
-          <DialogTitle>
-            {mode === "login" ? "Iniciar sesión" : "Registrarse"}
+      <DialogContent className="sm:max-w-sm">
+        {/* "login-box" de AdminLTE: logo centrado en peso ligero, mensaje,
+         * inputs con icono a la derecha y botón primario en bloque. */}
+        <DialogHeader className="items-center text-center">
+          <DialogTitle className="text-2xl font-light tracking-tight">
+            🏊 <span className="font-bold">FECNA</span> Natación
           </DialogTitle>
           <DialogDescription>
             {mode === "login"
-              ? "Ingresa con tu email y contraseña."
-              : "Crea una cuenta con tu email y una contraseña."}
+              ? "Inicia sesión para comenzar"
+              : "Registra una cuenta nueva"}
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex gap-1 rounded-lg bg-muted p-1 text-sm">
-          <button
-            type="button"
-            className={cn(
-              "flex-1 rounded-md px-2.5 py-1.5 font-medium transition-colors",
-              mode === "login"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => switchMode("login")}
-          >
-            Iniciar sesión
-          </button>
-          <button
-            type="button"
-            className={cn(
-              "flex-1 rounded-md px-2.5 py-1.5 font-medium transition-colors",
-              mode === "register"
-                ? "bg-background text-foreground shadow-sm"
-                : "text-muted-foreground hover:text-foreground",
-            )}
-            onClick={() => switchMode("register")}
-          >
-            Registrarse
-          </button>
-        </div>
-
         <form className="flex flex-col gap-3" onSubmit={handleSubmit}>
-          <div className="flex flex-col gap-1">
-            <label htmlFor={emailId} className="text-sm font-medium">
-              Email
-            </label>
-            <Input
-              id={emailId}
-              type="email"
-              autoComplete="email"
-              required
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              disabled={submitting}
-            />
-          </div>
+          <IconInput
+            id={emailId}
+            label="Email"
+            icon={faEnvelope}
+            type="email"
+            autoComplete="email"
+            required
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+            disabled={submitting}
+          />
 
           <div className="flex flex-col gap-1">
-            <label htmlFor={passwordId} className="text-sm font-medium">
-              Contraseña
-            </label>
-            <Input
+            <IconInput
               id={passwordId}
+              label="Contraseña"
+              icon={faLock}
               type="password"
               autoComplete={mode === "login" ? "current-password" : "new-password"}
               required
@@ -168,21 +142,18 @@ export function AuthDialog({ open, onOpenChange, defaultMode = "login" }: AuthDi
           </div>
 
           {mode === "register" && (
-            <div className="flex flex-col gap-1">
-              <label htmlFor={confirmId} className="text-sm font-medium">
-                Confirmar contraseña
-              </label>
-              <Input
-                id={confirmId}
-                type="password"
-                autoComplete="new-password"
-                required
-                minLength={8}
-                value={confirm}
-                onChange={(e) => setConfirm(e.target.value)}
-                disabled={submitting}
-              />
-            </div>
+            <IconInput
+              id={confirmId}
+              label="Confirmar contraseña"
+              icon={faLock}
+              type="password"
+              autoComplete="new-password"
+              required
+              minLength={8}
+              value={confirm}
+              onChange={(e) => setConfirm(e.target.value)}
+              disabled={submitting}
+            />
           )}
 
           {error && (
@@ -191,7 +162,7 @@ export function AuthDialog({ open, onOpenChange, defaultMode = "login" }: AuthDi
             </p>
           )}
           {success && !error && (
-            <p className="text-sm text-emerald-600 dark:text-emerald-400">{success}</p>
+            <p className="text-sm text-lte-success">{success}</p>
           )}
 
           <Button type="submit" disabled={submitting} className="mt-1 w-full">
@@ -199,10 +170,55 @@ export function AuthDialog({ open, onOpenChange, defaultMode = "login" }: AuthDi
               ? "Enviando…"
               : mode === "login"
                 ? "Iniciar sesión"
-                : "Crear cuenta"}
+                : "Registrarse"}
           </Button>
         </form>
+
+        {mode === "login" ? (
+          <button
+            type="button"
+            className="text-left text-sm text-primary hover:underline"
+            onClick={() => switchMode("register")}
+          >
+            Registrar una cuenta nueva
+          </button>
+        ) : (
+          <button
+            type="button"
+            className="text-left text-sm text-primary hover:underline"
+            onClick={() => switchMode("login")}
+          >
+            Ya tengo una cuenta
+          </button>
+        )}
       </DialogContent>
     </Dialog>
+  );
+}
+
+/** Input con el icono en caja a la derecha, como el "input-group" del login
+ * de AdminLTE. La etiqueta queda solo para lectores de pantalla (el diseño
+ * original usa placeholders). */
+function IconInput({
+  id,
+  label,
+  icon,
+  ...props
+}: React.ComponentProps<typeof Input> & { label: string; icon: IconDefinition }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <label htmlFor={id} className="sr-only">
+        {label}
+      </label>
+      <div className="flex">
+        <Input id={id} placeholder={label} className="rounded-r-none" {...props} />
+        <span
+          aria-hidden="true"
+          className="flex w-10 shrink-0 items-center justify-center rounded-r-md border border-l-0 border-input text-muted-foreground"
+        >
+          <FontAwesomeIcon icon={icon} className="size-3.5" />
+        </span>
+      </div>
+    </div>
   );
 }

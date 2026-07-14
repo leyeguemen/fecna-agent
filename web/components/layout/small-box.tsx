@@ -1,16 +1,9 @@
-import { cn } from "@/lib/utils";
+import { SmallBox as AdminLTESmallBox } from "@adminlte/react";
 
 /**
- * "Small box" de AdminLTE: caja de estadística con color de estado, número
- * grande y un icono fantasma a la derecha.
+ * Small box oficial de AdminLTE 4.
  */
-const COLORS = {
-  primary: "bg-primary text-primary-foreground",
-  info: "bg-lte-info text-white",
-  success: "bg-lte-success text-white",
-  warning: "bg-lte-warning text-neutral-900",
-  danger: "bg-lte-danger text-white",
-} as const;
+type SmallBoxColor = "primary" | "info" | "success" | "warning" | "danger";
 
 export function SmallBox({
   value,
@@ -20,26 +13,26 @@ export function SmallBox({
 }: {
   value: string;
   label: string;
-  color?: keyof typeof COLORS;
+  color?: SmallBoxColor;
   icon?: React.ReactNode;
 }) {
   return (
-    <div
-      className={cn(
-        "relative overflow-hidden rounded-lg p-4 shadow-sm",
-        COLORS[color],
-      )}
-    >
-      <div className="text-3xl font-bold tracking-tight">{value}</div>
-      <p className="mt-1 text-sm opacity-90">{label}</p>
-      {icon && (
-        <span
-          aria-hidden="true"
-          className="pointer-events-none absolute -right-1 -top-1 select-none text-6xl opacity-20"
-        >
-          {icon}
-        </span>
-      )}
+    <div className="[&_.small-box]:mb-0">
+      <AdminLTESmallBox
+        title={value}
+        text={label}
+        theme={color}
+        icon={
+          icon ? (
+            <span
+              aria-hidden="true"
+              className="small-box-icon pointer-events-none select-none"
+            >
+              {icon}
+            </span>
+          ) : undefined
+        }
+      />
     </div>
   );
 }

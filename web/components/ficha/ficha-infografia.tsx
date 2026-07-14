@@ -1,105 +1,177 @@
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import type { Ref } from "react";
+
 import type { SwimmerProfile, SwimmerTopEvent } from "@/lib/types";
 
 const MEDALS: Record<number, string> = { 1: "🥇", 2: "🥈", 3: "🥉" };
+const GENDER_LABELS: Record<string, string> = { M: "Masculino", F: "Femenino" };
+const TIERS = [3, 5, 10, 20, 50];
 
-const GENDER_LABELS: Record<string, string> = {
-  M: "Masculino",
-  F: "Femenino",
-};
-
-const POOL_LABELS: Record<string, string> = {
-  LC: "Piscina larga (LC)",
-  SC: "Piscina corta (SC)",
-};
-
-const RANK_BADGE_STYLES: Record<number, string> = {
-  1: "bg-amber-500/15 text-amber-600 dark:text-amber-400 print:text-amber-600",
-  2: "bg-slate-400/20 text-slate-600 dark:text-slate-300 print:text-slate-600",
-  3: "bg-orange-700/15 text-orange-700 dark:text-orange-400 print:text-orange-700",
-};
-
-function ordinal(n: number): string {
-  return `${n}º`;
+export interface FichaCustomization {
+  photo: string | null;
+  logo: string | null;
+  championship: string;
+  venue: string;
 }
 
-function formatBirthDate(iso: string): string {
-  const [year, month, day] = iso.split("-");
-  if (!year || !month || !day) return iso;
-  return `${day}/${month}/${year}`;
+function shortEvent(name: string): string {
+  return name.split("/")[0]?.trim() || name;
 }
 
-/** La infografía compartible/imprimible: encabezado del nadador + grilla de
- * sus mejores pruebas con puesto nacional. Es la única sección visible al
- * imprimir (ver `print:` en las clases y los overrides en globals.css). */
-export function FichaInfografia({ profile }: { profile: SwimmerProfile }) {
+function rankTier(rank: number): number {
+  return TIERS.find((tier) => rank <= tier) ?? Math.ceil(rank / 10) * 10;
+}
+
+function prettyTime(milliseconds: number): string {
+  const centiseconds = Math.floor((milliseconds % 1000) / 10);
+  const totalSeconds = Math.floor(milliseconds / 1000);
+  const seconds = totalSeconds % 60;
+  const totalMinutes = Math.floor(totalSeconds / 60);
+  const minutes = totalMinutes % 60;
+  const hours = Math.floor(totalMinutes / 60);
+  const fraction = `${seconds.toString().padStart(2, "0")}.${centiseconds.toString().padStart(2, "0")}`;
+  if (hours) return `${hours}:${minutes.toString().padStart(2, "0")}:${fraction}`;
+  if (minutes) return `${minutes}:${fraction}`;
+  return `${seconds}.${centiseconds.toString().padStart(2, "0")}`;
+}
+
+function position(rank: number, total: number) {
   return (
-    <div className="flex flex-col gap-6 rounded-2xl border border-border/60 bg-card p-6 ring-1 ring-foreground/5 sm:p-8 print:rounded-none print:border-0 print:p-0 print:ring-0">
-      <header className="flex flex-col gap-2">
-        <h1 className="text-3xl font-semibold tracking-tight sm:text-4xl">
-          {profile.swimmer_name}
-        </h1>
-        <p className="text-muted-foreground">
-          {profile.club} · {profile.league}
-        </p>
-        <p className="text-sm text-muted-foreground">
-          {GENDER_LABELS[profile.gender] ?? profile.gender}
-          {" · "}
-          {profile.age} años
-          <span className="text-xs"> (edad de referencia a {profile.reference_year})</span>
-          {profile.birth_date && (
-            <> · Nacimiento: {formatBirthDate(profile.birth_date)}</>
-          )}
-        </p>
-      </header>
+    <>
+      {MEDALS[rank] && <span aria-hidden="true">{MEDALS[rank]} </span>}
+      {rank}.º <span className="ficha-of">de {total}</span>
+    </>
+  );
+}
 
-      <section className="flex flex-col gap-3">
-        <h2 className="text-sm font-semibold tracking-tight text-muted-foreground uppercase">
-          Mejores pruebas
-        </h2>
-        {profile.top_events.length === 0 ? (
-          <p className="text-sm text-muted-foreground">
-            Este nadador aún no tiene tiempos registrados.
-          </p>
-        ) : (
-          <div className="grid grid-cols-1 gap-3 sm:grid-cols-2 lg:grid-cols-3 print:grid-cols-2 print:gap-2">
-            {profile.top_events.map((event) => (
-              <TopEventCard key={`${event.event_id}-${event.pool}`} event={event} />
-            ))}
-          </div>
-        )}
-      </section>
+function EventChip({ event }: { event: SwimmerTopEvent }) {
+  return (
+    <div className="ficha-highlight-chip">
+      <strong>{shortEvent(event.event_name)}</strong>
+      <span>{prettyTime(event.best_ms)}</span>
+      <span className="ficha-highlight-position">
+        {event.league_rank}.º de {event.league_total}
+      </span>
     </div>
   );
 }
 
-function TopEventCard({ event }: { event: SwimmerTopEvent }) {
-  const medal = MEDALS[event.national_rank];
-  const badgeStyle = RANK_BADGE_STYLES[event.national_rank] ?? "bg-muted text-muted-foreground";
+export function FichaInfografia({
+  profile,
+  customization,
+  cardRef,
+}: {
+  profile: SwimmerProfile;
+  customization: FichaCustomization;
+  cardRef?: Ref<HTMLDivElement>;
+}) {
+  const parts = profile.swimmer_name.trim().split(/\s+/);
+  const firstName = parts.shift() ?? profile.swimmer_name;
+  const lastNames = parts.join(" ");
+  const bestNational = profile.top_events.reduce<SwimmerTopEvent | null>(
+    (best, event) => (!best || event.national_rank < best.national_rank ? event : best),
+    null,
+  );
+  const leagueGold = profile.top_events.filter((event) => event.league_rank === 1);
+  const leagueSilver = profile.top_events.filter((event) => event.league_rank === 2);
+  const leagueBronze = profile.top_events.filter((event) => event.league_rank === 3);
+  const leaguePodium = leagueGold.length ? leagueGold : leagueSilver.length ? leagueSilver : leagueBronze;
+  const leagueRank = leaguePodium[0]?.league_rank;
+  const leagueTitle = leagueRank === 1 ? "CAMPEÓN" : leagueRank === 2 ? "SUBCAMPEÓN" : "TERCERO";
 
   return (
-    <Card size="sm" className="print:break-inside-avoid print:ring-1 print:ring-black/20">
-      <CardHeader>
-        <CardTitle className="flex items-start justify-between gap-2">
-          <span>{event.event_name}</span>
-        </CardTitle>
-        <p className="text-xs text-muted-foreground">{POOL_LABELS[event.pool] ?? event.pool}</p>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-2">
-        <span className="font-mono text-2xl font-semibold tabular-nums">{event.best_time}</span>
-
-        <div className="flex flex-wrap items-center gap-1.5 text-xs">
-          <span
-            className={`inline-flex items-center gap-1 rounded-full px-2 py-0.5 font-medium ${badgeStyle}`}
-          >
-            {medal && <span aria-hidden="true">{medal}</span>}
-            {ordinal(event.national_rank)} de {event.national_total} (nacional)
-          </span>
-          <span className="inline-flex items-center gap-1 rounded-full bg-muted px-2 py-0.5 text-muted-foreground">
-            {ordinal(event.league_rank)} de {event.league_total} (liga)
-          </span>
+    <article ref={cardRef} className="ficha-card" aria-label={`Ficha de ${profile.swimmer_name}`}>
+      <header className="ficha-hero">
+        {customization.photo && (
+          // eslint-disable-next-line @next/next/no-img-element -- vista previa de un archivo local del usuario
+          <img className="ficha-photo" src={customization.photo} alt="Foto del nadador" />
+        )}
+        <div className="ficha-hero-main">
+          {customization.logo && (
+            // eslint-disable-next-line @next/next/no-img-element -- vista previa de un archivo local del usuario
+            <img className="ficha-logo" src={customization.logo} alt="Logo del club" />
+          )}
+          <div className="ficha-name">
+            <span>{firstName}</span>
+            {lastNames && <strong>{lastNames}</strong>}
+          </div>
+          <div className="ficha-category">
+            {profile.age} AÑOS <span>·</span> {GENDER_LABELS[profile.gender] ?? profile.gender}
+          </div>
+          <div className="ficha-club">
+            {profile.club} <span>·</span> LIGA {profile.league}
+          </div>
+          {(customization.championship || customization.venue) && (
+            <div className="ficha-championship">
+              <strong>{customization.championship}</strong>
+              <span>{customization.venue}</span>
+            </div>
+          )}
         </div>
-      </CardContent>
-    </Card>
+      </header>
+
+      <div className="ficha-highlights">
+        {bestNational && (
+          <section className="ficha-highlight ficha-highlight-national">
+            <span className="ficha-highlight-medal" aria-hidden="true">🥇</span>
+            <h2>
+              {bestNational.national_rank === 1
+                ? "CAMPEÓN DE COLOMBIA"
+                : `TOP ${rankTier(bestNational.national_rank)} DE COLOMBIA`}
+            </h2>
+            <div className="ficha-highlight-detail">
+              <strong>{shortEvent(bestNational.event_name)}</strong>
+              <span>{prettyTime(bestNational.best_ms)}</span>
+              <span>{bestNational.national_rank}.º de {bestNational.national_total} nacional</span>
+            </div>
+          </section>
+        )}
+
+        {leaguePodium.length > 0 && (
+          <section className="ficha-highlight ficha-highlight-league">
+            <h2>{MEDALS[leagueRank ?? 0]} {leagueTitle} LIGA {profile.league}</h2>
+            <div className="ficha-highlight-chips">
+              {leaguePodium.map((event) => (
+                <EventChip key={`${event.event_id}-${event.pool}`} event={event} />
+              ))}
+            </div>
+          </section>
+        )}
+      </div>
+
+      <div className="ficha-table-wrap">
+        <table className="ficha-table">
+          <thead>
+            <tr>
+              <th>Prueba</th>
+              <th>Mejor marca</th>
+              <th>🏆 Ranking liga</th>
+              <th>🇨🇴 Ranking Colombia</th>
+            </tr>
+          </thead>
+          <tbody>
+            {profile.top_events.map((event) => (
+              <tr key={`${event.event_id}-${event.pool}`}>
+                <td className="ficha-event">
+                  {shortEvent(event.event_name)} <span>{event.pool}</span>
+                </td>
+                <td className="ficha-time">{prettyTime(event.best_ms)}</td>
+                <td>{position(event.league_rank, event.league_total)}</td>
+                <td>{position(event.national_rank, event.national_total)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+
+      <blockquote className="ficha-quote">
+        “El esfuerzo de cada entrenamiento se refleja en los resultados. <strong>{profile.swimmer_name}</strong>{" "}
+        continúa posicionándose entre los mejores nadadores de Colombia en la categoría {profile.age} años,
+        llevando con orgullo los colores de {profile.club}.”
+      </blockquote>
+      <footer className="ficha-reference">
+        Categoría calculada al año {profile.reference_year} · Nacimiento: {profile.birth_date ?? "—"} ·
+        Puesto por género y categoría · Fuente: ranking FECNA
+      </footer>
+    </article>
   );
 }

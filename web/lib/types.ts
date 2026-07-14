@@ -51,6 +51,11 @@ export interface SwimmerSearchResponse {
   items: SwimmerSearchItem[];
 }
 
+export interface SwimmerOptionsResponse {
+  leagues: string[];
+  items: SwimmerSearchItem[];
+}
+
 // --- /swimmers/{id} ------------------------------------------------------------
 
 export interface SwimmerTopEvent {

@@ -174,6 +174,14 @@ def test_swimmers_search_q_muy_corto(client):
     assert resp.status_code == 422
 
 
+def test_swimmer_options_filtra_por_liga(client):
+    resp = client.get("/swimmers/options", params={"league": "Liga Pacifico"})
+    assert resp.status_code == 200
+    body = resp.json()
+    assert "Liga Andina" in body["leagues"]
+    assert [item["swimmer_id"] for item in body["items"]] == ["3"]
+
+
 def test_swimmer_profile_ok(client):
     resp = client.get("/swimmers/1")
     assert resp.status_code == 200
@@ -186,6 +194,26 @@ def test_swimmer_profile_ok(client):
     for event in body["top_events"]:
         assert "best_time" in event
         assert "national_rank" in event
+
+
+def test_swimmer_profile_acepta_filtros(client):
+    resp = client.get(
+        "/swimmers/1",
+        params={"pool": "SC", "date_from": "2026-02-01", "date_to": "2026-12-31"},
+    )
+    assert resp.status_code == 200
+    body = resp.json()
+    assert body["reference_year"] == 2026
+    assert len(body["top_events"]) == 1
+    assert body["top_events"][0]["pool"] == "SC"
+
+
+def test_swimmer_profile_rechaza_rango_invertido(client):
+    resp = client.get(
+        "/swimmers/1",
+        params={"date_from": "2026-12-31", "date_to": "2026-01-01"},
+    )
+    assert resp.status_code == 422
 
 
 def test_swimmer_profile_404(client):

@@ -26,6 +26,12 @@ const MENU_ITEMS: MenuNode[] = [
     href: "/programa",
     icon: "bi-calendar3",
   },
+  {
+    type: "item",
+    text: "Ficha",
+    href: "/ficha",
+    icon: "bi-person-vcard",
+  },
 ];
 
 const NextLinkAdapter: LinkComponent = ({ href, children, ...props }) => (

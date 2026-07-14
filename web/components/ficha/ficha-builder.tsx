@@ -36,10 +36,17 @@ function readImage(file: File | undefined, setter: (value: string | null) => voi
   reader.readAsDataURL(file);
 }
 
-export function FichaBuilder({ initialProfile }: { initialProfile: SwimmerProfile }) {
+export function FichaBuilder({
+  initialProfile,
+  selectionMode = "route",
+}: {
+  initialProfile: SwimmerProfile;
+  selectionMode?: "route" | "same-page";
+}) {
   const router = useRouter();
   const cardRef = useRef<HTMLDivElement>(null);
   const [profile, setProfile] = useState(initialProfile);
+  const [selectedSwimmerId, setSelectedSwimmerId] = useState(initialProfile.swimmer_id);
   const [options, setOptions] = useState<SwimmerOptionsResponse>({ leagues: [], items: [] });
   const [league, setLeague] = useState("");
   const [pool, setPool] = useState("");
@@ -73,7 +80,7 @@ export function FichaBuilder({ initialProfile }: { initialProfile: SwimmerProfil
       setLoading(true);
       setMessage(null);
       try {
-        const next = await api.get<SwimmerProfile>(`/swimmers/${profile.swimmer_id}?${query}`);
+        const next = await api.get<SwimmerProfile>(`/swimmers/${selectedSwimmerId}?${query}`);
         setProfile(next);
         if (next.top_events.length === 0) setMessage("No hay pruebas en la piscina seleccionada.");
       } catch (error) {
@@ -89,7 +96,7 @@ export function FichaBuilder({ initialProfile }: { initialProfile: SwimmerProfil
       }
     }, 250);
     return () => window.clearTimeout(timer);
-  }, [dateFrom, dateTo, pool, profile.swimmer_id]);
+  }, [dateFrom, dateTo, pool, selectedSwimmerId]);
 
   const invalidDateRange = Boolean(dateFrom && dateTo && dateFrom > dateTo);
   const visibleMessage = invalidDateRange
@@ -98,6 +105,15 @@ export function FichaBuilder({ initialProfile }: { initialProfile: SwimmerProfil
 
   function updateText(field: "championship" | "venue", value: string) {
     setCustomization((current) => ({ ...current, [field]: value }));
+  }
+
+  function selectSwimmer(swimmerId: string) {
+    if (selectionMode === "same-page") {
+      setSelectedSwimmerId(swimmerId);
+      router.replace(`/ficha?swimmer_id=${encodeURIComponent(swimmerId)}`, { scroll: false });
+      return;
+    }
+    router.push(`/nadador/${swimmerId}`);
   }
 
   function handleImage(field: "photo" | "logo", event: ChangeEvent<HTMLInputElement>) {
@@ -143,8 +159,8 @@ export function FichaBuilder({ initialProfile }: { initialProfile: SwimmerProfil
           <label htmlFor="ficha-swimmer">Nadador</label>
           <select
             id="ficha-swimmer"
-            value={profile.swimmer_id}
-            onChange={(event) => router.push(`/nadador/${event.target.value}`)}
+            value={selectedSwimmerId}
+            onChange={(event) => selectSwimmer(event.target.value)}
           >
             {!options.items.some((item) => item.swimmer_id === profile.swimmer_id) && (
               <option value={profile.swimmer_id}>{profile.swimmer_name} ({profile.club} · {profile.league})</option>

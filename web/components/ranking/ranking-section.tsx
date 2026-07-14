@@ -152,8 +152,6 @@ export function RankingSection() {
 
   return (
     <div className="flex flex-col gap-4">
-      <h2 className="text-lg font-semibold tracking-tight">Ranking</h2>
-
       <RankingFilters
         catalogs={catalogs}
         eventId={eventId}

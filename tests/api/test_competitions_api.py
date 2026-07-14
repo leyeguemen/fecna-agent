@@ -113,6 +113,29 @@ def test_upload_admin_crea_y_reupload_no_cambia(client, monkeypatch):
     assert resp2.json()["competition_id"] == comp_id
 
 
+def test_upload_content_type_no_pdf_400(client, monkeypatch):
+    token = _register(client, "admin@x.co", monkeypatch=monkeypatch, admin=True)
+    resp = client.post(
+        "/competitions",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("programa.txt", b"no soy un pdf", "text/plain")},
+    )
+    assert resp.status_code == 400
+    assert "PDF" in resp.json()["detail"]
+
+
+def test_upload_pdf_demasiado_grande_400(client, monkeypatch):
+    token = _register(client, "admin@x.co", monkeypatch=monkeypatch, admin=True)
+    grande = b"x" * (10 * 1024 * 1024 + 1)
+    resp = client.post(
+        "/competitions",
+        headers={"Authorization": f"Bearer {token}"},
+        files={"file": ("programa.pdf", grande, "application/pdf")},
+    )
+    assert resp.status_code == 400
+    assert "10 MB" in resp.json()["detail"]
+
+
 def test_upload_sin_inscripciones_400(client, monkeypatch):
     monkeypatch.setattr(
         "api.routers.competitions.programa.parse_pdf",

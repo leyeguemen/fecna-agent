@@ -8,6 +8,7 @@ aceptable en desarrollo. En producción FECNA_JWT_SECRET es obligatoria para
 que los tokens sobrevivan a reinicios/redeploys.
 """
 
+import logging
 import os
 import secrets
 from datetime import datetime, timedelta, timezone
@@ -16,16 +17,29 @@ import jwt
 from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 
+logger = logging.getLogger("fecna.api")
+
 _ALGORITHM = "HS256"
 _EXPIRATION = timedelta(days=7)
 # Fallback de desarrollo: generado una sola vez por proceso.
 _dev_fallback_secret = secrets.token_hex(32)
+_fallback_warned = False
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
 
 def _secret() -> str:
-    return os.environ.get("FECNA_JWT_SECRET", _dev_fallback_secret)
+    global _fallback_warned
+    secret = os.environ.get("FECNA_JWT_SECRET")
+    if secret:
+        return secret
+    if not _fallback_warned:
+        logger.warning(
+            "FECNA_JWT_SECRET no está configurado: se usa un secreto aleatorio; "
+            "las sesiones se invalidarán en cada reinicio."
+        )
+        _fallback_warned = True
+    return _dev_fallback_secret
 
 
 def create_token(user) -> str:

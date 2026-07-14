@@ -132,11 +132,24 @@ def get_alerts(comp_id: int, user: dict = Depends(security.current_user)):
 
 
 # --- Admin -----------------------------------------------------------------------
+_MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB: los programas reales pesan < 1 MB
+
+
 @router.post("", status_code=status.HTTP_201_CREATED)
 def upload_competition(
     file: UploadFile = File(...), admin: dict = Depends(security.require_admin)
 ):
-    data = file.file.read()
+    if file.content_type and file.content_type != "application/pdf":
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El archivo debe ser un PDF.",
+        )
+    data = file.file.read(_MAX_PDF_BYTES + 1)
+    if len(data) > _MAX_PDF_BYTES:
+        raise HTTPException(
+            status_code=status.HTTP_400_BAD_REQUEST,
+            detail="El PDF supera el tamaño máximo (10 MB).",
+        )
     try:
         competition, entries = programa.parse_pdf(io.BytesIO(data))
     except Exception as exc:

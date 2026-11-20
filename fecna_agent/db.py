@@ -131,7 +131,15 @@ COLUMNS = [
 ]
 
 
-def connect(db_path: Path | str = DEFAULT_DB_PATH) -> sqlite3.Connection:
+def connect(db_path: Path | str = DEFAULT_DB_PATH):
+    """SQLite local (ruta) o PostgreSQL/Supabase (URL postgresql://...)."""
+    from . import pg
+
+    if pg.is_pg_url(db_path):
+        conn = pg.connect_pg(str(db_path))
+        conn.executescript(pg.translate_schema(SCHEMA))
+        conn.executescript(pg.RLS_SQL)
+        return conn
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
     conn = sqlite3.connect(db_path)
@@ -235,7 +243,7 @@ def list_swimmers(
         params.append(league)
     if age_range:
         where += (" AND birth_date IS NOT NULL AND "
-                  "? - CAST(strftime('%Y', birth_date) AS INTEGER) BETWEEN ? AND ?")
+                  "? - CAST(SUBSTR(birth_date, 1, 4) AS INTEGER) BETWEEN ? AND ?")
         params.extend([reference_year or date.today().year, *age_range])
     rows = conn.execute(
         f"""SELECT DISTINCT swimmer_id, swimmer_name FROM ranking_results
@@ -264,7 +272,7 @@ def list_swimmers_detailed(
                      ROW_NUMBER() OVER (PARTITION BY swimmer_id
                          ORDER BY result_date DESC, fetched_at DESC) AS rn
               FROM ranking_results WHERE swimmer_id IN ({placeholders})
-            ) WHERE rn = 1""",
+            ) t WHERE rn = 1""",
         ids,
     ).fetchall()
     affiliation = {r["swimmer_id"]: (r["club"], r["league"]) for r in rows}
@@ -431,14 +439,19 @@ def ranking(
     if age_range:
         reference_year = int(date_to[:4]) if date_to else date.today().year
         where += (" AND birth_date IS NOT NULL AND "
-                  "? - CAST(strftime('%Y', birth_date) AS INTEGER) BETWEEN ? AND ?")
+                  "? - CAST(SUBSTR(birth_date, 1, 4) AS INTEGER) BETWEEN ? AND ?")
         params.extend([reference_year, *age_range])
     return conn.execute(
         f"""SELECT swimmer_id, swimmer_name, gender, birth_date, club, league,
-                   MIN(time_ms) AS time_ms, time_raw, result_date
-            FROM ranking_results
-            WHERE 1=1 {where}
-            GROUP BY swimmer_id
+                   time_ms, time_raw, result_date
+            FROM (
+                SELECT *, ROW_NUMBER() OVER (
+                           PARTITION BY swimmer_id
+                           ORDER BY time_ms ASC, result_date DESC) AS rn
+                FROM ranking_results
+                WHERE 1=1 {where}
+            ) t
+            WHERE rn = 1
             ORDER BY time_ms ASC LIMIT ?""",
         [*params, limit],
     ).fetchall()
@@ -492,7 +505,7 @@ def swimmer_event_ranks(
                        ) AS rn
                 FROM filtered
                 WHERE league IS NOT NULL AND league != ''
-            ) WHERE rn = 1
+            ) t WHERE rn = 1
         ),
         swimmer_club AS (
             SELECT swimmer_id, club FROM (
@@ -503,12 +516,14 @@ def swimmer_event_ranks(
                        ) AS rn
                 FROM filtered
                 WHERE club IS NOT NULL AND club != ''
-            ) WHERE rn = 1
+            ) t WHERE rn = 1
         ),
         best AS (
-            SELECT f.swimmer_id, f.swimmer_name, f.event_id, f.event_name,
-                   f.pool_type, f.gender, sl.league AS league, sc.club AS club,
-                   ? - CAST(strftime('%Y', f.birth_date) AS INTEGER) AS age,
+            SELECT f.swimmer_id, MIN(f.swimmer_name) AS swimmer_name, f.event_id,
+                   MIN(f.event_name) AS event_name, f.pool_type,
+                   MIN(f.gender) AS gender, MIN(sl.league) AS league,
+                   MIN(sc.club) AS club,
+                   ? - CAST(SUBSTR(MIN(f.birth_date), 1, 4) AS INTEGER) AS age,
                    MIN(f.time_ms) AS best_ms
             FROM filtered f
             LEFT JOIN swimmer_league sl ON sl.swimmer_id = f.swimmer_id

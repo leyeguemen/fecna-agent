@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "fecna": {
+      "command": ".venv/bin/python",
+      "args": ["-m", "fecna_agent.mcp_server"]
+    }
+  }
+}

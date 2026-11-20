@@ -15,3 +15,6 @@ httpx2>=0.1
 # Autenticación JWT (api/security.py) y rate limiting básico en /auth/*.
 PyJWT>=2.8
 slowapi>=0.1
+
+# Postgres (Supabase) vía DATABASE_URL
+psycopg[binary]>=3.2

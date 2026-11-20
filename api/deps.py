@@ -13,14 +13,23 @@ import sqlite3
 from fecna_agent import db
 
 
-def read_conn() -> sqlite3.Connection:
-    """Conexión de solo lectura a la base pública (anonimizada)."""
+def _database_url() -> str | None:
+    """URL de Postgres (Supabase) si está configurada; tiene prioridad."""
+    return os.environ.get("DATABASE_URL") or None
+
+
+def read_conn():
+    """Conexión de lectura: Postgres si hay DATABASE_URL; si no, la base pública."""
+    if _database_url():
+        return db.connect(_database_url())
     db_path = os.environ.get("FECNA_DB", "data/fecna_public.db")
     return db.connect(db_path)
 
 
 def app_conn():
-    """Conexión a la base de la app: Turso en prod, SQLite local en dev/tests."""
+    """Conexión a la base de la app: Postgres (DATABASE_URL), Turso o SQLite local."""
+    if _database_url():
+        return db.connect(_database_url())
     turso_url = os.environ.get("TURSO_DATABASE_URL")
     if turso_url:
         return _turso_conn(turso_url)

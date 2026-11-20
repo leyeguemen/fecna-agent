@@ -10,6 +10,7 @@ from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
 from api.deps import read_conn
+from api.routers import admin as admin_router
 from api.routers import ask as ask_router
 from api.routers import auth as auth_router
 from api.routers import competitions as competitions_router
@@ -48,6 +49,7 @@ app.include_router(rankings_router.router)
 app.include_router(swimmers_router.router)
 app.include_router(competitions_router.router)
 app.include_router(ask_router.router)
+app.include_router(admin_router.router)
 
 
 @app.get("/health")

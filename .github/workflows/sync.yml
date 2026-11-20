@@ -1,0 +1,33 @@
+name: Sincronizar ranking FECNA
+
+on:
+  workflow_dispatch:
+    inputs:
+      inicio:
+        description: "Fecha de inicio (YYYY-MM-DD)"
+        required: true
+  schedule:
+    - cron: "0 9 * * 1"   # lunes 04:00 hora Colombia
+
+concurrency:
+  group: fecna-sync
+  cancel-in-progress: false
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    timeout-minutes: 120
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install requests "psycopg[binary]>=3.2"
+      - name: Sincronizar
+        env:
+          DATABASE_URL: ${{ secrets.DATABASE_URL }}
+          INICIO: ${{ inputs.inicio }}
+        run: |
+          # En ejecución programada no hay input: se usa una ventana de 45 días.
+          INICIO="${INICIO:-$(date -u -d '45 days ago' +%F)}"
+          python -m fecna_agent sync --inicio "$INICIO"

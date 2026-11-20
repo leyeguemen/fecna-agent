@@ -45,6 +45,13 @@ CREATE TABLE IF NOT EXISTS ranking_results (
 CREATE INDEX IF NOT EXISTS idx_results_swimmer ON ranking_results (swimmer_id);
 CREATE INDEX IF NOT EXISTS idx_results_event ON ranking_results (event_id, pool_type);
 
+-- Vista sin datos sensibles (sin fecha de nacimiento exacta): es la única que ve el chat.
+CREATE VIEW IF NOT EXISTS ranking_public AS
+SELECT swimmer_id, swimmer_name, gender, SUBSTR(birth_date, 1, 4) AS birth_year,
+       event_id, event_name, pool_type, time_raw, time_ms, points, result_date,
+       league, club
+FROM ranking_results;
+
 CREATE TABLE IF NOT EXISTS catalogs (
   kind TEXT NOT NULL,
   code TEXT NOT NULL,

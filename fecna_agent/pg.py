@@ -43,12 +43,16 @@ TABLES = ("ranking_results", "catalogs", "sync_log", "competition",
 # Supabase expone las tablas por su API REST con la clave pública (anon). Con RLS
 # activo y sin políticas, esa vía queda cerrada; el backend conecta con el rol
 # postgres, que ignora RLS. Es obligatorio: hay datos personales de menores.
-RLS_SQL = "".join(f"ALTER TABLE {t} ENABLE ROW LEVEL SECURITY;" for t in TABLES)
+RLS_SQL = "".join(f"ALTER TABLE {t} ENABLE ROW LEVEL SECURITY;" for t in TABLES) + (
+    # La vista respeta RLS del llamante: anon/authenticated (PostgREST) no ven nada.
+    "ALTER VIEW ranking_public SET (security_invoker = true);"
+)
 
 
 def translate_schema(schema: str) -> str:
     """Esquema SQLite → PostgreSQL (fechas y timestamps como TEXT ISO)."""
     out = schema.replace("INTEGER PRIMARY KEY AUTOINCREMENT", "SERIAL PRIMARY KEY")
+    out = out.replace("CREATE VIEW IF NOT EXISTS", "CREATE OR REPLACE VIEW")
     out = re.sub(r"\b(TIMESTAMP|DATE)\b", "TEXT", out)
     return out
 

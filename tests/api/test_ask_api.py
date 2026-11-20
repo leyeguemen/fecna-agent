@@ -14,7 +14,12 @@ def client(tmp_path, monkeypatch):
 
     from api import main
 
-    return TestClient(main.app)
+    from api import security
+
+    c = TestClient(main.app)
+    token = security.create_token({"id": 1, "email": "u@test.co", "role": "user"})
+    c.headers["Authorization"] = f"Bearer {token}"
+    return c
 
 
 def test_ask_pasa_pregunta_y_contexto_al_agente(client, monkeypatch):
@@ -76,3 +81,8 @@ def test_ask_semantica_no_disponible_devuelve_503(client, monkeypatch):
 
     assert resp.status_code == 503
     assert resp.json()["detail"] == "Búsqueda semántica no disponible."
+
+
+def test_ask_sin_token_devuelve_401(client):
+    client.headers.pop("Authorization")
+    assert client.post("/ask", json={"question": "hola"}).status_code == 401

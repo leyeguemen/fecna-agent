@@ -1,6 +1,7 @@
 """CLI del agente: fetch, best, compare, ranking, history."""
 
 import argparse
+import os
 import logging
 import sys
 from datetime import date
@@ -22,7 +23,7 @@ def main(argv: list[str] | None = None) -> int:
 
 def build_parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(prog="fecna_agent")
-    parser.add_argument("--db", default=database.DEFAULT_DB_PATH, help="Ruta de la base SQLite")
+    parser.add_argument("--db", default=os.environ.get("DATABASE_URL") or database.DEFAULT_DB_PATH, help="Ruta de la base SQLite")
     sub = parser.add_subparsers(required=True)
 
     p = sub.add_parser("fetch", help="Extraer ranking desde FECNA y guardarlo")
@@ -268,8 +269,9 @@ def cmd_sync(conn, args) -> int:
         print(f"\nABORTADA: {stats['aborted']}")
 
     if stats["inserted"]:
-        from . import semantic
-        print(semantic.rebuild_from_db(conn))
+        if not os.environ.get("DATABASE_URL"):  # el índice Chroma solo aplica en local
+            from . import semantic
+            print(semantic.rebuild_from_db(conn))
         print("\nNovedades por prueba (ver detalle con 'recent'):")
         for row in database.summarize_run(conn, stats["run_at"]):
             print(f"  {row['event_name']} [{row['pool_type']}/{row['gender']}]: "

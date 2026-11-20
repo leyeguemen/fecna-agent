@@ -18,3 +18,5 @@ slowapi>=0.1
 
 # Postgres (Supabase) vía DATABASE_URL
 psycopg[binary]>=3.2
+anthropic>=0.40
+requests>=2.31

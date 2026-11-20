@@ -1,0 +1,22 @@
+# Dependencias de runtime de la API (FastAPI). No modifica el requirements.txt
+# raíz, que gobierna el despliegue de Streamlit Cloud.
+fastapi>=0.115
+uvicorn>=0.30
+
+# Cliente de Turso (usado solo cuando TURSO_DATABASE_URL está configurado; en
+# dev/tests la app usa SQLite local). Verificado en PyPI (0.1.11): instala,
+# importa y su connect(database, auth_token=...) es el que usa api/deps.py.
+libsql>=0.1
+
+# Solo para pruebas (TestClient de FastAPI/starlette usa httpx2; el paquete
+# httpx clásico quedó deprecado para ese uso), no es dependencia de runtime.
+httpx2>=0.1
+
+# Autenticación JWT (api/security.py) y rate limiting básico en /auth/*.
+PyJWT>=2.8
+slowapi>=0.1
+
+# Postgres (Supabase) vía DATABASE_URL
+psycopg[binary]>=3.2
+anthropic>=0.40
+requests>=2.31

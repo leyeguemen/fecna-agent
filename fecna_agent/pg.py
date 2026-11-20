@@ -107,6 +107,9 @@ class Cursor:
     def fetchall(self):
         return self._cur.fetchall()
 
+    def fetchmany(self, size: int = 1):
+        return self._cur.fetchmany(size)
+
     @property
     def rowcount(self):
         return self._cur.rowcount

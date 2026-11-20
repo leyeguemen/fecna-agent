@@ -19,7 +19,9 @@ SYSTEM = (
     "breve y con datos exactos: SIEMPRE obtén los números con las herramientas, nunca los "
     "inventes. Tiempos: muéstralos como mm:ss.cc usando time_raw. No muestres swimmer_id. "
     "Si no encuentras datos, dilo. Si el nombre es ambiguo, pide aclarar. "
-    "Usa `esquema` antes de escribir SQL con `consultar`."
+    "Usa `esquema` antes de escribir SQL con `consultar`. Para ranking necesitas el event_id "
+    "real: búscalo con `consultar` en ranking_public (event_name) o en catalogs (kind='prueba'); "
+    "nunca adivines ids."
 )
 
 TOOLS = [

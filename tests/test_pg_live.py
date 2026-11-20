@@ -68,3 +68,8 @@ def test_consultar_en_postgres_es_solo_lectura(conn):
     bad = claude_agent.run_tool(conn, "consultar", {"sql": "DELETE FROM ranking_results"})
     assert "rechazada" in bad
     conn.rollback()
+
+
+def test_fetchmany_en_cursor_postgres(conn):
+    rows = conn.execute("SELECT swimmer_id FROM ranking_public").fetchmany(3)
+    assert len(rows) == 3

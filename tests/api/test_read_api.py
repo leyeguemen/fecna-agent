@@ -67,6 +67,14 @@ def _rows():
     ]
 
 
+def _auth(c):
+    from api import security
+
+    c.headers["Authorization"] = "Bearer " + security.create_token(
+        {"id": 1, "email": "u@t.co", "role": "user"})
+    return c
+
+
 @pytest.fixture
 def client(tmp_path, monkeypatch):
     db_path = tmp_path / "read.db"
@@ -83,7 +91,7 @@ def client(tmp_path, monkeypatch):
 
     from api import main
 
-    return TestClient(main.app)
+    return _auth(TestClient(main.app))
 
 
 def test_catalogs_ok(client):
@@ -101,7 +109,7 @@ def test_catalogs_vacios_no_crashea(tmp_path, monkeypatch):
     db.connect(db_path).close()
     monkeypatch.setenv("FECNA_DB", str(db_path))
     from api import main
-    resp = TestClient(main.app).get("/catalogs")
+    resp = _auth(TestClient(main.app)).get("/catalogs")
     assert resp.status_code == 200
     assert resp.json()["pruebas"] == []
     assert resp.json()["categorias"] == []
@@ -239,3 +247,10 @@ def test_swimmer_history_sin_filtro(client):
     assert len(items) == 2
     # Ordenado por fecha ascendente: 100L (2026-01-20) antes que 50L (2026-02-10).
     assert [i["event_id"] for i in items] == ["100L", "50L"]
+
+
+def test_rankings_y_nadadores_exigen_login(client):
+    client.headers.pop("Authorization")
+    assert client.get("/rankings?event_id=E1").status_code == 401
+    assert client.get("/swimmers/search?q=ana").status_code == 401
+    assert client.get("/catalogs").status_code == 401

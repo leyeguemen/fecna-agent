@@ -3,12 +3,13 @@
 import os
 from contextlib import asynccontextmanager
 
-from fastapi import FastAPI
+from fastapi import Depends, FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 from slowapi.middleware import SlowAPIMiddleware
 
+from api import security
 from api.deps import read_conn
 from api.routers import admin as admin_router
 from api.routers import ask as ask_router
@@ -45,8 +46,10 @@ app.add_middleware(
 )
 
 app.include_router(auth_router.router)
-app.include_router(rankings_router.router)
-app.include_router(swimmers_router.router)
+# Datos de deportistas: solo con sesión iniciada.
+_login = [Depends(security.current_user)]
+app.include_router(rankings_router.router, dependencies=_login)
+app.include_router(swimmers_router.router, dependencies=_login)
 app.include_router(competitions_router.router)
 app.include_router(ask_router.router)
 app.include_router(admin_router.router)

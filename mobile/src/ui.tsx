@@ -93,8 +93,8 @@ export const ErrorText = ({ text }: { text: string | null }) =>
   text ? <Text style={{ color: c.danger, fontFamily: font.body, fontSize: 13 }}>{text}</Text> : null;
 
 /** Diálogo de confirmación (diseño "Diálogos"). */
-export function ConfirmDialog({ visible, title, message, confirmLabel, danger, onConfirm, onCancel, children }: {
-  visible: boolean; title: string; message: string; confirmLabel: string; danger?: boolean;
+export function ConfirmDialog({ visible, title, message, confirmLabel, danger, confirmDisabled, onConfirm, onCancel, children }: {
+  visible: boolean; title: string; message: string; confirmLabel: string; danger?: boolean; confirmDisabled?: boolean;
   onConfirm: () => void; onCancel: () => void; children?: ReactNode;
 }) {
   return (
@@ -106,7 +106,7 @@ export function ConfirmDialog({ visible, title, message, confirmLabel, danger, o
           {children}
           <View style={{ flexDirection: 'row', gap: 10, marginTop: 20 }}>
             <View style={{ flex: 1 }}><Button title="Cancelar" variant="outline" onPress={onCancel} /></View>
-            <View style={{ flex: 1 }}><Button title={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} /></View>
+            <View style={{ flex: 1 }}><Button title={confirmLabel} variant={danger ? 'danger' : 'primary'} onPress={onConfirm} disabled={confirmDisabled} /></View>
           </View>
         </View>
       </View>

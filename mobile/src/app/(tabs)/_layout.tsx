@@ -1,4 +1,4 @@
-import { Tabs } from 'expo-router';
+import { Redirect, Tabs } from 'expo-router';
 import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { Icon } from '../../ui';
@@ -9,8 +9,9 @@ const tab = (title: string, icon: string) => ({
 });
 
 export default function TabsLayout() {
-  const { user } = useAuth();
+  const { user, pendingLink } = useAuth();
   const isAdmin = user?.role === 'admin';
+  if (pendingLink) return <Redirect href="/vincular?first=1" />;
   return (
     <Tabs screenOptions={{
       headerShown: false,

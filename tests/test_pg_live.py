@@ -73,3 +73,15 @@ def test_consultar_en_postgres_es_solo_lectura(conn):
 def test_fetchmany_en_cursor_postgres(conn):
     rows = conn.execute("SELECT swimmer_id FROM ranking_public").fetchmany(3)
     assert len(rows) == 3
+
+
+def test_cuenta_y_alertas_en_postgres(conn, sample):
+    # Migración aplicada y consultas nuevas válidas en Postgres (solo lectura).
+    assert db.swimmer_summary(conn, sample["swimmer_id"])
+    assert db.verify_swimmer_birth(conn, sample["swimmer_id"], "1900-01-01") is False
+    comp = conn.execute("SELECT id FROM competition LIMIT 1").fetchone()
+    assert isinstance(db.watched_schedule(conn, comp["id"], 0), list)
+    assert db.list_following(conn, 0) == []
+    cols = {r["column_name"] for r in conn.execute(
+        "SELECT column_name FROM information_schema.columns WHERE table_name = 'app_user'")}
+    assert "swimmer_id" in cols

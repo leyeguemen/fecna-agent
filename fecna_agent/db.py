@@ -120,7 +120,15 @@ CREATE TABLE IF NOT EXISTS app_user (
   salt          TEXT NOT NULL,
   role          TEXT NOT NULL DEFAULT 'user',
   active        INTEGER NOT NULL DEFAULT 1,
-  created_at    TIMESTAMP
+  created_at    TIMESTAMP,
+  swimmer_id    TEXT
+);
+
+CREATE TABLE IF NOT EXISTS swimmer_follow (
+  user_id      INTEGER NOT NULL,
+  swimmer_id   TEXT NOT NULL,
+  swimmer_name TEXT NOT NULL,
+  PRIMARY KEY (user_id, swimmer_id)
 );
 """
 
@@ -146,6 +154,7 @@ def connect(db_path: Path | str = DEFAULT_DB_PATH):
         conn = pg.connect_pg(str(db_path))
         conn.executescript(pg.translate_schema(SCHEMA))
         conn.executescript(pg.RLS_SQL)
+        conn.executescript(pg.MIGRATIONS_SQL)
         return conn
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)
@@ -161,6 +170,11 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition)")}
     if "content_hash" not in cols:
         conn.execute("ALTER TABLE competition ADD COLUMN content_hash TEXT")
+        conn.commit()
+
+    user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(app_user)")}
+    if user_cols and "swimmer_id" not in user_cols:
+        conn.execute("ALTER TABLE app_user ADD COLUMN swimmer_id TEXT")
         conn.commit()
 
     watch_cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition_watch)")}
@@ -720,14 +734,20 @@ def watched_schedule(
     conn: sqlite3.Connection, comp_id: int, user_id: int = 0
 ) -> list[sqlite3.Row]:
     """Cronograma de inscripciones de los nadadores seguidos por un usuario."""
+    # Incluye los nadadores vigilados en este campeonato y los que el usuario sigue
+    # (o su propio nadador): coincidencia por id o por nombre.
     return conn.execute(
         """SELECT e.* FROM competition_entry e
-           JOIN competition_watch w
-             ON w.competition_id = e.competition_id AND w.swimmer_name = e.swimmer_name
-           WHERE e.competition_id = ? AND w.user_id = ?
+           WHERE e.competition_id = ?
+             AND (EXISTS (SELECT 1 FROM competition_watch w
+                          WHERE w.competition_id = e.competition_id
+                            AND w.swimmer_name = e.swimmer_name AND w.user_id = ?)
+                  OR EXISTS (SELECT 1 FROM swimmer_follow f
+                             WHERE f.user_id = ? AND (f.swimmer_id = e.swimmer_id
+                                   OR LOWER(f.swimmer_name) = LOWER(e.swimmer_name))))
            ORDER BY session_date IS NULL, session_date,
                     start_time IS NULL, start_time, event_number, heat, lane""",
-        (comp_id, user_id),
+        (comp_id, user_id, user_id),
     ).fetchall()
 
 
@@ -844,3 +864,88 @@ def swimmer_profile(
         "reference_year": int(date_to[:4]) if date_to else date.today().year,
         "top_events": events[:top],
     }
+
+
+# --- Cuenta: nadador vinculado, seguidos, contraseña y borrado --------------------
+
+def swimmer_summary(conn, swimmer_id: str) -> dict | None:
+    """{swimmer_id, swimmer_name, club, league} más reciente del nadador, o None."""
+    row = conn.execute(
+        """SELECT swimmer_id, swimmer_name, club, league FROM ranking_results
+           WHERE swimmer_id = ? ORDER BY result_date DESC LIMIT 1""",
+        (swimmer_id,),
+    ).fetchone()
+    return dict(row) if row else None
+
+
+def verify_swimmer_birth(conn, swimmer_id: str, birth_date: str) -> bool:
+    """True si la fecha de nacimiento (AAAA-MM-DD) coincide con la del nadador."""
+    row = conn.execute(
+        "SELECT 1 FROM ranking_results WHERE swimmer_id = ? AND birth_date = ? LIMIT 1",
+        (swimmer_id, birth_date),
+    ).fetchone()
+    return row is not None
+
+
+def set_user_swimmer(conn, user_id: int, swimmer_id: str | None) -> None:
+    conn.execute("UPDATE app_user SET swimmer_id = ? WHERE id = ?", (swimmer_id, user_id))
+    conn.commit()
+
+
+def get_user_swimmer_id(conn, user_id: int) -> str | None:
+    row = conn.execute("SELECT swimmer_id FROM app_user WHERE id = ?", (user_id,)).fetchone()
+    return row["swimmer_id"] if row else None
+
+
+def list_following(conn, user_id: int) -> list[dict]:
+    rows = conn.execute(
+        "SELECT swimmer_id, swimmer_name FROM swimmer_follow WHERE user_id = ? "
+        "ORDER BY swimmer_name",
+        (user_id,),
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def follow_swimmer(conn, user_id: int, swimmer_id: str, swimmer_name: str) -> None:
+    conn.execute(
+        "INSERT OR IGNORE INTO swimmer_follow (user_id, swimmer_id, swimmer_name) "
+        "VALUES (?, ?, ?)",
+        (user_id, swimmer_id, swimmer_name),
+    )
+    conn.commit()
+
+
+def unfollow_swimmer(conn, user_id: int, swimmer_id: str) -> None:
+    conn.execute(
+        "DELETE FROM swimmer_follow WHERE user_id = ? AND swimmer_id = ?",
+        (user_id, swimmer_id),
+    )
+    conn.commit()
+
+
+def change_password(conn, user_id: int, current: str, new: str) -> None:
+    """Cambia la contraseña tras validar la actual. ValueError con mensaje en español."""
+    from . import auth
+
+    row = conn.execute(
+        "SELECT password_hash, salt FROM app_user WHERE id = ?", (user_id,)
+    ).fetchone()
+    if row is None or not auth.verify_password(current, row["password_hash"], row["salt"]):
+        raise ValueError("La contraseña actual no es correcta.")
+    err = auth.valid_password(new)
+    if err:
+        raise ValueError(err)
+    hash_hex, salt_hex = auth.hash_password(new)
+    conn.execute(
+        "UPDATE app_user SET password_hash = ?, salt = ? WHERE id = ?",
+        (hash_hex, salt_hex, user_id),
+    )
+    conn.commit()
+
+
+def delete_user(conn, user_id: int) -> None:
+    """Borra la cuenta y todo lo asociado (seguidos, vigilancia, vínculo)."""
+    for table in ("swimmer_follow", "competition_watch"):
+        conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
+    conn.execute("DELETE FROM app_user WHERE id = ?", (user_id,))
+    conn.commit()

@@ -52,6 +52,27 @@ def swimmer_options(league: str | None = None):
     }
 
 
+@router.get("/compare")
+def compare(a: str, b: str, event_id: str, pool: Literal["LC", "SC"] | None = None):
+    """Compara las mejores marcas de dos nadadores en una prueba."""
+    conn = read_conn()
+    try:
+        res = db.compare_swimmers(conn, a, b, event_id, pool)
+    finally:
+        conn.close()
+
+    def side(r):
+        return None if r is None else {
+            "swimmer_id": r["swimmer_id"], "swimmer_name": r["swimmer_name"],
+            "time": _time_display(r["time_ms"]), "time_ms": r["time_ms"],
+            "club": r["club"], "date": r["result_date"],
+        }
+
+    diff = res["diff_ms"]
+    return {"a": side(res["a"]), "b": side(res["b"]),
+            "diff": _time_display(diff) if diff is not None else None, "diff_ms": diff}
+
+
 @router.get("/{swimmer_id}")
 def get_swimmer_profile(
     swimmer_id: str,

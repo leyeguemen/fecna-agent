@@ -5,7 +5,7 @@ import Svg, { Circle, Polyline } from 'react-native-svg';
 import { api, Item } from '../../api';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
-import { Card, Empty, ErrorText, Header } from '../../ui';
+import { Button, Card, Empty, ErrorText, Header } from '../../ui';
 
 const W = 320, H = 120;
 
@@ -32,12 +32,22 @@ export default function Nadador() {
   const [profile, setProfile] = useState<Item | null>(null);
   const [selected, setSelected] = useState<Item | null>(null);
   const [history, setHistory] = useState<Item[]>([]);
+  const [following, setFollowing] = useState(false);
+  const [cmpQ, setCmpQ] = useState('');
+  const [cmpResults, setCmpResults] = useState<Item[]>([]);
+  const [cmp, setCmp] = useState<Item | null>(null);
+  const [cmpRes, setCmpRes] = useState<Item | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
   const open = useCallback(async (swimmerId: string) => {
     setLoading(true); setError(null); setSelected(null); setHistory([]);
-    try { setProfile(await api(`/swimmers/${encodeURIComponent(swimmerId)}`)); }
+    setCmp(null); setCmpRes(null); setCmpQ('');
+    try {
+      setProfile(await api(`/swimmers/${encodeURIComponent(swimmerId)}`));
+      const me = await api('/me');
+      setFollowing(me.following.some((f: Item) => f.swimmer_id === swimmerId));
+    }
     catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
@@ -51,6 +61,27 @@ export default function Nadador() {
     }, 350);
     return () => clearTimeout(t);
   }, [q]);
+
+  const toggleFollow = async () => {
+    const id = encodeURIComponent(profile!.swimmer_id);
+    try { await api(`/me/following/${id}`, { method: following ? 'DELETE' : 'PUT' }); setFollowing(!following); }
+    catch (err: any) { setError(err.message); }
+  };
+
+  useEffect(() => {
+    if (!cmpQ.trim() || cmpQ.trim().length < 3 || cmp) { setCmpResults([]); return; }
+    const t = setTimeout(() => {
+      api(`/swimmers/search?q=${encodeURIComponent(cmpQ.trim())}`).then((r) => setCmpResults(r.items)).catch((e) => setError(e.message));
+    }, 350);
+    return () => clearTimeout(t);
+  }, [cmpQ, cmp]);
+
+  // Comparar en la prueba seleccionada cuando hay rival y prueba.
+  useEffect(() => {
+    if (!cmp || !selected || !profile) { setCmpRes(null); return; }
+    const p = new URLSearchParams({ a: profile.swimmer_id, b: cmp.swimmer_id, event_id: selected.event_id, pool: selected.pool });
+    api(`/swimmers/compare?${p}`).then(setCmpRes).catch((e) => setError(e.message));
+  }, [cmp, selected, profile]);
 
   const pick = async (e: Item) => {
     setSelected(e);
@@ -78,6 +109,7 @@ export default function Nadador() {
               <Text style={s.title}>{profile.swimmer_name}</Text>
               <Text style={s.sub}>{[profile.club, profile.league, profile.age != null ? `${profile.age} años` : null].filter(Boolean).join(' · ')}</Text>
             </Card>
+            <Button title={following ? 'Dejar de seguir' : 'Seguir'} variant={following ? 'outline' : 'primary'} onPress={toggleFollow} />
             <Text style={s.section}>MEJORES MARCAS (toca una para ver su evolución)</Text>
             {profile.top_events.map((e: Item) => (
               <Pressable key={`${e.event_id}-${e.pool}`} onPress={() => pick(e)}
@@ -90,6 +122,32 @@ export default function Nadador() {
               </Pressable>
             ))}
             {selected && <Card><Evolution points={history} /></Card>}
+            {selected && (
+              <Card>
+                <Text style={s.section}>COMPARAR EN {selected.event_name.toUpperCase()} · {selected.pool}</Text>
+                {!cmp ? (
+                  <>
+                    <TextInput value={cmpQ} onChangeText={setCmpQ} placeholder="Nombre del otro nadador" placeholderTextColor="#8AA3B5" style={[s.search, { marginTop: 8 }]} />
+                    {cmpResults.map((r) => (
+                      <Pressable key={r.swimmer_id} style={[s.result, { marginTop: 8 }]} onPress={() => { setCmp(r); setCmpResults([]); }}>
+                        <Text style={s.name}>{r.swimmer_name}</Text>
+                      </Pressable>
+                    ))}
+                  </>
+                ) : (
+                  <View style={{ gap: 6, marginTop: 8 }}>
+                    {cmpRes ? (
+                      <>
+                        <Text style={s.name}>{cmpRes.a?.swimmer_name ?? profile.swimmer_name}: {cmpRes.a?.time ?? 'sin marca'}</Text>
+                        <Text style={s.name}>{cmpRes.b?.swimmer_name ?? cmp.swimmer_name}: {cmpRes.b?.time ?? 'sin marca'}</Text>
+                        <Text style={s.sub}>{cmpRes.diff ? `Diferencia: ${cmpRes.diff}` : 'No hay marcas de ambos en esta prueba.'}</Text>
+                      </>
+                    ) : null}
+                    <Pressable onPress={() => { setCmp(null); setCmpRes(null); setCmpQ(''); }}><Text style={{ color: c.primary, fontFamily: font.semi }}>Cambiar rival</Text></Pressable>
+                  </View>
+                )}
+              </Card>
+            )}
           </>
         )}
         {!profile && !loading && results.length === 0 && <Empty text="Busca un nadador o abre uno desde el Ranking." />}

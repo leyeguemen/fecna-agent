@@ -9,6 +9,8 @@ type Ctx = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string) => Promise<void>;
   signOut: () => Promise<void>;
+  pendingLink: boolean; // recién registrado: ofrecer vincular su nadador
+  clearPendingLink: () => void;
 };
 
 const KEY = 'fecna_session';
@@ -18,6 +20,7 @@ export const useAuth = () => useContext(AuthCtx);
 export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [loading, setLoading] = useState(true);
+  const [pendingLink, setPendingLink] = useState(false);
 
   const persist = useCallback(async (r: AuthResp) => {
     setToken(r.token);
@@ -55,10 +58,15 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn: async (email, password) =>
       persist(await api<AuthResp>('/auth/login', { body: { email, password }, auth: false })),
-    signUp: async (email, password) =>
-      persist(await api<AuthResp>('/auth/register', { body: { email, password }, auth: false })),
+    signUp: async (email, password) => {
+      const r = await api<AuthResp>('/auth/register', { body: { email, password }, auth: false });
+      setPendingLink(true);
+      await persist(r);
+    },
     signOut,
-  }), [user, loading, persist, signOut]);
+    pendingLink,
+    clearPendingLink: () => setPendingLink(false),
+  }), [user, loading, persist, signOut, pendingLink]);
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

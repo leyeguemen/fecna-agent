@@ -60,7 +60,7 @@ export default function Chat() {
           </View>
         ) : undefined}
       />
-      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, paddingBottom: 10 }}>
+      <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ flexGrow: 0, flexShrink: 0, height: 48 }} contentContainerStyle={{ gap: 8, paddingHorizontal: 16, alignItems: 'center' }}>
         {SUGGESTIONS.map((q) => <Chip key={q} label={q} onPress={() => (q.endsWith('…') ? setText(q.slice(0, -1) + ' ') : send(q))} />)}
       </ScrollView>
       <View style={s.bar}>

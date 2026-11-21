@@ -10,7 +10,7 @@ restricción UNIQUE de la tabla.
 
 import logging
 import time
-from datetime import date, datetime, timezone
+from datetime import date, timedelta, datetime, timezone
 
 from . import db as database
 from . import extractor, normalizer
@@ -21,6 +21,28 @@ DEFAULT_DELAY = 0.6  # cortesía con el servidor entre peticiones
 
 # Cortacircuito: si el sitio falla seguido, insistir solo empeora el bloqueo
 MAX_CONSECUTIVE_ERRORS = 3
+
+
+BASE_START = "2024-01-01"  # primera fecha con datos en la base
+DEFAULT_MARGIN_DAYS = 30
+
+
+def incremental_start(conn, margin_days: int = DEFAULT_MARGIN_DAYS, today: date | None = None) -> str:
+    """Fecha de inicio para una sincronización incremental.
+
+    Es la marca más reciente guardada menos un margen: FECNA a veces publica resultados con
+    retraso o con fecha anterior, y las inserciones repetidas se ignoran (restricción UNIQUE),
+    así que solapar es seguro. Si la base está vacía, parte de BASE_START.
+    """
+    row = conn.execute("SELECT MAX(result_date) FROM ranking_results").fetchone()
+    latest = row[0] if row else None
+    if not latest:
+        return BASE_START
+    try:
+        start = date.fromisoformat(str(latest)[:10]) - timedelta(days=margin_days)
+    except ValueError:
+        return BASE_START
+    return min(max(start, date.fromisoformat(BASE_START)), today or date.today()).isoformat()
 
 
 def sync_all(

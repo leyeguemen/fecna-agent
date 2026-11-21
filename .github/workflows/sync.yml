@@ -3,9 +3,11 @@ name: Sincronizar ranking FECNA
 on:
   workflow_dispatch:
     inputs:
-      inicio:
-        description: "Fecha de inicio (YYYY-MM-DD)"
-        required: true
+      modo:
+        description: "incremental = solo novedades; completa = desde 2024-01-01 (lento)"
+        type: choice
+        options: [incremental, completa]
+        default: incremental
   schedule:
     - cron: "0 9 * * 1"   # lunes 04:00 hora Colombia
 
@@ -26,8 +28,11 @@ jobs:
       - name: Sincronizar
         env:
           DATABASE_URL: ${{ secrets.DATABASE_URL }}
-          INICIO: ${{ inputs.inicio }}
+          MODO: ${{ inputs.modo }}
         run: |
-          # En ejecución programada no hay input: se usa una ventana de 45 días.
-          INICIO="${INICIO:-$(date -u -d '45 days ago' +%F)}"
-          python -m fecna_agent sync --inicio "$INICIO"
+          # La ejecución programada no trae input: siempre es incremental.
+          if [ "${MODO:-incremental}" = "completa" ]; then
+            python -m fecna_agent sync --inicio 2024-01-01
+          else
+            python -m fecna_agent sync --incremental
+          fi

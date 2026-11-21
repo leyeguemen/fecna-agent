@@ -6,7 +6,7 @@ GITHUB_REPO ("usuario/repo"), GITHUB_WORKFLOW (defecto sync.yml), GITHUB_REF (de
 """
 
 import os
-import re
+from typing import Literal
 
 import requests
 from fastapi import APIRouter, Depends, HTTPException, status
@@ -18,11 +18,10 @@ from fecna_agent import db
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
-_DATE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-
 class SyncBody(BaseModel):
-    inicio: str  # YYYY-MM-DD
+    # incremental: solo novedades desde la última marca guardada (con margen de solape).
+    # completa: recorre todo desde 2024-01-01 (lenta; repara huecos).
+    modo: Literal["incremental", "completa"] = "incremental"
 
 
 def _gh():
@@ -38,16 +37,14 @@ def _gh():
 
 @router.post("/sync", status_code=status.HTTP_202_ACCEPTED)
 def start_sync(body: SyncBody, admin: dict = Depends(security.require_admin)):
-    if not _DATE.match(body.inicio):
-        raise HTTPException(status_code=422, detail="Fecha inválida (usa YYYY-MM-DD).")
     url, headers = _gh()
     resp = requests.post(f"{url}/dispatches", headers=headers, timeout=15,
                       json={"ref": os.environ.get("GITHUB_REF", "main"),
-                            "inputs": {"inicio": body.inicio}})
+                            "inputs": {"modo": body.modo}})
     if resp.status_code != 204:
         raise HTTPException(status_code=status.HTTP_502_BAD_GATEWAY,
                             detail="GitHub rechazó la solicitud de sincronización.")
-    return {"status": "queued", "inicio": body.inicio}
+    return {"status": "queued", "modo": body.modo}
 
 
 @router.get("/sync/status")
@@ -56,9 +53,11 @@ def sync_status(admin: dict = Depends(security.require_admin)):
     try:
         last = db.last_sync(conn)
         total = conn.execute("SELECT COUNT(*) FROM ranking_results").fetchone()[0]
+        latest = conn.execute("SELECT MAX(result_date) FROM ranking_results").fetchone()[0]
     finally:
         conn.close()
-    result = {"last_sync": dict(last) if last else None, "total_results": total, "run": None}
+    result = {"last_sync": dict(last) if last else None, "total_results": total,
+              "latest_result_date": latest, "run": None}
     try:
         url, headers = _gh()
         runs = requests.get(f"{url}/runs", headers=headers, params={"per_page": 1}, timeout=15)

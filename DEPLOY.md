@@ -20,6 +20,20 @@ El plan gratis "duerme" tras 15 min sin tráfico: la primera petición tarda ~50
 - Distribución: `npx eas-cli build -p android --profile preview` (APK instalable, gratis en cola
   estándar) o publicar como actualización OTA con `eas update`.
 
+### Actualizaciones por aire (EAS Update)
+Los cambios de código de la app (pantallas, textos, lógica) llegan al APK ya instalado **sin recompilar**:
+```bash
+cd mobile
+npx eas-cli update --channel preview --message "qué cambió"
+```
+El APK las descarga al abrirse (la primera apertura baja la actualización, la siguiente la aplica).
+- **Solo hay que recompilar el APK** cuando cambia algo nativo: instalar o quitar un paquete con módulo
+  nativo (`expo-file-system`, `expo-sharing`, etc.), cambiar `app.json` (íconos, permisos, nombre) o subir de
+  versión de Expo. Al hacerlo, sube también `version` en `mobile/app.json`: las actualizaciones solo se
+  entregan a APK con la misma versión (`runtimeVersion` por `appVersion`).
+- Variables `EXPO_PUBLIC_*`: se incrustan al publicar; `mobile/.env` debe tener `EXPO_PUBLIC_API_URL`.
+- La versión web (iPhone) no usa esto: se despliega sola en Render al hacer merge a `main`.
+
 ### 3. Sincronización
 GitHub → Settings → Secrets → Actions: `DATABASE_URL` (mismo valor). La ejecución semanal corre
 sola (lunes 04:00 hora Colombia) y el botón de Admin de la app la dispara a demanda.

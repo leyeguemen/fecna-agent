@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth';
 import { c, font } from '../theme';
 import { Button, ErrorText, Field } from '../ui';
@@ -22,7 +22,7 @@ export default function Registro() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.root} behavior="padding">
       <ScrollView contentContainerStyle={{ gap: 14, padding: 24, paddingTop: 72 }} keyboardShouldPersistTaps="handled">
         <Text style={s.title}>Crear cuenta</Text>
         <Text style={s.sub}>Con tu cuenta podrás consultar rankings, marcas y campeonatos.</Text>

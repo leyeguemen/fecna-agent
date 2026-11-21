@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, Item } from '../api';
 import { useAuth } from '../auth';
 import { c, font } from '../theme';
@@ -37,7 +37,7 @@ export default function Vincular() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.root} behavior="padding">
       <ScrollView contentContainerStyle={{ padding: 24, paddingTop: 72, gap: 14 }} keyboardShouldPersistTaps="handled">
         <Text style={s.title}>¿Eres nadador?</Text>
         <Text style={s.sub}>Vincula tu ficha para verla al instante. Lo verificamos con tu fecha de nacimiento. Es opcional.</Text>

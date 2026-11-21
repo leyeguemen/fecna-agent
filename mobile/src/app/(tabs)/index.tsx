@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
-import { FlatList, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { FlatList, KeyboardAvoidingView, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api } from '../../api';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
@@ -41,7 +41,7 @@ export default function Chat() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.root} behavior="padding">
       <Header title="FECNA Agent" subtitle="Rankings, marcas y campeonatos" right={<ProfileButton />} />
       <FlatList
         ref={list}

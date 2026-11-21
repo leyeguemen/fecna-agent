@@ -2,13 +2,13 @@
 
 import re
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 
 from api import security
 from api.deps import app_conn, read_conn
 from api.routers.auth import limiter
-from fecna_agent import db
+from fecna_agent import db, historial
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -53,7 +53,7 @@ def my_profile(user: dict = Depends(security.current_user)):
 
 @router.put("/swimmer")
 @limiter.limit("5/minute")  # frena la adivinanza de fechas de nacimiento
-def link_swimmer(request: Request, body: LinkBody, user: dict = Depends(security.current_user)):
+def link_swimmer(request: Request, body: LinkBody, background: BackgroundTasks, user: dict = Depends(security.current_user)):
     if not _DATE.match(body.birth_date):
         raise HTTPException(status_code=422, detail="Fecha inválida (usa AAAA-MM-DD).")
     rconn = read_conn()
@@ -69,6 +69,7 @@ def link_swimmer(request: Request, body: LinkBody, user: dict = Depends(security
         db.set_user_swimmer(conn, _uid(user), body.swimmer_id)
     finally:
         conn.close()
+    background.add_task(_enrich, body.swimmer_id)
     return {"swimmer": summary}
 
 
@@ -82,13 +83,24 @@ def unlink_swimmer(user: dict = Depends(security.current_user)):
 
 
 @router.put("/following/{swimmer_id}", status_code=status.HTTP_204_NO_CONTENT)
-def follow(swimmer_id: str, user: dict = Depends(security.current_user)):
+def follow(swimmer_id: str, background: BackgroundTasks, user: dict = Depends(security.current_user)):
     summary = _summary(swimmer_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Nadador no encontrado.")
     conn = app_conn()
     try:
         db.follow_swimmer(conn, _uid(user), swimmer_id, summary["swimmer_name"])
+    finally:
+        conn.close()
+    background.add_task(_enrich, swimmer_id)  # el torneo de sus marcas, sin hacer esperar al usuario
+
+
+def _enrich(swimmer_id: str) -> None:
+    conn = app_conn()
+    try:
+        historial.enrich_swimmer(conn, swimmer_id)
+    except Exception:
+        pass
     finally:
         conn.close()
 

@@ -290,6 +290,13 @@ def cmd_sync(conn, args) -> int:
         for row in database.summarize_run(conn, stats["run_at"]):
             print(f"  {row['event_name']} [{row['pool_type']}/{row['gender']}]: "
                   f"{row['nuevos']} nuevos")
+    if not stats["aborted"]:
+        from . import historial
+        try:
+            swimmers, marks = historial.enrich_tracked(conn)
+            print(f"\nTorneos: {swimmers} nadador(es) seguidos, {marks} marca(s) con torneo nuevo.")
+        except Exception as exc:  # el torneo es un extra: no debe fallar la sincronización
+            print(f"\nNo se pudieron actualizar los torneos: {exc}")
     return 1 if stats["aborted"] or (stats["errors"] and not stats["received"]) else 0
 
 

@@ -39,6 +39,7 @@ CREATE TABLE IF NOT EXISTS ranking_results (
   club TEXT,
 
   fetched_at TIMESTAMP,
+  tournament TEXT,
 
   UNIQUE (swimmer_id, event_id, pool_type, time_ms, result_date)
 );
@@ -49,7 +50,7 @@ CREATE INDEX IF NOT EXISTS idx_results_event ON ranking_results (event_id, pool_
 CREATE VIEW IF NOT EXISTS ranking_public AS
 SELECT swimmer_id, swimmer_name, gender, SUBSTR(birth_date, 1, 4) AS birth_year,
        event_id, event_name, pool_type, time_raw, time_ms, points, result_date,
-       league, club
+       league, club, tournament
 FROM ranking_results;
 
 CREATE TABLE IF NOT EXISTS catalogs (
@@ -167,7 +168,9 @@ def _ensure_pg_schema(conn, url: str) -> None:
     check = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
                    AND to_regclass('public.ranking_public') IS NOT NULL
                    AND EXISTS (SELECT 1 FROM information_schema.columns
-                               WHERE table_name = 'app_user' AND column_name = 'terms_version')"""
+                               WHERE table_name = 'app_user' AND column_name = 'terms_version')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'ranking_results' AND column_name = 'tournament')"""
     ready = conn.execute(check).fetchone()[0]
     conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
     if not ready:
@@ -207,6 +210,13 @@ def _migrate(conn: sqlite3.Connection) -> None:
     cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition)")}
     if "content_hash" not in cols:
         conn.execute("ALTER TABLE competition ADD COLUMN content_hash TEXT")
+        conn.commit()
+
+    rr_cols = {r["name"] for r in conn.execute("PRAGMA table_info(ranking_results)")}
+    if rr_cols and "tournament" not in rr_cols:
+        conn.execute("ALTER TABLE ranking_results ADD COLUMN tournament TEXT")
+        conn.execute("DROP VIEW IF EXISTS ranking_public")  # se recrea con la columna nueva
+        conn.executescript(SCHEMA)
         conn.commit()
 
     user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(app_user)")}
@@ -948,6 +958,38 @@ def list_following(conn, user_id: int) -> list[dict]:
         (user_id,),
     ).fetchall()
     return [dict(r) for r in rows]
+
+
+def tracked_swimmer_ids(conn) -> list[str]:
+    """Nadadores seguidos por algún usuario o vinculados a una cuenta."""
+    rows = conn.execute(
+        "SELECT swimmer_id FROM swimmer_follow UNION "
+        "SELECT swimmer_id FROM app_user WHERE swimmer_id IS NOT NULL AND swimmer_id <> ''"
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def swimmer_event_ids(conn, swimmer_id: str) -> list[str]:
+    rows = conn.execute(
+        "SELECT DISTINCT event_id FROM ranking_results WHERE swimmer_id = ?", (swimmer_id,)
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def set_tournaments(conn, swimmer_id: str, marks: list[dict]) -> int:
+    """Guarda el torneo de las marcas ya conocidas (misma prueba, piscina, tiempo y fecha).
+    Devuelve cuántas marcas quedaron con torneo."""
+    done = 0
+    for m in marks:
+        cur = conn.execute(
+            "UPDATE ranking_results SET tournament = ? WHERE swimmer_id = ? AND event_id = ? "
+            "AND pool_type = ? AND time_ms = ? AND result_date = ? "
+            "AND (tournament IS NULL OR tournament <> ?)",
+            (m["tournament"], swimmer_id, m["event_id"], m["pool"], m["time_ms"], m["date"], m["tournament"]),
+        )
+        done += cur.rowcount or 0
+    conn.commit()
+    return done
 
 
 def follow_swimmer(conn, user_id: int, swimmer_id: str, swimmer_name: str) -> None:

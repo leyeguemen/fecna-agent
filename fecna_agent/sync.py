@@ -102,6 +102,10 @@ def sync_all(
             inserted = database.insert_results(conn, rows)
         except Exception as exc:
             failure = exc
+            try:
+                conn.rollback()  # una transacción abortada (p. ej. deadlock) no debe arrastrar a las demás
+            except Exception:
+                pass
             stats["errors"] += 1
             consecutive_errors += 1
             logger.warning("Fallo en %s %s %s: %s", event_name, pool, gender, exc)

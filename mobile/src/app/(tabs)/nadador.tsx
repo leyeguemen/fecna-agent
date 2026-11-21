@@ -64,6 +64,8 @@ export default function Nadador() {
   const [profile, setProfile] = useState<Item | null>(null);
   const [selected, setSelected] = useState<Item | null>(null);
   const [history, setHistory] = useState<Item[]>([]);
+  const [all, setAll] = useState<Item[]>([]);
+  const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
   const [following, setFollowing] = useState(false);
   const [cmpOpen, setCmpOpen] = useState(false);
   const [cmpQ, setCmpQ] = useState('');
@@ -87,7 +89,8 @@ export default function Nadador() {
     setLoading(true); setError(null); setCmp(null); setCmpRes(null); setCmpQ(''); setCmpOpen(false); setSearching(false);
     try {
       const p = await api(`/swimmers/${encodeURIComponent(swimmerId)}`);
-      setProfile(p);
+      setProfile(p); setAll([]); setOpenGroups({});
+      api(`/swimmers/${encodeURIComponent(swimmerId)}/history`).then((h) => setAll(h.items)).catch(() => {});
       const me = await api('/me');
       setFollowing(me.following.some((f: Item) => f.swimmer_id === swimmerId));
       // Prueba destacada: la mejor posición nacional.
@@ -166,6 +169,25 @@ export default function Nadador() {
       span: history.length >= 2 ? spanText(history[0].date, history[history.length - 1].date) : '',
     };
   }, [selected, history]);
+
+  // Todas las marcas agrupadas por prueba/piscina: orden cronológico para calcular el cambio
+  // frente a la marca anterior; se muestran de la más reciente a la más antigua.
+  const groups = useMemo(() => {
+    const map = new Map<string, Item[]>();
+    for (const h of all) {
+      const k = `${h.event_id}|${h.pool}`;
+      map.set(k, [...(map.get(k) ?? []), h]);
+    }
+    return [...map.entries()].map(([key, rows]) => {
+      let best = Infinity;
+      const marks: Item[] = rows.map((r, i) => {
+        const pb = r.time_ms < best;
+        best = Math.min(best, r.time_ms);
+        return { ...r, pb, diff: i > 0 ? r.time_ms - rows[i - 1].time_ms : null };
+      }).reverse();
+      return { key, name: shortEvent(rows[0].event_name), pool: rows[0].pool as string, marks, best: Math.min(...rows.map((r) => r.time_ms)) };
+    }).sort((a, b) => b.marks.length - a.marks.length);
+  }, [all]);
 
   const sub = profile ? [profile.club, profile.league, profile.gender, profile.age != null ? `${profile.age} años` : null].filter(Boolean).join(' · ') : 'Ficha, posiciones y evolución';
 
@@ -285,6 +307,36 @@ export default function Nadador() {
                 </Pressable>
               );
             })}
+
+            {groups.length ? (
+              <>
+                <Text style={s.section}>Todas las marcas · {all.length}</Text>
+                {groups.map((g) => {
+                  const isOpen = openGroups[g.key] ?? (selected ? `${selected.event_id}|${selected.pool}` === g.key : false);
+                  return (
+                    <View key={g.key} style={s.card}>
+                      <Pressable onPress={() => setOpenGroups((o) => ({ ...o, [g.key]: !isOpen }))} style={s.groupHead}>
+                        <View style={{ flex: 1 }}>
+                          <Text style={s.rowName}>{g.name}{g.pool === 'SC' ? ' · corta' : ''}</Text>
+                          <Text style={s.small}>{g.marks.length} {g.marks.length === 1 ? 'marca' : 'marcas'} · mejor {g.marks.find((m) => m.time_ms === g.best)?.time}</Text>
+                        </View>
+                        <Text style={s.link}>{isOpen ? 'Ocultar' : 'Ver'}</Text>
+                      </Pressable>
+                      {isOpen ? g.marks.map((m, i) => (
+                        <View key={i} style={s.markRow}>
+                          <Text style={[s.small, { width: 64 }]}>{shortDate(m.date)}</Text>
+                          <Text style={[s.eventTime, { flex: 1 }]}>{m.time}{m.pb ? ' ★' : ''}</Text>
+                          <Text style={[s.small, { color: m.diff == null ? c.muted : m.diff <= 0 ? '#1B8A4B' : '#C0392B' }]}>
+                            {m.diff == null ? 'primera' : `${m.diff <= 0 ? '−' : '+'}${(Math.abs(m.diff) / 1000).toFixed(2)}`}
+                          </Text>
+                        </View>
+                      )) : null}
+                    </View>
+                  );
+                })}
+                <Text style={s.small}>★ = mejor marca hasta esa fecha. El cambio es frente a la marca anterior en la misma prueba.</Text>
+              </>
+            ) : null}
             <SourceNote text={SOURCE_NOTE} />
           </>
         ) : null}
@@ -319,6 +371,8 @@ const s = StyleSheet.create({
   section: { fontFamily: font.bold, fontSize: 14, color: c.text, marginTop: 6 },
   event: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', backgroundColor: c.white, borderWidth: 1.5, borderColor: c.border, borderRadius: 12, paddingHorizontal: 14, paddingVertical: 14 },
   eventTime: { fontFamily: font.bold, fontSize: 15, color: c.text },
+  groupHead: { flexDirection: 'row', alignItems: 'center', gap: 8 },
+  markRow: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingTop: 10, marginTop: 8, borderTopWidth: 1, borderTopColor: c.border },
   row: { flexDirection: 'row', alignItems: 'center', backgroundColor: c.white, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12 },
   rowName: { fontFamily: font.semi, color: c.text, fontSize: 14 },
   link: { color: c.primary, fontFamily: font.semi, fontSize: 13 },

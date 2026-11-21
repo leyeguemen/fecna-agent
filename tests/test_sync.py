@@ -138,3 +138,48 @@ def test_incremental_start_usa_ultima_marca_menos_margen(tmp_path):
     assert sync.incremental_start(conn, 30, today=date(2026, 11, 20)) == "2026-10-11"
     assert sync.incremental_start(conn, 0, today=date(2026, 11, 5)) == "2026-11-05"  # nunca futuro
     assert sync.incremental_start(conn, 9999, today=date(2026, 11, 20)) == sync.BASE_START
+
+
+def test_sync_divide_el_rango_si_el_sitio_responde_con_error(tmp_path, monkeypatch):
+    """Un 500 por pedir demasiado de una vez no debe dejar la prueba sin datos."""
+    from fecna_agent import db, extractor, normalizer, sync
+
+    calls = []
+
+    def fake_fetch(inicio, fin, session=None, **kw):
+        from datetime import date
+
+        calls.append((inicio, fin))
+        if (date.fromisoformat(fin) - date.fromisoformat(inicio)).days > 100:
+            import requests
+
+            resp = requests.Response()
+            resp.status_code = 500
+            raise requests.HTTPError("500 Server Error", response=resp)
+        return [{"rango": f"{inicio}..{fin}"}]
+
+    monkeypatch.setattr(extractor, "build_session", lambda: None)
+    monkeypatch.setattr(extractor, "fetch_ranking", fake_fetch)
+    monkeypatch.setattr(normalizer, "normalize_rows", lambda raw, fetched_at=None: raw)
+    monkeypatch.setattr(db, "insert_results", lambda conn, rows: len(rows))
+    conn = db.connect(tmp_path / "t.db")
+
+    stats = sync.sync_all(conn, inicio="2024-01-01", fin="2024-12-31", events=[("E", "Evento")],
+                          pools=("LC",), genders=("F",), categoria="X", delay=0)
+
+    assert stats["errors"] == 0 and stats["received"] >= 2  # se juntaron varios tramos
+    assert calls[0] == ("2024-01-01", "2024-12-31")  # primero intenta todo el rango
+    assert all(a <= b for a, b in calls)
+
+
+def test_sync_no_divide_si_no_es_error_de_tamano(conn, monkeypatch):
+    """Una caída de red no se multiplica en tramos: la corrida se corta como siempre."""
+    calls = []
+
+    def down(inicio, fin, genero, categoria, prueba, piscina, session):
+        calls.append(1)
+        raise ConnectionError("sin red")
+
+    monkeypatch.setattr(sync.extractor, "fetch_ranking", down)
+    sync.sync_all(conn, delay=0)
+    assert len(calls) == sync.MAX_CONSECUTIVE_ERRORS

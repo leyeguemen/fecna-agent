@@ -25,6 +25,18 @@ MAX_CONSECUTIVE_ERRORS = 3
 
 BASE_START = "2024-01-01"  # primera fecha con datos en la base
 DEFAULT_MARGIN_DAYS = 30
+MIN_SPLIT_DAYS = 30  # no se divide un rango menor a esto: ahí el fallo ya no es por tamaño
+MAX_SPLIT_DEPTH = 3  # como mucho 8 tramos por combinación: no insistir si el sitio está caído
+
+
+def _is_size_error(exc: Exception) -> bool:
+    """Error del servidor (5xx) o tiempo de espera: típico de pedir demasiado de una vez."""
+    from requests import exceptions as rex
+
+    if isinstance(exc, rex.Timeout):
+        return True
+    response = getattr(exc, "response", None)
+    return isinstance(exc, rex.HTTPError) and response is not None and response.status_code >= 500
 
 
 def incremental_start(conn, margin_days: int = DEFAULT_MARGIN_DAYS, today: date | None = None) -> str:
@@ -90,13 +102,34 @@ def sync_all(
         "aborted": "", "details": [],
     }
 
+    def fetch_range(inicio_s: str, fin_s: str, _depth: int = 0, **kw):
+        """Pide el rango; si el sitio responde con error (p. ej. 500 por pedir demasiado de una
+        vez), lo parte por la mitad y junta los resultados. Los repetidos los ignora la base."""
+        try:
+            return extractor.fetch_ranking(inicio=inicio_s, fin=fin_s, session=session, **kw)
+        except extractor.SiteBlockedError:
+            raise
+        except Exception as exc:
+            a, b = date.fromisoformat(inicio_s), date.fromisoformat(fin_s)
+            if not _is_size_error(exc) or _depth >= MAX_SPLIT_DEPTH or (b - a).days <= MIN_SPLIT_DAYS:
+                raise
+            mid = a + timedelta(days=(b - a).days // 2)
+            logger.warning("Rango %s→%s falló (%s): se divide en dos.", inicio_s, fin_s, exc)
+            if delay:
+                time.sleep(delay)
+            left = fetch_range(a.isoformat(), mid.isoformat(), _depth + 1, **kw)
+            if delay:
+                time.sleep(delay)
+            right = fetch_range((mid + timedelta(days=1)).isoformat(), fin_s, _depth + 1, **kw)
+            return list(left) + list(right)
+
     consecutive_errors = 0
     for done, ((event_id, event_name), pool, gender) in enumerate(combos, 1):
         try:
-            raw = extractor.fetch_ranking(
-                inicio=inicio, fin=fin, genero=gender,
+            raw = fetch_range(
+                inicio, fin, genero=gender,
                 categoria=categories_by_gender[gender],
-                prueba=event_id, piscina=pool, session=session,
+                prueba=event_id, piscina=pool,
             )
             rows = normalizer.normalize_rows(raw, fetched_at=run_at)
             inserted = database.insert_results(conn, rows)

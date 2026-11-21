@@ -1,4 +1,5 @@
 import { Redirect, Tabs } from 'expo-router';
+import { Platform } from 'react-native';
 import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { Icon } from '../../ui';
@@ -18,7 +19,8 @@ export default function TabsLayout() {
       tabBarActiveTintColor: c.primary,
       tabBarInactiveTintColor: c.muted,
       tabBarLabelStyle: { fontFamily: font.semi, fontSize: 11 },
-      tabBarStyle: { backgroundColor: c.white, borderTopColor: c.border },
+      // En web la altura por defecto recorta las etiquetas: se da espacio explícito.
+      tabBarStyle: { backgroundColor: c.white, borderTopColor: c.border, ...(Platform.OS === 'web' ? { height: 66, paddingTop: 6, paddingBottom: 8 } : {}) },
     }}>
       <Tabs.Screen name="index" options={tab('Chat', 'chat')} />
       <Tabs.Screen name="ranking" options={tab('Ranking', 'ranking')} />

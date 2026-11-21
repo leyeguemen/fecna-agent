@@ -1,4 +1,4 @@
-# FECNA Agent
+# NATIA — Tu asistente de natación
 
 App móvil para consultar en lenguaje natural el ranking de natación de FECNA
 (rankings, mejores marcas, evolución de nadadores y programas de campeonatos).

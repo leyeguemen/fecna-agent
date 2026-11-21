@@ -42,7 +42,7 @@ export default function Chat() {
 
   return (
     <KeyboardAvoidingView style={s.root} behavior="padding">
-      <Header title="FECNA Agent" subtitle="Rankings, marcas y campeonatos" right={<ProfileButton />} />
+      <Header title="NATIA" subtitle="Tu asistente de natación" right={<ProfileButton />} />
       <FlatList
         ref={list}
         data={msgs}

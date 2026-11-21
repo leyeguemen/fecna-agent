@@ -1,10 +1,10 @@
 {
   "expo": {
-    "name": "FECNA Agent",
+    "name": "NATIA",
     "slug": "fecna-agent",
     "version": "1.0.0",
     "orientation": "portrait",
-    "icon": "./assets/icon.png",
+    "icon": "./assets/natia-icon.png",
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
@@ -12,10 +12,8 @@
     },
     "android": {
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
-        "foregroundImage": "./assets/android-icon-foreground.png",
-        "backgroundImage": "./assets/android-icon-background.png",
-        "monochromeImage": "./assets/android-icon-monochrome.png"
+        "backgroundColor": "#023E8A",
+        "foregroundImage": "./assets/natia-icon.png"
       },
       "predictiveBackGestureEnabled": false,
       "package": "co.fecna.agent"
@@ -23,9 +21,9 @@
     "web": {
       "bundler": "metro",
       "output": "single",
-      "favicon": "./assets/favicon.png",
-      "name": "FECNA Agent",
-      "shortName": "FECNA",
+      "favicon": "./assets/natia-icon.png",
+      "name": "NATIA — Tu asistente de natación",
+      "shortName": "NATIA",
       "themeColor": "#023E8A",
       "backgroundColor": "#F5FAFF"
     },
@@ -36,7 +34,9 @@
       [
         "expo-splash-screen",
         {
-          "backgroundColor": "#023E8A"
+          "backgroundColor": "#023E8A",
+          "image": "./assets/splash-icon.png",
+          "imageWidth": 160
         }
       ],
       "expo-sharing"
@@ -58,6 +58,7 @@
     },
     "updates": {
       "url": "https://u.expo.dev/e0cc7b2a-296d-4e23-aa92-8ef486323ef8"
-    }
+    },
+    "description": "Tu asistente de natación. Consulta tus marcas. Entiende tu progreso."
   }
 }

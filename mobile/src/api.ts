@@ -1,4 +1,4 @@
-// Cliente de la API FECNA. El token vive en memoria (y en SecureStore, ver auth.tsx).
+// Cliente de la API de NATIA. El token vive en memoria (y en SecureStore, ver auth.tsx).
 export const API_URL = (process.env.EXPO_PUBLIC_API_URL ?? 'http://localhost:8000').replace(/\/$/, '');
 
 let token: string | null = null;

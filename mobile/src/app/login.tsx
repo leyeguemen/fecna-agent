@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth';
 import { c, font } from '../theme';
 import { Button, ErrorText, Field } from '../ui';
@@ -22,8 +22,9 @@ export default function Login() {
   return (
     <KeyboardAvoidingView style={s.root} behavior="padding">
       <View style={s.hero}>
-        <Text style={s.brand}>FECNA Agent</Text>
-        <Text style={s.tag}>Pregunta en lenguaje natural por rankings, marcas y campeonatos de natación.</Text>
+        <Image source={require('../../assets/splash-icon.png')} style={s.logo} accessibilityLabel="Logo de NATIA" />
+        <Text style={s.brand}>NATIA</Text>
+        <Text style={s.tag}>{'Tu asistente de natación.\nConsulta tus marcas. Entiende tu progreso.'}</Text>
       </View>
       <ScrollView style={s.sheet} contentContainerStyle={{ gap: 14, padding: 24, paddingBottom: 36 }} keyboardShouldPersistTaps="handled">
         <Field label="Correo" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="tu@correo.com" />
@@ -40,6 +41,7 @@ export default function Login() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.deep },
   hero: { flex: 1, alignItems: 'center', justifyContent: 'center', paddingHorizontal: 32, gap: 12 },
+  logo: { width: 96, height: 96, borderRadius: 26, marginBottom: 4 },
   brand: { color: c.white, fontFamily: font.title, fontSize: 30 },
   tag: { color: c.headerSub, fontFamily: font.body, fontSize: 14, textAlign: 'center', lineHeight: 20 },
   sheet: { flexGrow: 0, backgroundColor: c.white, borderTopLeftRadius: 28, borderTopRightRadius: 28 },

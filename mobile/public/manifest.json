@@ -1,7 +1,7 @@
 {
-  "name": "FECNA Agent",
-  "short_name": "FECNA",
-  "description": "Rankings y marcas de natación FECNA",
+  "name": "NATIA — Tu asistente de natación",
+  "short_name": "NATIA",
+  "description": "Consulta tus marcas. Entiende tu progreso.",
   "start_url": "/",
   "scope": "/",
   "display": "standalone",

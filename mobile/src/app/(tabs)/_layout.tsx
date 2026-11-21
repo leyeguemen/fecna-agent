@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { Icon } from '../../ui';
+import { webSafeBottom } from '../../webInsets';
 
 const tab = (title: string, icon: string) => ({
   title,
@@ -20,7 +21,7 @@ export default function TabsLayout() {
       tabBarInactiveTintColor: c.muted,
       tabBarLabelStyle: { fontFamily: font.semi, fontSize: 11 },
       // En web la altura por defecto recorta las etiquetas: se da espacio explícito.
-      tabBarStyle: { backgroundColor: c.white, borderTopColor: c.border, ...(Platform.OS === 'web' ? { height: 66, paddingTop: 6, paddingBottom: 8 } : {}) },
+      tabBarStyle: { backgroundColor: c.white, borderTopColor: c.border, ...(Platform.OS === 'web' ? { height: 66 + webSafeBottom(), paddingTop: 6, paddingBottom: 8 + webSafeBottom() } : {}) },
     }}>
       <Tabs.Screen name="index" options={tab('Chat', 'chat')} />
       <Tabs.Screen name="ranking" options={tab('Ranking', 'ranking')} />

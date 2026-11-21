@@ -2,7 +2,7 @@
 // La barra de pestañas necesita números (no calc()) para repartir bien el alto entre iconos y etiquetas.
 // Tope: en algunos iPhone env() reporta una zona segura inferior exagerada y deja un hueco
 // enorme bajo las etiquetas; el indicador de inicio solo necesita unos pocos píxeles.
-const MAX_BOTTOM = 16;
+const MAX_BOTTOM = 20;
 let cached: number | null = null;
 
 export function webSafeBottom(): number {

@@ -15,7 +15,7 @@ function WebDiag() {
     document.body.appendChild(probe);
     const cs = getComputedStyle(probe);
     const vv = window.visualViewport;
-    setT(`ventana ${window.innerWidth}x${window.innerHeight} · pantalla ${screen.width}x${screen.height} · visual ${Math.round(vv?.height ?? 0)} · zona segura arriba ${cs.paddingTop} / abajo ${cs.paddingBottom}`);
+    setT(`cuerpo ${document.body.clientHeight} · ventana ${window.innerWidth}x${window.innerHeight} · pantalla ${screen.width}x${screen.height} · visual ${Math.round(vv?.height ?? 0)} · zona segura arriba ${cs.paddingTop} / abajo ${cs.paddingBottom}`);
     document.body.removeChild(probe);
   }, []));
   return <Text style={{ color: c.muted, fontFamily: font.body, fontSize: 11 }}>{t}</Text>;

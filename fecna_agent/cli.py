@@ -274,6 +274,11 @@ def cmd_sync(conn, args) -> int:
     print(f"\nSincronización {args.inicio} → {args.fin}: "
           f"{stats['combos']} combinaciones, {stats['received']} recibidos, "
           f"{stats['inserted']} nuevos, {stats['errors']} errores.")
+    if stats.get("skipped_days"):
+        print(f"\n{len(stats['skipped_days'])} día(s) omitidos porque el sitio de FECNA responde con error "
+              "(registros que rompen su servidor):")
+        for prueba, piscina, genero, dia in stats["skipped_days"]:
+            print(f"  prueba {prueba} · {piscina} · {genero} · {dia}")
     if stats["aborted"]:
         print(f"\nABORTADA: {stats['aborted']}")
 

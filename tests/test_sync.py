@@ -183,3 +183,56 @@ def test_sync_no_divide_si_no_es_error_de_tamano(conn, monkeypatch):
     monkeypatch.setattr(sync.extractor, "fetch_ranking", down)
     sync.sync_all(conn, delay=0)
     assert len(calls) == sync.MAX_CONSECUTIVE_ERRORS
+
+
+def test_sync_aisla_un_dia_danado_y_recupera_el_resto(tmp_path, monkeypatch):
+    """FECNA rompe en un día concreto: se omite ese día y no se pierde el resto del rango."""
+    from datetime import date, timedelta
+
+    import requests
+
+    from fecna_agent import db, extractor, normalizer, sync
+
+    bad = date(2024, 6, 6)
+    got = []
+
+    def fake_fetch(inicio, fin, session=None, **kw):
+        a, b = date.fromisoformat(inicio), date.fromisoformat(fin)
+        if a <= bad <= b:
+            resp = requests.Response()
+            resp.status_code = 500
+            raise requests.HTTPError("500 Server Error", response=resp)
+        days = [(a + timedelta(days=i)).isoformat() for i in range((b - a).days + 1)]
+        got.extend(days)
+        return days
+
+    monkeypatch.setattr(extractor, "build_session", lambda: None)
+    monkeypatch.setattr(extractor, "fetch_ranking", fake_fetch)
+    monkeypatch.setattr(normalizer, "normalize_rows", lambda raw, fetched_at=None: raw)
+    monkeypatch.setattr(db, "insert_results", lambda conn, rows: len(rows))
+    conn = db.connect(tmp_path / "t.db")
+
+    stats = sync.sync_all(conn, inicio="2024-01-01", fin="2024-12-31", events=[("E", "Evento")],
+                          pools=("LC",), genders=("F",), categoria="X", delay=0)
+
+    assert stats["errors"] == 0
+    assert [d[3] for d in stats["skipped_days"]] == ["2024-06-06"]
+    assert len(got) == 366 - 1  # todo el año salvo el día dañado
+    assert "2024-06-06" not in got and "2024-06-05" in got and "2024-06-07" in got
+
+
+def test_sync_con_sitio_caido_no_dispara_cientos_de_peticiones(conn, monkeypatch):
+    import requests
+
+    calls = []
+
+    def always_500(inicio, fin, genero, categoria, prueba, piscina, session):
+        calls.append(1)
+        resp = requests.Response()
+        resp.status_code = 500
+        raise requests.HTTPError("500", response=resp)
+
+    monkeypatch.setattr(sync.extractor, "fetch_ranking", always_500)
+    stats = sync.sync_all(conn, delay=0)
+    assert "errores consecutivos" in stats["aborted"]
+    assert len(calls) <= sync.MAX_CONSECUTIVE_ERRORS * (2 * sync.SPLIT_BUDGET + 3)

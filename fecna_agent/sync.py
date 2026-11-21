@@ -25,8 +25,7 @@ MAX_CONSECUTIVE_ERRORS = 3
 
 BASE_START = "2024-01-01"  # primera fecha con datos en la base
 DEFAULT_MARGIN_DAYS = 30
-MIN_SPLIT_DAYS = 30  # no se divide un rango menor a esto: ahí el fallo ya no es por tamaño
-MAX_SPLIT_DEPTH = 3  # como mucho 8 tramos por combinación: no insistir si el sitio está caído
+SPLIT_BUDGET = 24  # divisiones máximas por combinación: aísla días dañados sin insistir si el sitio cae
 
 
 def _is_size_error(exc: Exception) -> bool:
@@ -99,35 +98,45 @@ def sync_all(
     stats = {
         "run_at": run_at, "inicio": inicio, "fin": fin,
         "combos": len(combos), "received": 0, "inserted": 0, "errors": 0,
-        "aborted": "", "details": [],
+        "aborted": "", "details": [], "skipped_days": [],
     }
 
-    def fetch_range(inicio_s: str, fin_s: str, _depth: int = 0, **kw):
-        """Pide el rango; si el sitio responde con error (p. ej. 500 por pedir demasiado de una
-        vez), lo parte por la mitad y junta los resultados. Los repetidos los ignora la base."""
+    def fetch_range(inicio_s: str, fin_s: str, budget: dict, **kw):
+        """Pide el rango; si el sitio responde con error de servidor (5xx) o expira, lo parte por
+        la mitad y junta los resultados hasta aislar el problema. Un día que sigue fallando solo
+        se omite (FECNA tiene registros que rompen su propio servidor); el resto se recupera.
+        Los repetidos los ignora la base."""
         try:
             return extractor.fetch_ranking(inicio=inicio_s, fin=fin_s, session=session, **kw)
         except extractor.SiteBlockedError:
             raise
         except Exception as exc:
-            a, b = date.fromisoformat(inicio_s), date.fromisoformat(fin_s)
-            if not _is_size_error(exc) or _depth >= MAX_SPLIT_DEPTH or (b - a).days <= MIN_SPLIT_DAYS:
+            if not _is_size_error(exc):
                 raise
+            a, b = date.fromisoformat(inicio_s), date.fromisoformat(fin_s)
+            if a == b:
+                stats["skipped_days"].append((kw["prueba"], kw["piscina"], kw["genero"], inicio_s))
+                logger.warning("Día omitido %s (prueba %s %s %s): el sitio responde con error (%s).",
+                               inicio_s, kw["prueba"], kw["piscina"], kw["genero"], exc)
+                return []
+            if budget["left"] <= 0:
+                raise
+            budget["left"] -= 1
             mid = a + timedelta(days=(b - a).days // 2)
             logger.warning("Rango %s→%s falló (%s): se divide en dos.", inicio_s, fin_s, exc)
             if delay:
                 time.sleep(delay)
-            left = fetch_range(a.isoformat(), mid.isoformat(), _depth + 1, **kw)
+            left = fetch_range(a.isoformat(), mid.isoformat(), budget, **kw)
             if delay:
                 time.sleep(delay)
-            right = fetch_range((mid + timedelta(days=1)).isoformat(), fin_s, _depth + 1, **kw)
+            right = fetch_range((mid + timedelta(days=1)).isoformat(), fin_s, budget, **kw)
             return list(left) + list(right)
 
     consecutive_errors = 0
     for done, ((event_id, event_name), pool, gender) in enumerate(combos, 1):
         try:
             raw = fetch_range(
-                inicio, fin, genero=gender,
+                inicio, fin, {"left": SPLIT_BUDGET}, genero=gender,
                 categoria=categories_by_gender[gender],
                 prueba=event_id, piscina=pool,
             )

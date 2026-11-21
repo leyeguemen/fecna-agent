@@ -26,7 +26,9 @@ async def lifespan(app: FastAPI):
     # Reconstruye el índice semántico si falta (p. ej. imagen de despliegue
     # sin `data/chroma/`, que está en .gitignore). No bloquea el arranque si
     # falla: /ask responde 503 en ese caso.
-    ensure_semantic_index()
+    # Con Claude (ANTHROPIC_API_KEY) no se usa Chroma: se evita el costo de memoria y arranque.
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        ensure_semantic_index()
     yield
 
 

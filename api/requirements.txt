@@ -20,3 +20,5 @@ slowapi>=0.1
 psycopg[binary]>=3.2
 anthropic>=0.40
 requests>=2.31
+
+python-multipart>=0.0.9

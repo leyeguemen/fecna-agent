@@ -26,11 +26,6 @@ pdfplumber>=0.11
 # el requirements.txt raíz: chromadb >= 1.5 es compatible con protobuf
 # moderno (5/6); versiones más viejas de la cadena protobuf/opentelemetry
 # rompen con "Descriptors cannot be created directly".
-chromadb>=1.5,<2
-protobuf>=6.30,<7
-opentelemetry-proto>=1.42
-opentelemetry-sdk>=1.42
-opentelemetry-api>=1.42
 # python:3.12-slim ya trae sqlite3 >= 3.35 (requisito de ChromaDB); a
 # diferencia del requirements.txt raíz, aquí no hace falta pysqlite3-binary.
 
@@ -38,3 +33,5 @@ opentelemetry-api>=1.42
 psycopg[binary]>=3.2
 anthropic>=0.40
 requests>=2.31
+
+python-multipart>=0.0.9

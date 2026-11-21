@@ -1,0 +1,30 @@
+# Blueprint de Render: crea el servicio de la API con "New → Blueprint".
+# Los valores con sync: false se piden en el panel (nunca se guardan en el repo).
+services:
+  - type: web
+    name: fecna-api
+    runtime: docker
+    dockerfilePath: ./api/Dockerfile
+    dockerContext: .
+    plan: free
+    region: oregon          # misma región que Supabase (us-west-2)
+    branch: main
+    healthCheckPath: /health
+    autoDeploy: true
+    envVars:
+      - key: DATABASE_URL            # cadena del Session pooler de Supabase
+        sync: false
+      - key: ANTHROPIC_API_KEY
+        sync: false
+      - key: FECNA_JWT_SECRET        # cadena aleatoria larga; generar con: openssl rand -hex 32
+        sync: false
+      - key: FECNA_ADMIN_EMAIL       # correo(s) con rol admin
+        sync: false
+      - key: GITHUB_TOKEN            # fine-grained, permiso Actions: read/write
+        sync: false
+      - key: GITHUB_REPO
+        value: leyeguemen/fecna-agent
+      - key: GITHUB_REF
+        value: main
+      - key: FECNA_ASK_DAILY_LIMIT
+        value: "50"

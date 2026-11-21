@@ -1,6 +1,6 @@
 import { Link } from 'expo-router';
 import { useState } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth';
 import { c, font } from '../theme';
 import { Button, ErrorText, Field } from '../ui';
@@ -20,7 +20,7 @@ export default function Login() {
   };
 
   return (
-    <KeyboardAvoidingView style={s.root} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView style={s.root} behavior="padding">
       <View style={s.hero}>
         <Text style={s.brand}>FECNA Agent</Text>
         <Text style={s.tag}>Pregunta en lenguaje natural por rankings, marcas y campeonatos de natación.</Text>

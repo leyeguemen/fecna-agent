@@ -17,6 +17,7 @@ export default function TabsLayout() {
   return (
     <Tabs screenOptions={{
       headerShown: false,
+      tabBarHideOnKeyboard: true, // deja sitio a la caja de texto cuando aparece el teclado
       tabBarActiveTintColor: c.primary,
       tabBarInactiveTintColor: c.muted,
       tabBarLabelStyle: { fontFamily: font.semi, fontSize: 11 },

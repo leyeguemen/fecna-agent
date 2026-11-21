@@ -1,25 +1,10 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
 import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { Avatar, Button, Card, Chip, ConfirmDialog, ErrorText, Field, Icon } from '../../ui';
-
-// Diagnóstico de pantalla (solo web): ayuda a ajustar las zonas seguras del iPhone.
-function WebDiag() {
-  const [t, setT] = useState('');
-  useFocusEffect(useCallback(() => {
-    const probe = document.createElement('div');
-    probe.style.cssText = 'position:fixed;visibility:hidden;padding:env(safe-area-inset-top) 0 env(safe-area-inset-bottom) 0';
-    document.body.appendChild(probe);
-    const cs = getComputedStyle(probe);
-    const vv = window.visualViewport;
-    setT(`cuerpo ${document.body.clientHeight} · ventana ${window.innerWidth}x${window.innerHeight} · pantalla ${screen.width}x${screen.height} · visual ${Math.round(vv?.height ?? 0)} · zona segura arriba ${cs.paddingTop} / abajo ${cs.paddingBottom}`);
-    document.body.removeChild(probe);
-  }, []));
-  return <Text style={{ color: c.muted, fontFamily: font.body, fontSize: 11 }}>{t}</Text>;
-}
 
 export default function Perfil() {
   const { user, signOut } = useAuth();
@@ -98,7 +83,6 @@ export default function Perfil() {
         <ErrorText text={error} />
         {/* El cierre de sesión vive solo aquí (decisión de diseño). */}
         <Button title="Cerrar sesión" variant="outline" onPress={() => setLogout(true)} />
-        {Platform.OS === 'web' ? <WebDiag /> : null}
       </ScrollView>
 
       <ConfirmDialog visible={logout} title="¿Cerrar sesión?" confirmLabel="Cerrar sesión"

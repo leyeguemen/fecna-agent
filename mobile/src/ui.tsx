@@ -2,6 +2,7 @@ import { ReactNode } from 'react';
 import {
   ActivityIndicator, Modal, Pressable, StyleSheet, Text, TextInput, TextInputProps, View,
 } from 'react-native';
+import { Platform } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import Svg, { Path, Circle, Rect } from 'react-native-svg';
 import { c, font } from './theme';
@@ -43,7 +44,7 @@ export function Avatar({ label, size = 36 }: { label: string; size?: number }) {
 export function Header({ title, subtitle, right }: { title: string; subtitle?: string; right?: ReactNode }) {
   const insets = useSafeAreaInsets();
   return (
-    <View style={[s.header, { paddingTop: insets.top + 12 }]}>
+    <View style={[s.header, { paddingTop: (Platform.OS === 'web' ? 0 : insets.top) + 12 }]}>
       <View style={{ flex: 1 }}>
         <Text style={s.headerTitle}>{title}</Text>
         {subtitle ? <Text style={s.headerSub}>{subtitle}</Text> : null}

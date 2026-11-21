@@ -13,8 +13,15 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <style id="expo-reset">
-      html, body { height: 100%; }
-      body { overflow: hidden; background: #F5FAFF; }
+      /* El iPhone (PWA a pantalla completa) reserva zonas seguras: arriba la barra de estado y
+         abajo el indicador de inicio. Se respetan con env(); el fondo de cada franja casa con
+         lo que hay al lado (azul del encabezado arriba, blanco de la barra de pestañas abajo). */
+      html { height: 100%; background: linear-gradient(#023E8A 50%, #FFFFFF 50%); }
+      body {
+        height: 100%; margin: 0; overflow: hidden; box-sizing: border-box; background: #F5FAFF;
+        padding-top: env(safe-area-inset-top);
+        padding-bottom: env(safe-area-inset-bottom);
+      }
       #root { display: flex; height: 100%; flex: 1; }
     </style>
   </head>

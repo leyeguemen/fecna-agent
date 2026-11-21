@@ -68,7 +68,7 @@ export default function Admin() {
         <Card>
           <Text style={s.h}>ESTADO</Text>
           <Text style={s.v}>{status ? `${status.total_results.toLocaleString('es-CO')} marcas` : 'Cargando…'}</Text>
-          <Text style={s.sub}>Última sincronización: {last ? `${last.run_at} (${last.inserted} nuevas)` : 'sin registros'}</Text>
+          <Text style={s.sub}>Última sincronización: {last ? `${new Date(last.run_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })} · ${last.inserted} nuevas` : 'sin registros'}</Text>
           {run ? <Text style={s.sub}>Ejecución: {run.status}{run.conclusion ? ` · ${run.conclusion}` : ''}</Text> : null}
         </Card>
 

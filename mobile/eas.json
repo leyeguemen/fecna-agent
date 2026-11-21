@@ -15,14 +15,14 @@
         "buildType": "apk"
       },
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fecna-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://natia-api.onrender.com"
       },
       "channel": "preview"
     },
     "production": {
       "autoIncrement": true,
       "env": {
-        "EXPO_PUBLIC_API_URL": "https://fecna-api.onrender.com"
+        "EXPO_PUBLIC_API_URL": "https://natia-api.onrender.com"
       },
       "channel": "production"
     }

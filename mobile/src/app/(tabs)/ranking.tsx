@@ -4,10 +4,11 @@ import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, 
 import { api, Item } from '../../api';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
-import { Chip, Empty, ErrorText, Header } from '../../ui';
+import { SOURCE_NOTE } from '../../legal';
+import { Chip, Empty, ErrorText, Header, SourceNote } from '../../ui';
 
 export default function Ranking() {
-  const [cat, setCat] = useState<{ pruebas: Item[]; categorias: Item[] } | null>(null);
+  const [cat, setCat] = useState<{ pruebas: Item[]; categorias: Item[]; ligas: string[] } | null>(null);
   const [event, setEvent] = useState<Item | null>(null);
   const [pool, setPool] = useState<'LC' | 'SC'>('LC');
   const [gender, setGender] = useState<'M' | 'F'>('M');
@@ -17,6 +18,9 @@ export default function Ranking() {
   const [error, setError] = useState<string | null>(null);
   const [picker, setPicker] = useState(false);
   const [q, setQ] = useState('');
+  const [league, setLeague] = useState<string | null>(null);
+  const [leaguePicker, setLeaguePicker] = useState(false);
+  const [ql, setQl] = useState('');
 
   useEffect(() => {
     api('/catalogs').then((r) => { setCat(r); setEvent(r.pruebas[0] ?? null); }).catch((e) => setError(e.message));
@@ -27,9 +31,11 @@ export default function Ranking() {
     setLoading(true); setError(null);
     const p = new URLSearchParams({ event_id: event.id, pool, gender, limit: '50' });
     if (category) p.set('category', category);
+    if (league) p.set('league', league);
     api(`/rankings?${p}`).then((r) => setItems(r.items)).catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, [event, pool, gender, category]);
+  }, [event, pool, gender, category, league]);
 
+  const ligas = (cat?.ligas ?? []).filter((l) => l.toLowerCase().includes(ql.toLowerCase()));
   const pruebas = (cat?.pruebas ?? []).filter((p) => p.nombre.toLowerCase().includes(q.toLowerCase()));
 
   return (
@@ -38,6 +44,9 @@ export default function Ranking() {
       <View style={s.filters}>
         <Pressable style={s.select} onPress={() => setPicker(true)}>
           <Text style={s.selectText} numberOfLines={1}>{event?.nombre ?? 'Prueba'}</Text>
+        </Pressable>
+        <Pressable style={s.select} onPress={() => setLeaguePicker(true)}>
+          <Text style={s.selectText} numberOfLines={1}>Liga: {league ?? 'Todas'}</Text>
         </Pressable>
         <View style={s.row}>
           <Chip label="Piscina larga" selected={pool === 'LC'} onPress={() => setPool('LC')} />
@@ -59,6 +68,7 @@ export default function Ranking() {
           keyExtractor={(i) => `${i.swimmer_id}-${i.pos}`}
           contentContainerStyle={{ padding: 16, gap: 8 }}
           ListEmptyComponent={<Empty text="Sin resultados con estos filtros." />}
+          ListFooterComponent={<SourceNote text={SOURCE_NOTE} />}
           renderItem={({ item }) => (
             <Pressable style={s.item} onPress={() => router.push({ pathname: '/nadador', params: { id: item.swimmer_id } })}>
               <Text style={s.pos}>{item.pos}</Text>
@@ -84,6 +94,24 @@ export default function Ranking() {
             )}
           />
           <Pressable style={s.close} onPress={() => setPicker(false)}><Text style={s.closeText}>Cerrar</Text></Pressable>
+        </View>
+      </Modal>
+      <Modal visible={leaguePicker} animationType="slide" onRequestClose={() => setLeaguePicker(false)}>
+        <View style={[s.root, { paddingTop: 56 }]}>
+          <TextInput value={ql} onChangeText={setQl} placeholder="Buscar liga" placeholderTextColor="#8AA3B5" style={s.search} />
+          <FlatList
+            data={['Todas', ...ligas]}
+            keyExtractor={(l) => l}
+            renderItem={({ item }) => {
+              const value = item === 'Todas' ? null : item;
+              return (
+                <Pressable style={s.opt} onPress={() => { setLeague(value); setLeaguePicker(false); setQl(''); }}>
+                  <Text style={[s.name, value === league && { color: c.primary }]}>{item}</Text>
+                </Pressable>
+              );
+            }}
+          />
+          <Pressable style={s.close} onPress={() => setLeaguePicker(false)}><Text style={s.closeText}>Cerrar</Text></Pressable>
         </View>
       </Modal>
     </View>

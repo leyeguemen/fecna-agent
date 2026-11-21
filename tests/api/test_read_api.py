@@ -254,3 +254,13 @@ def test_rankings_y_nadadores_exigen_login(client):
     assert client.get("/rankings?event_id=E1").status_code == 401
     assert client.get("/swimmers/search?q=ana").status_code == 401
     assert client.get("/catalogs").status_code == 401
+
+
+def test_rankings_filtro_por_liga_y_catalogo_de_ligas(client):
+    cat = client.get("/catalogs").json()
+    assert cat["ligas"] == ["Liga Andina", "Liga Pacifico"]
+    todas = client.get("/rankings?event_id=50L").json()["items"]
+    valle = client.get("/rankings?event_id=50L&league=Liga%20Andina").json()["items"]
+    assert valle and len(valle) < len(todas)
+    assert all(i["league"] == "Liga Andina" for i in valle)
+    assert client.get("/rankings?event_id=50L&league=NoExiste").json()["items"] == []

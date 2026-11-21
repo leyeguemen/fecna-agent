@@ -121,7 +121,9 @@ CREATE TABLE IF NOT EXISTS app_user (
   role          TEXT NOT NULL DEFAULT 'user',
   active        INTEGER NOT NULL DEFAULT 1,
   created_at    TIMESTAMP,
-  swimmer_id    TEXT
+  swimmer_id    TEXT,
+  terms_version TEXT,
+  terms_accepted_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS swimmer_follow (
@@ -165,7 +167,7 @@ def _ensure_pg_schema(conn, url: str) -> None:
     check = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
                    AND to_regclass('public.ranking_public') IS NOT NULL
                    AND EXISTS (SELECT 1 FROM information_schema.columns
-                               WHERE table_name = 'app_user' AND column_name = 'swimmer_id')"""
+                               WHERE table_name = 'app_user' AND column_name = 'terms_version')"""
     ready = conn.execute(check).fetchone()[0]
     conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
     if not ready:
@@ -210,6 +212,10 @@ def _migrate(conn: sqlite3.Connection) -> None:
     user_cols = {r["name"] for r in conn.execute("PRAGMA table_info(app_user)")}
     if user_cols and "swimmer_id" not in user_cols:
         conn.execute("ALTER TABLE app_user ADD COLUMN swimmer_id TEXT")
+        conn.commit()
+    if user_cols and "terms_version" not in user_cols:
+        conn.execute("ALTER TABLE app_user ADD COLUMN terms_version TEXT")
+        conn.execute("ALTER TABLE app_user ADD COLUMN terms_accepted_at TIMESTAMP")
         conn.commit()
 
     watch_cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition_watch)")}
@@ -802,7 +808,8 @@ def watched_entry(
 
 
 def create_user(
-    conn: sqlite3.Connection, email: str, password: str, role: str = "user"
+    conn: sqlite3.Connection, email: str, password: str, role: str = "user",
+    terms_version: str | None = None,
 ) -> dict:
     """Crea un usuario (valida email/contraseña/unicidad). Devuelve el registro.
 
@@ -821,10 +828,12 @@ def create_user(
         raise ValueError("Ese email ya está registrado.")
     hash_hex, salt_hex = auth.hash_password(password)
     conn.execute(
-        """INSERT INTO app_user (email, password_hash, salt, role, active, created_at)
-           VALUES (?, ?, ?, ?, 1, ?)""",
+        """INSERT INTO app_user (email, password_hash, salt, role, active, created_at,
+                                 terms_version, terms_accepted_at)
+           VALUES (?, ?, ?, ?, 1, ?, ?, ?)""",
         (email, hash_hex, salt_hex, role,
-         datetime.now().isoformat(timespec="seconds")),
+         datetime.now().isoformat(timespec="seconds"),
+         terms_version, datetime.now().isoformat(timespec="seconds") if terms_version else None),
     )
     conn.commit()
     return dict(get_user_by_email(conn, email))

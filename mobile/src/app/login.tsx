@@ -1,4 +1,5 @@
 import { Link } from 'expo-router';
+import { SOURCE_NOTE } from '../legal';
 import { useState } from 'react';
 import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth';
@@ -32,7 +33,8 @@ export default function Login() {
         <ErrorText text={error} />
         <Button title="Ingresar" onPress={submit} loading={busy} disabled={!email || !password} />
         <Text style={s.small}>¿Sin cuenta? <Link href="/registro" style={s.link}>Regístrate</Link></Text>
-        <Text style={[s.small, { fontSize: 11 }]}>Acceso restringido: los datos incluyen información de deportistas.</Text>
+        <Text style={[s.small, { fontSize: 11 }]}>{SOURCE_NOTE}</Text>
+        <Text style={[s.small, { fontSize: 12 }]}><Link href="/terminos" style={s.link}>Términos y condiciones</Link></Text>
       </ScrollView>
     </KeyboardAvoidingView>
   );

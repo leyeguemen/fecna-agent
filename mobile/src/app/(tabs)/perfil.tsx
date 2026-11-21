@@ -76,6 +76,7 @@ export default function Perfil() {
         <Text style={s.h}>CUENTA</Text>
         <Card>
           <Pressable style={s.line} onPress={() => { setError(null); setPwd(true); }}><Text style={s.text}>Cambiar contraseña</Text><Icon name="chevron" size={18} /></Pressable>
+          <Pressable style={s.line} onPress={() => router.push('/terminos')}><Text style={s.text}>Términos y condiciones</Text><Icon name="chevron" size={18} /></Pressable>
           <Pressable style={[s.line, { borderBottomWidth: 0 }]} onPress={() => { setDelText(''); setDel(true); }}><Text style={s.text}>Eliminar mi cuenta y datos</Text><Icon name="chevron" size={18} /></Pressable>
         </Card>
 

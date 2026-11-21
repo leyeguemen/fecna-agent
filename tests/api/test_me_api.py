@@ -80,3 +80,20 @@ def test_historial_incluye_puntos_y_ficha_descargable(client):
     f = client.get("/swimmers/1/ficha")
     assert f.status_code == 200 and "Ana Perez" in f.text
     assert client.get("/swimmers/999/ficha").status_code == 404
+
+
+def test_registro_guarda_la_aceptacion_de_terminos(tmp_path, monkeypatch):
+    from fastapi.testclient import TestClient
+
+    monkeypatch.setenv("FECNA_APP_DB", str(tmp_path / "app2.db"))
+    monkeypatch.setenv("FECNA_DB", str(tmp_path / "read.db"))
+    from api import main
+    from fecna_agent import db as dbm
+
+    cl = TestClient(main.app)
+    assert cl.post("/auth/register", json={"email": "a@t.co", "password": "clave1234", "accept_terms": True}).status_code == 201
+    assert cl.post("/auth/register", json={"email": "b@t.co", "password": "clave1234"}).status_code == 201  # cliente antiguo
+    conn = dbm.connect(tmp_path / "app2.db")
+    rows = {r["email"]: (r["terms_version"], r["terms_accepted_at"]) for r in conn.execute("SELECT email, terms_version, terms_accepted_at FROM app_user")}
+    assert rows["a@t.co"][0] and rows["a@t.co"][1]
+    assert rows["b@t.co"] == (None, None)

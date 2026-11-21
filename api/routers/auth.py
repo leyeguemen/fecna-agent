@@ -23,20 +23,29 @@ limiter = Limiter(
 )
 
 
+# Versión vigente de los términos y condiciones (se guarda con la aceptación de cada usuario).
+TERMS_VERSION = "2026-11-21"
+
+
 class Credentials(BaseModel):
     email: str
     password: str
 
 
+class RegisterBody(Credentials):
+    accept_terms: bool = False  # el cliente nuevo lo exige; los antiguos no lo envían
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
-def register(request: Request, body: Credentials):
+def register(request: Request, body: RegisterBody):
     admin_emails = auth.parse_admin_emails(os.environ.get("FECNA_ADMIN_EMAIL"))
     role = auth.role_for(body.email, admin_emails)
     conn = app_conn()
     try:
         try:
-            user = db.create_user(conn, body.email, body.password, role=role)
+            user = db.create_user(conn, body.email, body.password, role=role,
+                                  terms_version=TERMS_VERSION if body.accept_terms else None)
         except ValueError as exc:
             raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
     finally:

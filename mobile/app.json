@@ -21,7 +21,13 @@
       "package": "co.fecna.agent"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "FECNA Agent",
+      "shortName": "FECNA",
+      "themeColor": "#023E8A",
+      "backgroundColor": "#F5FAFF"
     },
     "plugins": [
       "expo-router",
@@ -34,6 +40,17 @@
         }
       ]
     ],
-    "scheme": "fecna"
+    "scheme": "fecna",
+    "extra": {
+      "router": {
+        "asyncRoutes": {
+          "web": true
+        }
+      },
+      "eas": {
+        "projectId": "e0cc7b2a-296d-4e23-aa92-8ef486323ef8"
+      }
+    },
+    "owner": "leyeguemen"
   }
 }

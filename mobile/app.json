@@ -52,6 +52,12 @@
         "projectId": "e0cc7b2a-296d-4e23-aa92-8ef486323ef8"
       }
     },
-    "owner": "leyeguemen"
+    "owner": "leyeguemen",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/e0cc7b2a-296d-4e23-aa92-8ef486323ef8"
+    }
   }
 }

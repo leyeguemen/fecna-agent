@@ -108,7 +108,7 @@ def test_ask_usa_claude_con_limite_diario(api, monkeypatch):
 
 def test_admin_requiere_rol_admin(api):
     c = api("user")
-    assert c.post("/admin/sync", json={"inicio": "2026-01-01"}).status_code == 403
+    assert c.post("/admin/sync", json={}).status_code == 403
     assert c.get("/admin/sync/status").status_code == 403
 
 
@@ -125,15 +125,20 @@ def test_admin_sync_despacha_workflow(api, monkeypatch):
     monkeypatch.setenv("GITHUB_TOKEN", "t")
     monkeypatch.setenv("GITHUB_REPO", "o/r")
     c = api("admin")
-    assert c.post("/admin/sync", json={"inicio": "2026-01-01"}).status_code == 202
+    assert c.post("/admin/sync", json={}).status_code == 202  # sin fecha: incremental
     assert sent["url"].endswith("/o/r/actions/workflows/sync.yml/dispatches")
-    assert sent["json"]["inputs"] == {"inicio": "2026-01-01"}
-    assert c.post("/admin/sync", json={"inicio": "ayer"}).status_code == 422
+    assert sent["json"]["inputs"] == {"modo": "incremental"}
+    assert c.post("/admin/sync", json={"modo": "completa"}).status_code == 202
+    assert sent["json"]["inputs"] == {"modo": "completa"}
+    assert c.post("/admin/sync", json={"modo": "otro"}).status_code == 422
+    # clientes antiguos que aún mandan una fecha: se ignora y queda incremental
+    assert c.post("/admin/sync", json={"inicio": "2026-01-01"}).status_code == 202
+    assert sent["json"]["inputs"] == {"modo": "incremental"}
 
 
 def test_admin_sync_sin_configurar_503(api, monkeypatch):
     monkeypatch.delenv("GITHUB_TOKEN", raising=False)
     c = api("admin")
-    assert c.post("/admin/sync", json={"inicio": "2026-01-01"}).status_code == 503
+    assert c.post("/admin/sync", json={}).status_code == 503
     st = c.get("/admin/sync/status")
     assert st.status_code == 200 and st.json()["run"] is None

@@ -93,6 +93,11 @@ def build_parser() -> argparse.ArgumentParser:
     p.add_argument("--inicio", default="2024-01-01",
                    help="Para verificar un campeonato, usa su fecha de inicio")
     p.add_argument("--fin", default=date.today().isoformat())
+    p.add_argument("--incremental", action="store_true",
+                   help="Solo novedades: parte de la última marca guardada menos --margen-dias "
+                        "(ignora --inicio)")
+    p.add_argument("--margen-dias", type=int, default=30,
+                   help="Días de solape con lo ya guardado en modo incremental")
     p.add_argument("--piscina", choices=["LC", "SC"], action="append",
                    help="Repetible; defecto: ambas")
     p.add_argument("--genero", choices=["M", "F"], action="append",
@@ -245,6 +250,10 @@ def cmd_index(conn, args) -> int:
 
 def cmd_sync(conn, args) -> int:
     from . import sync
+
+    if args.incremental:
+        args.inicio = sync.incremental_start(conn, args.margen_dias)
+        print(f"Modo incremental: desde {args.inicio} (última marca guardada − {args.margen_dias} días).")
 
     events = None
     if args.prueba:

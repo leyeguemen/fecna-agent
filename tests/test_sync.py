@@ -120,3 +120,21 @@ def test_errores_consecutivos_activan_el_cortacircuito(conn, monkeypatch):
     stats = sync.sync_all(conn, delay=0)
     assert len(calls) == sync.MAX_CONSECUTIVE_ERRORS
     assert "errores consecutivos" in stats["aborted"]
+
+
+def test_incremental_start_usa_ultima_marca_menos_margen(tmp_path):
+    from datetime import date
+
+    from fecna_agent import db, sync
+
+    conn = db.connect(tmp_path / "t.db")
+    assert sync.incremental_start(conn) == sync.BASE_START  # base vacía → desde el inicio
+    row = dict(source="t", ranking_position=1, swimmer_id="1", swimmer_name="A B",
+               first_name="A", last_name="B", gender="M", birth_date="2008-01-01",
+               birth_year_month="2008-01", event_id="E", event_name="50 libre", pool_type="LC",
+               time_raw="00:30.00", time_ms=30000, points=1, result_date="2026-11-10",
+               league="L", club="C", fetched_at="2026-11-11")
+    db.insert_results(conn, [row])
+    assert sync.incremental_start(conn, 30, today=date(2026, 11, 20)) == "2026-10-11"
+    assert sync.incremental_start(conn, 0, today=date(2026, 11, 5)) == "2026-11-05"  # nunca futuro
+    assert sync.incremental_start(conn, 9999, today=date(2026, 11, 20)) == sync.BASE_START

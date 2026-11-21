@@ -4,14 +4,11 @@ import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, Item } from '../../api';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
-import { Button, Card, ConfirmDialog, ErrorText, Field, Header } from '../../ui';
-
-const daysAgo = (n: number) => new Date(Date.now() - n * 864e5).toISOString().slice(0, 10);
+import { Button, Card, ConfirmDialog, ErrorText, Header } from '../../ui';
 
 export default function Admin() {
   const [status, setStatus] = useState<Item | null>(null);
-  const [inicio, setInicio] = useState(daysAgo(45));
-  const [confirmSync, setConfirmSync] = useState(false);
+  const [confirmSync, setConfirmSync] = useState<null | 'incremental' | 'completa'>(null);
   const [pdf, setPdf] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [confirmPub, setConfirmPub] = useState(false);
   const [busy, setBusy] = useState(false);
@@ -29,10 +26,14 @@ export default function Admin() {
   }, [refresh]);
 
   const sync = async () => {
-    setConfirmSync(false); setBusy(true); setError(null); setMsg(null);
+    const modo = confirmSync;
+    if (!modo) return;
+    setConfirmSync(null); setBusy(true); setError(null); setMsg(null);
     try {
-      await api('/admin/sync', { body: { inicio } });
-      setMsg('Sincronización en cola. Corre en segundo plano; puedes cerrar la app.');
+      await api('/admin/sync', { body: { modo } });
+      setMsg(modo === 'completa'
+        ? 'Sincronización completa en cola. Puede tardar bastante; corre en segundo plano y puedes cerrar la app.'
+        : 'Sincronización en cola. Corre en segundo plano; puedes cerrar la app.');
       setTimeout(refresh, 4000);
     } catch (e: any) { setError(e.message); }
     finally { setBusy(false); }
@@ -68,15 +69,19 @@ export default function Admin() {
         <Card>
           <Text style={s.h}>ESTADO</Text>
           <Text style={s.v}>{status ? `${status.total_results.toLocaleString('es-CO')} marcas` : 'Cargando…'}</Text>
+          {status?.latest_result_date ? <Text style={s.sub}>Datos hasta: {status.latest_result_date}</Text> : null}
           <Text style={s.sub}>Última sincronización: {last ? `${new Date(last.run_at).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })} · ${last.inserted} nuevas` : 'sin registros'}</Text>
           {run ? <Text style={s.sub}>Ejecución: {run.status}{run.conclusion ? ` · ${run.conclusion}` : ''}</Text> : null}
         </Card>
 
         <Card>
           <Text style={s.h}>SINCRONIZAR RANKING FECNA</Text>
-          <View style={{ gap: 12, marginTop: 8 }}>
-            <Field label="Desde (AAAA-MM-DD)" value={inicio} onChangeText={setInicio} placeholder="2026-01-01" />
-            <Button title="Sincronizar ahora" onPress={() => setConfirmSync(true)} loading={busy} disabled={!/^\d{4}-\d{2}-\d{2}$/.test(inicio)} />
+          <Text style={[s.sub, { marginBottom: 12 }]}>
+            Trae solo las novedades desde la última marca guardada, con un margen de 30 días por si FECNA publica resultados con retraso.
+          </Text>
+          <View style={{ gap: 12 }}>
+            <Button title="Sincronizar ahora" onPress={() => setConfirmSync('incremental')} loading={busy} />
+            <Button title="Sincronización completa" variant="outline" onPress={() => setConfirmSync('completa')} disabled={busy} />
           </View>
         </Card>
 
@@ -92,9 +97,12 @@ export default function Admin() {
         <ErrorText text={error} />
       </ScrollView>
 
-      <ConfirmDialog visible={confirmSync} title="¿Sincronizar el ranking?" confirmLabel="Sincronizar"
-        message={`Se consultará el sitio de FECNA desde ${inicio}. Puede tardar varios minutos y se ejecuta en segundo plano; puedes cerrar la app.`}
-        onConfirm={sync} onCancel={() => setConfirmSync(false)} />
+      <ConfirmDialog visible={confirmSync === 'incremental'} title="¿Sincronizar el ranking?" confirmLabel="Sincronizar"
+        message="Se consultarán las novedades de FECNA desde la última actualización. Puede tardar varios minutos y se ejecuta en segundo plano; puedes cerrar la app."
+        onConfirm={sync} onCancel={() => setConfirmSync(null)} />
+      <ConfirmDialog visible={confirmSync === 'completa'} title="¿Sincronización completa?" confirmLabel="Sincronizar"
+        message="Se vuelve a consultar todo el ranking de FECNA desde 2024. Es lenta (puede tardar más de una hora) y sirve para reparar huecos. Para el uso normal basta «Sincronizar ahora»."
+        onConfirm={sync} onCancel={() => setConfirmSync(null)} />
       <ConfirmDialog visible={confirmPub} title="¿Publicar el programa?" confirmLabel="Publicar"
         message={`${pdf?.name ?? ''}. Será visible para todos los usuarios; si ya existe uno con el mismo nombre se reemplaza.`}
         onConfirm={publish} onCancel={() => setConfirmPub(false)} />

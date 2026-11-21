@@ -85,3 +85,16 @@ def test_cuenta_y_alertas_en_postgres(conn, sample):
     cols = {r["column_name"] for r in conn.execute(
         "SELECT column_name FROM information_schema.columns WHERE table_name = 'app_user'")}
     assert "swimmer_id" in cols
+
+
+def test_esquema_no_se_reaplica_en_cada_conexion():
+    """El DDL (bloqueos exclusivos) solo corre si falta algo, no en cada petición."""
+    import time
+
+    db._PG_SCHEMA_READY.clear()
+    first = db.connect(URL); first.close()  # verifica con consultas de catálogo
+    t = time.time()
+    for _ in range(5):
+        db.connect(URL).close()
+    assert URL in db._PG_SCHEMA_READY
+    assert time.time() - t < 20  # sin DDL por conexión (la mayor parte es la red)

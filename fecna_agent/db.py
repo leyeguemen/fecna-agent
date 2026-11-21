@@ -146,15 +146,50 @@ COLUMNS = [
 ]
 
 
+_PG_SCHEMA_READY: set[str] = set()  # URLs cuyo esquema ya se verificó en este proceso
+_PG_MIGRATION_LOCK = 4270001  # clave de pg_advisory_lock: un solo migrador a la vez
+
+
+def _ensure_pg_schema(conn, url: str) -> None:
+    """Crea/actualiza el esquema de Postgres solo cuando hace falta.
+
+    Antes se ejecutaba el DDL en CADA conexión (cada petición de la API): tomaba bloqueos
+    exclusivos sobre las tablas y provocó un deadlock con una sincronización en curso. Ahora
+    se verifica con consultas de catálogo (sin bloquear tablas), el DDL corre bajo un
+    advisory lock y solo si falta algo, y el resultado se recuerda por proceso.
+    """
+    from . import pg
+
+    if url in _PG_SCHEMA_READY:
+        return
+    check = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
+                   AND to_regclass('public.ranking_public') IS NOT NULL
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'app_user' AND column_name = 'swimmer_id')"""
+    ready = conn.execute(check).fetchone()[0]
+    conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
+    if not ready:
+        conn.execute(f"SELECT pg_advisory_lock({_PG_MIGRATION_LOCK})")
+        try:
+            if not conn.execute(check).fetchone()[0]:  # otro proceso pudo migrar mientras esperábamos
+                conn.commit()
+                conn.executescript(pg.translate_schema(SCHEMA))
+                conn.executescript(pg.RLS_SQL)
+                conn.executescript(pg.MIGRATIONS_SQL)
+            conn.commit()
+        finally:
+            conn.execute(f"SELECT pg_advisory_unlock({_PG_MIGRATION_LOCK})")
+            conn.commit()
+    _PG_SCHEMA_READY.add(url)
+
+
 def connect(db_path: Path | str = DEFAULT_DB_PATH):
     """SQLite local (ruta) o PostgreSQL/Supabase (URL postgresql://...)."""
     from . import pg
 
     if pg.is_pg_url(db_path):
         conn = pg.connect_pg(str(db_path))
-        conn.executescript(pg.translate_schema(SCHEMA))
-        conn.executescript(pg.RLS_SQL)
-        conn.executescript(pg.MIGRATIONS_SQL)
+        _ensure_pg_schema(conn, str(db_path))
         return conn
     db_path = Path(db_path)
     db_path.parent.mkdir(parents=True, exist_ok=True)

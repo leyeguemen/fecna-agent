@@ -53,3 +53,11 @@ export async function api<T = any>(
 export type Role = 'user' | 'admin';
 export type AuthResp = { token: string; email: string; role: Role };
 export type Item = Record<string, any>;
+
+/** GET que devuelve texto (p. ej. la ficha HTML descargable), con la sesión actual. */
+export async function apiText(path: string): Promise<string> {
+  const res = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });
+  if (res.status === 401) onUnauthorized();
+  if (!res.ok) throw new ApiError(res.status, `Error ${res.status}`);
+  return res.text();
+}

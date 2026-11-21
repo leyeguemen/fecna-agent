@@ -4,9 +4,10 @@ from datetime import date
 from typing import Literal
 
 from fastapi import APIRouter, HTTPException, Query, status
+from fastapi.responses import HTMLResponse
 
 from api.deps import read_conn
-from fecna_agent import db, programa
+from fecna_agent import db, ficha, programa
 from fecna_agent.times import ms_to_time
 
 router = APIRouter(prefix="/swimmers", tags=["swimmers"])
@@ -108,7 +109,8 @@ def get_swimmer_profile(
         "age": data["age"],
         "league": data["league"],
         "club": data["club"],
-        "birth_date": data["birth_date"],
+        # Solo el año: la fecha exacta es el secreto con el que se verifica el vínculo de cuenta.
+        "birth_year": (str(data["birth_date"])[:4] if data["birth_date"] else None),
         "reference_year": data["reference_year"],
         "top_events": [
             {
@@ -142,7 +144,23 @@ def get_swimmer_history(swimmer_id: str, event_id: str | None = None, pool: str 
             "event_id": row["event_id"],
             "event_name": row["event_name"],
             "pool": row["pool_type"],
+            "points": row["points"],
         }
         for row in rows
     ]
     return {"items": items}
+
+
+@router.get("/{swimmer_id}/ficha", response_class=HTMLResponse)
+def get_swimmer_ficha(swimmer_id: str):
+    """Ficha visual (HTML auto-contenido) para descargar. Sin fecha de nacimiento exacta."""
+    conn = read_conn()
+    try:
+        data = db.swimmer_profile(conn, swimmer_id)
+    finally:
+        conn.close()
+    if data is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nadador no encontrado.")
+    data = dict(data)
+    data["birth_date"] = str(data["birth_date"])[:4] if data.get("birth_date") else None
+    return HTMLResponse(ficha.render_html(data))

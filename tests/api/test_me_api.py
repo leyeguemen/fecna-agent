@@ -65,3 +65,18 @@ def test_eliminar_cuenta_borra_todo(client):
 def test_comparar_nadadores(client):
     r = client.get("/swimmers/compare?a=1&b=2&event_id=E1&pool=LC").json()
     assert r["a"]["swimmer_name"] == "Ana Perez" and r["diff_ms"] == 1000
+
+
+def test_perfil_no_expone_fecha_de_nacimiento_exacta(client):
+    """La fecha exacta es el secreto del vínculo de cuenta: el perfil solo da el año."""
+    r = client.get("/swimmers/1").json()
+    assert "birth_date" not in r and r["birth_year"] == "2008"
+    assert "2008-05-01" not in client.get("/swimmers/1/ficha").text
+
+
+def test_historial_incluye_puntos_y_ficha_descargable(client):
+    h = client.get("/swimmers/1/history").json()["items"][0]
+    assert h["points"] == 1
+    f = client.get("/swimmers/1/ficha")
+    assert f.status_code == 200 and "Ana Perez" in f.text
+    assert client.get("/swimmers/999/ficha").status_code == 404

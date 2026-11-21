@@ -17,6 +17,7 @@ const ICONS: Record<string, ReactNode> = {
   send: <><Path d="M22 2L11 13" /><Path d="M22 2l-7 20-4-9-9-4 20-7z" /></>,
   logout: <><Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><Path d="M16 17l5-5-5-5" /><Path d="M21 12H9" /></>,
   chevron: <Path d="M9 18l6-6-6-6" />,
+  search: <><Circle cx="11" cy="11" r="7" /><Path d="M21 21l-4.3-4.3" /></>,
   upload: <><Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><Path d="M17 8l-5-5-5 5" /><Path d="M12 3v12" /></>,
 };
 

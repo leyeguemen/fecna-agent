@@ -38,7 +38,8 @@
         {
           "backgroundColor": "#023E8A"
         }
-      ]
+      ],
+      "expo-sharing"
     ],
     "scheme": "fecna",
     "extra": {

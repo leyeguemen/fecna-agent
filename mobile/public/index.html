@@ -9,7 +9,7 @@
     <meta name="apple-mobile-web-app-capable" content="yes" />
     <meta name="mobile-web-app-capable" content="yes" />
     <meta name="apple-mobile-web-app-title" content="NATIA" />
-    <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+    <meta name="apple-mobile-web-app-status-bar-style" content="default" />
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <style id="expo-reset">
@@ -18,7 +18,7 @@
          y el body es transparente, para que las franjas seguras no queden del color de la app. */
       html { height: 100%; background: linear-gradient(#023E8A 50%, #FFFFFF 50%); }
       body {
-        position: fixed; top: 0; left: 0; right: 0; height: 100vh; height: 100lvh; margin: 0; overflow: hidden;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; margin: 0; overflow: hidden;
         box-sizing: border-box; background: transparent;
         padding-top: env(safe-area-inset-top);
       }
@@ -30,22 +30,5 @@
   <body>
     <noscript>Necesitas habilitar JavaScript para usar esta app.</noscript>
     <div id="root"></div>
-    <script>
-      /* En iOS (modo instalado) innerHeight excluye la zona segura superior (894 frente a 956 de
-         pantalla): se usa la altura real de la pantalla en vertical para que la barra inferior
-         llegue al borde. */
-      (function () {
-        function fit() {
-          var portrait = window.innerWidth < window.innerHeight + 200 && window.innerHeight > window.innerWidth;
-          var standalone = window.navigator.standalone === true;
-          var h = window.innerHeight;
-          if (standalone && portrait) h = Math.max(h, window.screen.height);
-          document.body.style.height = h + 'px';
-        }
-        fit();
-        window.addEventListener('resize', fit);
-        window.addEventListener('orientationchange', function () { setTimeout(fit, 150); });
-      })();
-    </script>
   </body>
 </html>

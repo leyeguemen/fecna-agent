@@ -13,16 +13,17 @@
     <link rel="manifest" href="/manifest.json" />
     <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
     <style id="expo-reset">
-      /* El iPhone (PWA a pantalla completa) reserva zonas seguras: arriba la barra de estado y
-         abajo el indicador de inicio. Se respetan con env(); el fondo de cada franja casa con
-         lo que hay al lado (azul del encabezado arriba, blanco de la barra de pestañas abajo). */
+      /* PWA a pantalla completa en iPhone: la app ocupa toda la pantalla (position: fixed) y se
+         reservan las zonas seguras con env(). El fondo va en <html> (azul arriba, blanco abajo)
+         y el body es transparente, para que las franjas seguras no queden del color de la app. */
       html { height: 100%; background: linear-gradient(#023E8A 50%, #FFFFFF 50%); }
       body {
-        height: 100%; margin: 0; overflow: hidden; box-sizing: border-box; background: #F5FAFF;
+        position: fixed; top: 0; left: 0; right: 0; bottom: 0; margin: 0; overflow: hidden;
+        box-sizing: border-box; background: transparent;
         padding-top: env(safe-area-inset-top);
         padding-bottom: env(safe-area-inset-bottom);
       }
-      #root { display: flex; height: 100%; flex: 1; }
+      #root { display: flex; height: 100%; flex: 1; background: #F5FAFF; }
     </style>
   </head>
   <body>

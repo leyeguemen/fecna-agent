@@ -145,6 +145,7 @@ def get_swimmer_history(swimmer_id: str, event_id: str | None = None, pool: str 
             "event_name": row["event_name"],
             "pool": row["pool_type"],
             "points": row["points"],
+            "tournament": row["tournament"],
         }
         for row in rows
     ]

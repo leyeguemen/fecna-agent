@@ -75,7 +75,7 @@ def run_tool(conn, name: str, args: dict) -> str:
     try:
         if name == "esquema":
             return ("ranking_public(swimmer_id, swimmer_name, gender, birth_year, event_id, "
-                    "event_name, pool_type, time_raw, time_ms, points, result_date, league, club)\n"
+                    "event_name, pool_type, time_raw, time_ms, points, result_date, league, club, tournament; tournament solo está lleno para nadadores seguidos)\n"
                     "catalogs(kind, code, label)\n"
                     "competition(id, name, pool_type, loaded_at)\n"
                     "competition_entry(competition_id, event_label, session_date, heat, lane, "

@@ -325,7 +325,10 @@ export default function Nadador() {
                       {isOpen ? g.marks.map((m, i) => (
                         <View key={i} style={s.markRow}>
                           <Text style={[s.small, { width: 64 }]}>{shortDate(m.date)}</Text>
-                          <Text style={[s.eventTime, { flex: 1 }]}>{m.time}{m.pb ? ' ★' : ''}</Text>
+                          <View style={{ flex: 1 }}>
+                            <Text style={s.eventTime}>{m.time}{m.pb ? ' ★' : ''}</Text>
+                            {m.tournament ? <Text style={s.small} numberOfLines={2}>{m.tournament}</Text> : null}
+                          </View>
                           <Text style={[s.small, { color: m.diff == null ? c.muted : m.diff <= 0 ? '#1B8A4B' : '#C0392B' }]}>
                             {m.diff == null ? 'primera' : `${m.diff <= 0 ? '−' : '+'}${(Math.abs(m.diff) / 1000).toFixed(2)}`}
                           </Text>

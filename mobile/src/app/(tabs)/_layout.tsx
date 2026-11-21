@@ -29,7 +29,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="torneos" options={tab('Torneos', 'calendar')} />
       {/* Admin solo visible con rol admin (el backend igual responde 403 a los demás). */}
       <Tabs.Screen name="admin" options={{ ...tab('Admin', 'sync'), href: isAdmin ? undefined : null }} />
-      <Tabs.Screen name="perfil" options={{ href: null }} />
+      {/* Perfil se abre desde el avatar: se oculta de la barra, pero sigue siendo navegable (href: null la sacaba de las rutas). */}
+      <Tabs.Screen name="perfil" options={{ tabBarItemStyle: { display: 'none' } }} />
     </Tabs>
   );
 }

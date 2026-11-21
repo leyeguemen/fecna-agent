@@ -22,6 +22,8 @@
         box-sizing: border-box; background: transparent;
         padding-top: env(safe-area-inset-top);
       }
+      /* iOS amplía la página al enfocar un campo con letra menor de 16 px: se evita sin bloquear el zoom. */
+      input, textarea { font-size: 16px !important; }
       #root { display: flex; height: 100%; flex: 1; background: #F5FAFF; }
     </style>
   </head>

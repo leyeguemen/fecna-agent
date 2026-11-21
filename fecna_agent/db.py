@@ -178,6 +178,7 @@ def _ensure_pg_schema(conn, url: str) -> None:
         try:
             if not conn.execute(check).fetchone()[0]:  # otro proceso pudo migrar mientras esperábamos
                 conn.commit()
+                conn.executescript(pg.PRE_MIGRATIONS_SQL)
                 conn.executescript(pg.translate_schema(SCHEMA))
                 conn.executescript(pg.RLS_SQL)
                 conn.executescript(pg.MIGRATIONS_SQL)

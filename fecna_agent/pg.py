@@ -41,11 +41,13 @@ TABLES = ("ranking_results", "catalogs", "sync_log", "competition",
           "competition_entry", "competition_watch", "app_user", "swimmer_follow")
 
 # Columnas añadidas después de crear las tablas en Postgres (idempotente).
+# Antes del esquema: la vista ranking_public usa columnas que una base existente aún no tiene.
+PRE_MIGRATIONS_SQL = "ALTER TABLE IF EXISTS ranking_results ADD COLUMN IF NOT EXISTS tournament TEXT;"
+
 MIGRATIONS_SQL = (
     "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS swimmer_id TEXT;"
     "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS terms_version TEXT;"
     "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS terms_accepted_at TEXT;"
-    "ALTER TABLE ranking_results ADD COLUMN IF NOT EXISTS tournament TEXT;"
 )
 
 # Supabase expone las tablas por su API REST con la clave pública (anon). Con RLS

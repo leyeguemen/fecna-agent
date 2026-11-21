@@ -224,3 +224,28 @@ fase (Fase A = solo API).
 6. Subir el programa del campeonato vigente (pestaña Programa, como admin).
 7. Probar en el celular: abrir la URL de Vercel, revisar ranking, ficha,
    programa y alertas desde una red distinta a la de desarrollo.
+
+
+## App móvil + API en Render (gratis)
+
+Arquitectura: app Expo → API FastAPI (Render) → Supabase Postgres. La sincronización del
+ranking corre en GitHub Actions (`.github/workflows/sync.yml`) y escribe en Supabase.
+
+### 1. API en Render
+1. Render → **New → Blueprint** → elige este repo (rama `main`). Lee `render.yaml`.
+2. Completa las variables que pide (nunca van en el repo):
+   - `DATABASE_URL`: cadena del **Session pooler** de Supabase.
+   - `ANTHROPIC_API_KEY`, `FECNA_JWT_SECRET` (`openssl rand -hex 32`), `FECNA_ADMIN_EMAIL`.
+   - `GITHUB_TOKEN`: fine-grained, solo este repo, permiso *Actions: read/write*.
+3. Cuando termine, prueba `https://<tu-servicio>.onrender.com/health`.
+
+El plan gratis "duerme" tras 15 min sin tráfico: la primera petición tarda ~50 s (la app lo avisa).
+
+### 2. App móvil
+- Desarrollo: `mobile/.env` → `EXPO_PUBLIC_API_URL=https://<tu-servicio>.onrender.com`, luego `npx expo start`.
+- Distribución: `npx eas-cli build -p android --profile preview` (APK instalable, gratis en cola
+  estándar) o publicar como actualización OTA con `eas update`.
+
+### 3. Sincronización
+GitHub → Settings → Secrets → Actions: `DATABASE_URL` (mismo valor). La ejecución semanal corre
+sola (lunes 04:00 hora Colombia) y el botón de Admin de la app la dispara a demanda.

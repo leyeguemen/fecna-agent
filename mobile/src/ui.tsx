@@ -87,6 +87,10 @@ export function Chip({ label, selected, onPress }: { label: string; selected?: b
 
 export const Card = ({ children }: { children: ReactNode }) => <View style={s.card}>{children}</View>;
 
+export const SourceNote = ({ text }: { text: string }) => (
+  <Text style={{ textAlign: 'center', color: c.muted, fontFamily: font.body, fontSize: 11, lineHeight: 16, marginTop: 8 }}>{text}</Text>
+);
+
 export const Empty = ({ text }: { text: string }) => (
   <Text style={{ textAlign: 'center', color: c.muted, fontFamily: font.body, marginTop: 32 }}>{text}</Text>
 );

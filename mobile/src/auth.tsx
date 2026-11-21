@@ -7,7 +7,7 @@ type Ctx = {
   user: User | null;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
-  signUp: (email: string, password: string) => Promise<void>;
+  signUp: (email: string, password: string, acceptTerms: boolean) => Promise<void>;
   signOut: () => Promise<void>;
   pendingLink: boolean; // recién registrado: ofrecer vincular su nadador
   clearPendingLink: () => void;
@@ -58,8 +58,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     loading,
     signIn: async (email, password) =>
       persist(await api<AuthResp>('/auth/login', { body: { email, password }, auth: false })),
-    signUp: async (email, password) => {
-      const r = await api<AuthResp>('/auth/register', { body: { email, password }, auth: false });
+    signUp: async (email, password, acceptTerms) => {
+      const r = await api<AuthResp>('/auth/register', { body: { email, password, accept_terms: acceptTerms }, auth: false });
       setPendingLink(true);
       await persist(r);
     },

@@ -6,7 +6,8 @@ import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, T
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { api, apiText, Item } from '../../api';
 import { c, font } from '../../theme';
-import { Avatar, Empty, ErrorText, Icon } from '../../ui';
+import { SOURCE_NOTE } from '../../legal';
+import { Avatar, Empty, ErrorText, Icon, SourceNote } from '../../ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -284,6 +285,7 @@ export default function Nadador() {
                 </Pressable>
               );
             })}
+            <SourceNote text={SOURCE_NOTE} />
           </>
         ) : null}
 

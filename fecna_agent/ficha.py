@@ -342,6 +342,7 @@ _TEMPLATE = """<!DOCTYPE html>
     </table></div>
     <div class="foot">“$quote”</div>
     <div class="ref">Categoría calculada al año $ref_year · Nacimiento: $birth ·
-      Puesto por género y categoría · Fuente: ranking FECNA</div>
+      Puesto por género y categoría · Fuente: ranking FECNA<br>
+      NATIA es una app independiente: no está avalada por FECNA.</div>
   </div>
 </body></html>"""

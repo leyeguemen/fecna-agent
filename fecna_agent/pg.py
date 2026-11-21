@@ -41,7 +41,11 @@ TABLES = ("ranking_results", "catalogs", "sync_log", "competition",
           "competition_entry", "competition_watch", "app_user", "swimmer_follow")
 
 # Columnas añadidas después de crear las tablas en Postgres (idempotente).
-MIGRATIONS_SQL = "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS swimmer_id TEXT;"
+MIGRATIONS_SQL = (
+    "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS swimmer_id TEXT;"
+    "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS terms_version TEXT;"
+    "ALTER TABLE app_user ADD COLUMN IF NOT EXISTS terms_accepted_at TEXT;"
+)
 
 # Supabase expone las tablas por su API REST con la clave pública (anon). Con RLS
 # activo y sin políticas, esa vía queda cerrada; el backend conecta con el rol

@@ -8,7 +8,7 @@
     "userInterfaceStyle": "light",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "co.fecna.agent"
+      "bundleIdentifier": "co.natia.app"
     },
     "android": {
       "adaptiveIcon": {
@@ -16,7 +16,7 @@
         "foregroundImage": "./assets/natia-icon.png"
       },
       "predictiveBackGestureEnabled": false,
-      "package": "co.fecna.agent"
+      "package": "co.natia.app"
     },
     "web": {
       "bundler": "metro",
@@ -41,7 +41,7 @@
       ],
       "expo-sharing"
     ],
-    "scheme": "fecna",
+    "scheme": "natia",
     "extra": {
       "router": {
         "asyncRoutes": {

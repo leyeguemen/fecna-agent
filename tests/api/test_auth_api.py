@@ -75,8 +75,10 @@ def test_me_con_token(client):
 def test_me_token_manipulado(client):
     reg = client.post("/auth/register", json={"email": "a@b.co", "password": "Secreta123"})
     token = reg.json()["token"]
-    ultimo = token[-1]
-    manipulado = token[:-1] + ("a" if ultimo != "a" else "b")
+    # Se altera el PRIMER carácter de la firma: el último puede ser solo relleno base64 y no
+    # cambiar los bytes (el test fallaba de forma intermitente).
+    head, payload, firma = token.split(".")
+    manipulado = ".".join([head, payload, ("A" if firma[0] != "A" else "B") + firma[1:]])
     resp = client.get("/auth/me", headers={"Authorization": f"Bearer {manipulado}"})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "No autenticado."

@@ -21,11 +21,13 @@ def get_catalogs():
     try:
         pruebas = db.get_catalog(conn, "prueba")
         categorias = db.get_catalog(conn, "categoria_M")
+        ligas = db.list_leagues(conn)
     finally:
         conn.close()
     return {
         "pruebas": [{"id": code, "nombre": label} for code, label in pruebas],
         "categorias": [{"id": code, "nombre": label} for code, label in categorias],
+        "ligas": ligas,
         "piscinas": ["LC", "SC"],
         "generos": ["M", "F"],
     }
@@ -37,6 +39,7 @@ def get_rankings(
     pool: str | None = None,
     gender: str | None = None,
     category: str | None = None,
+    league: str | None = None,
     limit: int = Query(25, ge=1, le=100),
 ):
     age_range = categories.age_range(category) if category else None
@@ -44,7 +47,7 @@ def get_rankings(
     try:
         rows = db.ranking(
             conn, event_id, pool_type=pool, gender=gender, limit=limit,
-            age_range=age_range,
+            league=league or None, age_range=age_range,
         )
     finally:
         conn.close()

@@ -21,7 +21,13 @@
       "package": "co.fecna.agent"
     },
     "web": {
-      "favicon": "./assets/favicon.png"
+      "bundler": "metro",
+      "output": "single",
+      "favicon": "./assets/favicon.png",
+      "name": "FECNA Agent",
+      "shortName": "FECNA",
+      "themeColor": "#023E8A",
+      "backgroundColor": "#F5FAFF"
     },
     "plugins": [
       "expo-router",

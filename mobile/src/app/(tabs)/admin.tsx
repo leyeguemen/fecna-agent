@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { api, Item } from '../../api';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
@@ -48,7 +48,9 @@ export default function Admin() {
     setConfirmPub(false); setBusy(true); setError(null); setMsg(null);
     try {
       const form = new FormData();
-      form.append('file', { uri: pdf.uri, name: pdf.name, type: 'application/pdf' } as any);
+      // En web el asset trae el File del navegador; en el teléfono se envía por URI.
+      if (Platform.OS === 'web' && pdf.file) form.append('file', pdf.file, pdf.name);
+      else form.append('file', { uri: pdf.uri, name: pdf.name, type: 'application/pdf' } as any);
       const r = await api('/competitions', { form });
       setMsg(`Programa publicado${r?.status ? ` (${r.status})` : ''}.`);
       setPdf(null);

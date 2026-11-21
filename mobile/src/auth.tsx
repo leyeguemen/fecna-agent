@@ -1,6 +1,6 @@
-import * as SecureStore from 'expo-secure-store';
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
 import { api, AuthResp, Role, setToken, setUnauthorizedHandler } from './api';
+import { storage } from './storage';
 
 type User = { email: string; role: Role };
 type Ctx = {
@@ -25,20 +25,20 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const persist = useCallback(async (r: AuthResp) => {
     setToken(r.token);
     setUser({ email: r.email, role: r.role });
-    await SecureStore.setItemAsync(KEY, JSON.stringify(r));
+    await storage.set(KEY, JSON.stringify(r));
   }, []);
 
   const signOut = useCallback(async () => {
     setToken(null);
     setUser(null);
-    await SecureStore.deleteItemAsync(KEY);
+    await storage.remove(KEY);
   }, []);
 
   useEffect(() => {
     setUnauthorizedHandler(() => { signOut(); }); // token vencido → a login
     (async () => {
       try {
-        const raw = await SecureStore.getItemAsync(KEY);
+        const raw = await storage.get(KEY);
         if (raw) {
           const r: AuthResp = JSON.parse(raw);
           setToken(r.token);

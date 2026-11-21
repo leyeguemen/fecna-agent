@@ -28,3 +28,21 @@ services:
         value: main
       - key: FECNA_ASK_DAILY_LIMIT
         value: "50"
+
+  # Versión web instalable (PWA) de la app, para iPhone sin cuenta de Apple Developer.
+  - type: web
+    name: fecna-app
+    runtime: static
+    branch: main
+    buildCommand: cd mobile && npm ci && npx expo export -p web
+    staticPublishPath: ./mobile/dist
+    autoDeploy: true
+    envVars:
+      - key: EXPO_PUBLIC_API_URL
+        value: https://fecna-api.onrender.com
+      - key: NODE_VERSION
+        value: 20.20.2
+    routes:
+      - type: rewrite        # navegación del lado del cliente (expo-router)
+        source: /*
+        destination: /index.html

@@ -42,7 +42,7 @@ export default function Torneos() {
         <Header title="Programa" subtitle={open.name} right={<ProfileButton />} />
         <View style={{ padding: 16, gap: 10, flex: 1 }}>
           <Pressable onPress={() => { setOpen(null); setSwimmer(''); setMine(false); setRows([]); }}><Text style={s.back}>← Campeonatos</Text></Pressable>
-          <View style={{ flexDirection: 'row', gap: 8 }}>
+          <View style={{ flexDirection: 'row', gap: 8, flexShrink: 0 }}>
             <Chip label="Todos" selected={!mine} onPress={() => setMine(false)} />
             <Chip label="Mis alertas (nadadores que sigo)" selected={mine} onPress={() => setMine(true)} />
           </View>
@@ -93,7 +93,7 @@ export default function Torneos() {
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
   back: { color: c.primary, fontFamily: font.semi },
-  search: { height: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body },
+  search: { height: 48, minHeight: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body, fontSize: 14, color: c.text, flexShrink: 0 },
   card: { backgroundColor: c.white, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12 },
   name: { fontFamily: font.semi, color: c.text, fontSize: 14 },
   sub: { fontFamily: font.body, color: c.muted, fontSize: 12, marginTop: 2 },

@@ -5,7 +5,7 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 ## Funciones nuevas
 1. **Marcas mínimas del campeonato nacional** — el admin carga el documento oficial; el chat y el perfil comparan con las marcas del nadador. Plan y dudas abiertas en `docs/features/marcas-minimas.md`. Falta un **ejemplo real del documento** (PDF/Excel) para empezar.
 2. **Roles y permisos, fases 2 y 3** — planes con límites (chat, fichas, nadadores seguidos) y pasarela de pago. La fase 1 (CRUD de roles, permisos y usuarios en la pestaña *Seguridad*) ya está hecha. Detalle y cuidados en `docs/features/roles-permisos.md`. Antes hay que decidir **dónde se cobra** (tiendas Google/Apple 15–30 % vs web) y revisar el modelo con un asesor legal.
-3. **Historial completo de marcas de FECNA** para nadadores seguidos — el Historial Deportivo de FECNA trae todas las marcas (370 vs 23 en un nadador de prueba). Insertarlas solo para seguidos/vinculados, sin alterar rankings (puntos y posición nulos; evitar duplicados con el ranking). Hoy solo se usa para rellenar el torneo de marcas existentes (`fecna_agent/historial.py`).
+3. ~~Historial completo de marcas de FECNA~~ — **hecho** para nadadores seguidos/vinculados (tabla `swimmer_mark`, no altera rankings; ver `fecna_agent/historial.py`). Pendiente de esta línea: que el chat consulte `swimmer_mark` (hoy solo ve `ranking_public`), y un botón «Actualizar historial».
 4. **Ficha para redes, mejoras:**
    - ficha por campeonato con **todas las pruebas** (formato más alto);
    - versión **4:5** para el feed de Instagram (hoy es 9:16);

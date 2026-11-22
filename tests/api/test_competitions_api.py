@@ -261,3 +261,11 @@ def test_delete_requiere_admin_y_hace_cascada(client, monkeypatch):
     # Cascada: ya no aparece en el listado ni tiene cronograma.
     assert client.get("/competitions").json()["items"] == []
     assert client.get(f"/competitions/{comp_id}/schedule").json()["items"] == []
+
+
+def test_schedule_busqueda_parcial_sin_mayusculas_ni_tildes(client, monkeypatch):
+    comp_id, _ = _uploaded_comp(client, monkeypatch)
+    for term in ("aaron c", "AARON", "camacho aaron", "  aar  dan "):
+        items = client.get(f"/competitions/{comp_id}/schedule", params={"swimmer": term}).json()["items"]
+        assert [i["swimmer_name"] for i in items] == ["Aaron Daniel Camacho"], term
+    assert client.get(f"/competitions/{comp_id}/schedule", params={"swimmer": "aaron z"}).json()["items"] == []

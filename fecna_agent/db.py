@@ -741,16 +741,22 @@ def competition_schedule(
     if club_code:
         where += " AND club_code = ?"
         params.append(club_code)
-    if swimmer_name:
-        where += " AND swimmer_name = ?"
-        params.append(swimmer_name)
-    return conn.execute(
+    rows = conn.execute(
         f"""SELECT * FROM competition_entry
             WHERE competition_id = ? {where}
             ORDER BY session_date IS NULL, session_date,
                      start_time IS NULL, start_time, event_number, heat, lane""",
         params,
     ).fetchall()
+    if swimmer_name:
+        # Búsqueda por palabras, sin importar mayúsculas ni tildes: «samuel g» encuentra
+        # «Samuel Guerrero Blandon». Cada palabra buscada debe iniciar alguna palabra del nombre.
+        from .programa import normalize_name
+
+        terms = normalize_name(swimmer_name).split()
+        rows = [r for r in rows
+                if all(any(w.startswith(t) for w in normalize_name(r["swimmer_name"]).split()) for t in terms)]
+    return rows
 
 
 def list_watched(conn: sqlite3.Connection, comp_id: int, user_id: int = 0) -> list[str]:

@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
 import { useAuth } from '../../auth';
 import { ProfileButton } from '../../ProfileButton';
@@ -66,6 +66,46 @@ export default function Admin() {
     finally { setPublishing(false); }
   };
 
+  // Historial completo de un nadador, por demanda.
+  const [hq, setHq] = useState('');
+  const [hres, setHres] = useState<Item[]>([]);
+  const [hsel, setHsel] = useState<Item | null>(null);
+  const [hst, setHst] = useState<Item | null>(null);
+  const [hbusy, setHbusy] = useState(false);
+
+  useEffect(() => {
+    if (!canSync || hq.trim().length < 3) { setHres([]); return; }
+    const t = setTimeout(() => api(`/swimmers/search?q=${encodeURIComponent(hq.trim())}`).then((r) => setHres(r.items)).catch((e) => setError(e.message)), 350);
+    return () => clearTimeout(t);
+  }, [hq, canSync]);
+
+  const pickSwimmer = (it: Item) => {
+    setHsel(it); setHres([]); setHq(''); setHst(null); setError(null); setMsg(null);
+    api(`/admin/swimmers/${encodeURIComponent(it.swimmer_id)}/historial`).then(setHst).catch((e) => setError(e.message));
+  };
+
+  const fetchHistory = async () => {
+    if (!hsel) return;
+    const before = hst?.extra_marks ?? 0;
+    setHbusy(true); setError(null); setMsg(null);
+    try {
+      await api(`/admin/swimmers/${encodeURIComponent(hsel.swimmer_id)}/historial`, { method: 'POST' });
+      // FECNA tarda hasta ~1 min: se consulta el estado hasta que cambie la hora de descarga o se agote la espera.
+      const prev = hst?.last_fetched ?? null;
+      for (let i = 0; i < 18; i++) {
+        await new Promise((r) => setTimeout(r, 5000));
+        const st = await api(`/admin/swimmers/${encodeURIComponent(hsel.swimmer_id)}/historial`);
+        setHst(st);
+        if (st.last_fetched && st.last_fetched !== prev) {
+          setMsg(`Historial actualizado: ${st.extra_marks - before} marcas nuevas.`);
+          return;
+        }
+      }
+      setMsg('Sigue trabajando en segundo plano. Vuelve a elegir al nadador en un momento para ver el resultado.');
+    } catch (e: any) { setError(e.message); }
+    finally { setHbusy(false); }
+  };
+
   const run = status?.run;
   const last = status?.last_sync;
 
@@ -90,6 +130,29 @@ export default function Admin() {
             <Button title="Sincronizar ahora" onPress={() => setConfirmSync('incremental')} loading={syncing} disabled={busy} />
             <Button title="Sincronización completa" variant="outline" onPress={() => setConfirmSync('completa')} disabled={busy} />
           </View>
+        </Card> : null}
+
+        {canSync ? <Card>
+          <Text style={s.h}>HISTORIAL COMPLETO DE UN NADADOR</Text>
+          <Text style={[s.sub, { marginBottom: 10 }]}>Trae de FECNA todas sus marcas (todas las pruebas y años). Tarda hasta un minuto.</Text>
+          <TextInput value={hq} onChangeText={setHq} placeholder="Buscar nadador (mín. 3 letras)" placeholderTextColor="#8AA3B5"
+            autoCapitalize="none" style={s.search} />
+          {hres.map((it) => (
+            <Pressable key={it.swimmer_id} onPress={() => pickSwimmer(it)} style={s.opt} accessibilityRole="button">
+              <Text style={s.optName} numberOfLines={1}>{it.swimmer_name}</Text>
+              <Text style={s.sub} numberOfLines={1}>{[it.club, it.league].filter(Boolean).join(' · ')}</Text>
+            </Pressable>
+          ))}
+          {hsel ? (
+            <View style={{ marginTop: 12, gap: 10 }}>
+              <Text style={s.optName}>{hsel.swimmer_name}</Text>
+              {hst ? <Text style={s.sub}>
+                {hst.ranking_marks} marcas del ranking · {hst.extra_marks} del historial · {hst.last_fetched
+                  ? `última descarga ${new Date(hst.last_fetched).toLocaleString('es-CO', { dateStyle: 'medium', timeStyle: 'short' })}` : 'sin descargar'}
+              </Text> : null}
+              <Button title={hbusy ? 'Trayendo historial…' : 'Traer historial completo'} onPress={fetchHistory} loading={hbusy} disabled={hbusy || !hst} />
+            </View>
+          ) : null}
         </Card> : null}
 
         {canUpload ? <Card>
@@ -123,4 +186,7 @@ const s = StyleSheet.create({
   h: { fontFamily: font.bold, fontSize: 11, letterSpacing: 0.6, color: c.muted },
   v: { fontFamily: font.title, fontSize: 24, color: c.deep, marginTop: 4 },
   sub: { fontFamily: font.body, fontSize: 12, color: c.muted, marginTop: 4 },
+  search: { height: 48, minHeight: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body, fontSize: 14, color: c.text, flexShrink: 0 },
+  opt: { borderWidth: 1, borderColor: c.border, borderRadius: 12, padding: 10, backgroundColor: c.white, marginTop: 6 },
+  optName: { fontFamily: font.semi, fontSize: 14, color: c.text },
 });

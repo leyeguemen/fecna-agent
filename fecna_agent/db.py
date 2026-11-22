@@ -1173,6 +1173,15 @@ def save_history(conn, swimmer_id: str, marks: list[dict], names: dict[str, str]
     return after - before
 
 
+def swimmer_history_status(conn, swimmer_id: str) -> dict | None:
+    """Estado del historial completo de un nadador (None si no existe): total de marcas y última descarga."""
+    if not conn.execute("SELECT 1 FROM ranking_results WHERE swimmer_id = ? LIMIT 1", (swimmer_id,)).fetchone():
+        return None
+    row = conn.execute("SELECT COUNT(*), MAX(fetched_at) FROM swimmer_mark WHERE swimmer_id = ?", (swimmer_id,)).fetchone()
+    total = conn.execute("SELECT COUNT(*) FROM ranking_results WHERE swimmer_id = ?", (swimmer_id,)).fetchone()[0]
+    return {"ranking_marks": total, "extra_marks": row[0], "last_fetched": row[1]}
+
+
 def full_history(conn, swimmer_id: str, event_id: str | None = None, pool_type: str | None = None) -> list[dict]:
     """Marcas del ranking más las del Historial Deportivo que el ranking no trae, por fecha."""
     where, params = "", []

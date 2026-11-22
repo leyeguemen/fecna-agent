@@ -9,12 +9,12 @@ import os
 from typing import Literal
 
 import requests
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from api import security
 from api.deps import app_conn, read_conn
-from fecna_agent import db, permisos
+from fecna_agent import db, historial, permisos
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -70,6 +70,39 @@ def sync_status(admin: dict = Depends(security.require_permission("sincronizar")
     except requests.RequestException:
         pass
     return result
+
+
+# --- Historial completo de un nadador, por demanda -----------------------------------
+def _history_status(swimmer_id: str) -> dict:
+    conn = read_conn()
+    try:
+        st = db.swimmer_history_status(conn, swimmer_id)
+    finally:
+        conn.close()
+    if st is None:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nadador no encontrado.")
+    return st
+
+
+def _fetch_history(swimmer_id: str) -> None:
+    try:
+        historial.enrich_swimmer(app_conn, swimmer_id)
+    except Exception:
+        pass
+
+
+@router.get("/swimmers/{swimmer_id}/historial")
+def history_status(swimmer_id: str, admin: dict = Depends(security.require_permission("sincronizar"))):
+    return _history_status(swimmer_id)
+
+
+@router.post("/swimmers/{swimmer_id}/historial", status_code=status.HTTP_202_ACCEPTED)
+def fetch_history(swimmer_id: str, background: BackgroundTasks,
+                  admin: dict = Depends(security.require_permission("sincronizar"))):
+    """Trae de FECNA todo el historial del nadador (tarda de 10 s a 1 min; corre en segundo plano)."""
+    st = _history_status(swimmer_id)
+    background.add_task(_fetch_history, swimmer_id)
+    return st
 
 
 # --- Roles, permisos y usuarios -----------------------------------------------------

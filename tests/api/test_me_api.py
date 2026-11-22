@@ -30,6 +30,15 @@ def client(tmp_path, monkeypatch):
     return cl
 
 
+def test_vincular_acepta_la_fecha_con_dia_y_mes_invertidos(client):
+    """FECNA guarda a veces 5-dic como 12-may: la fecha real del padre debe poder verificar."""
+    # El nadador «1» figura con 2008-05-01 (1 de mayo); la fecha real sería 2008-01-05 (5 de enero).
+    assert client.put("/me/swimmer", json={"swimmer_id": "1", "birth_date": "2008-01-05"}).status_code == 200
+    # Un día imposible de invertir (>12) o una fecha distinta siguen rechazándose.
+    assert client.put("/me/swimmer", json={"swimmer_id": "1", "birth_date": "2008-06-01"}).status_code == 400
+    assert client.put("/me/swimmer", json={"swimmer_id": "1", "birth_date": "2008-05-02"}).status_code == 400
+
+
 def test_vincular_nadador_verifica_fecha(client):
     bad = client.put("/me/swimmer", json={"swimmer_id": "1", "birth_date": "2000-01-01"})
     assert bad.status_code == 400

@@ -127,6 +127,21 @@ CREATE TABLE IF NOT EXISTS app_user (
   terms_accepted_at TIMESTAMP
 );
 
+-- Historial completo de FECNA (Historial Deportivo) de nadadores seguidos/vinculados. Va aparte del
+-- ranking para no alterar los puestos: ranking_results sigue siendo solo lo que publica el ranking.
+CREATE TABLE IF NOT EXISTS swimmer_mark (
+  swimmer_id  TEXT NOT NULL,
+  event_id    TEXT NOT NULL,
+  event_name  TEXT NOT NULL,
+  pool_type   TEXT NOT NULL,
+  time_ms     INTEGER NOT NULL,
+  result_date DATE NOT NULL,
+  points      INTEGER,
+  tournament  TEXT,
+  fetched_at  TIMESTAMP,
+  UNIQUE (swimmer_id, event_id, pool_type, time_ms, result_date)
+);
+
 -- Roles y permisos (editables desde la app). Valores de partida: ver permisos.py
 CREATE TABLE IF NOT EXISTS app_role (
   id        TEXT PRIMARY KEY,
@@ -190,7 +205,8 @@ def _ensure_pg_schema(conn, url: str) -> None:
                                WHERE table_name = 'app_user' AND column_name = 'terms_version')
                    AND EXISTS (SELECT 1 FROM information_schema.columns
                                WHERE table_name = 'ranking_results' AND column_name = 'tournament')
-                   AND to_regclass('public.app_role') IS NOT NULL"""
+                   AND to_regclass('public.app_role') IS NOT NULL
+                   AND to_regclass('public.swimmer_mark') IS NOT NULL"""
     ready = conn.execute(check).fetchone()[0]
     conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
     if not ready:
@@ -1123,6 +1139,58 @@ def tracked_swimmer_ids(conn) -> list[str]:
         "SELECT swimmer_id FROM app_user WHERE swimmer_id IS NOT NULL AND swimmer_id <> ''"
     ).fetchall()
     return [r[0] for r in rows]
+
+
+_HISTORY_COLUMNS = "event_id, event_name, pool_type, time_ms, result_date, points, tournament"
+
+
+def event_names(conn) -> dict[str, str]:
+    """event_id → nombre de la prueba, tal como aparece en el ranking."""
+    rows = conn.execute("SELECT event_id, MAX(event_name) FROM ranking_results GROUP BY event_id").fetchall()
+    return {r[0]: r[1] for r in rows}
+
+
+def save_history(conn, swimmer_id: str, marks: list[dict], names: dict[str, str]) -> int:
+    """Guarda las marcas del Historial Deportivo (con su torneo y puntos). Devuelve las nuevas."""
+    from datetime import datetime, timezone
+
+    now = datetime.now(timezone.utc).isoformat()
+    before = conn.execute("SELECT COUNT(*) FROM swimmer_mark WHERE swimmer_id = ?", (swimmer_id,)).fetchone()[0]
+    for m in marks:
+        name = names.get(m["event_id"])
+        if not name:
+            continue
+        conn.execute(
+            "INSERT OR IGNORE INTO swimmer_mark (swimmer_id, event_id, event_name, pool_type, time_ms, result_date, "
+            "points, tournament, fetched_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)",
+            (swimmer_id, m["event_id"], name, m["pool"], m["time_ms"], m["date"], m.get("points"), m.get("tournament"), now))
+        conn.execute(
+            "UPDATE swimmer_mark SET tournament = ?, points = COALESCE(?, points) WHERE swimmer_id = ? AND event_id = ? "
+            "AND pool_type = ? AND time_ms = ? AND result_date = ?",
+            (m.get("tournament"), m.get("points"), swimmer_id, m["event_id"], m["pool"], m["time_ms"], m["date"]))
+    conn.commit()
+    after = conn.execute("SELECT COUNT(*) FROM swimmer_mark WHERE swimmer_id = ?", (swimmer_id,)).fetchone()[0]
+    return after - before
+
+
+def full_history(conn, swimmer_id: str, event_id: str | None = None, pool_type: str | None = None) -> list[dict]:
+    """Marcas del ranking más las del Historial Deportivo que el ranking no trae, por fecha."""
+    where, params = "", []
+    if event_id:
+        where += " AND event_id = ?"
+        params.append(event_id)
+    if pool_type:
+        where += " AND pool_type = ?"
+        params.append(pool_type)
+    sql = f"""
+        SELECT {_HISTORY_COLUMNS} FROM ranking_results WHERE swimmer_id = ? {where}
+        UNION ALL
+        SELECT {_HISTORY_COLUMNS} FROM swimmer_mark m WHERE m.swimmer_id = ? {where}
+          AND NOT EXISTS (SELECT 1 FROM ranking_results r WHERE r.swimmer_id = m.swimmer_id AND r.event_id = m.event_id
+                          AND r.pool_type = m.pool_type AND r.time_ms = m.time_ms AND r.result_date = m.result_date)
+        ORDER BY result_date ASC, time_ms ASC"""
+    rows = conn.execute(sql, [swimmer_id, *params, swimmer_id, *params]).fetchall()
+    return [dict(r) for r in rows]
 
 
 def swimmer_event_ids(conn, swimmer_id: str) -> list[str]:

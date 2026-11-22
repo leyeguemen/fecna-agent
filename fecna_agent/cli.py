@@ -293,7 +293,8 @@ def cmd_sync(conn, args) -> int:
     if not stats["aborted"]:
         from . import historial
         try:
-            swimmers, marks = historial.enrich_tracked(conn)
+            conn.close()  # la sincronización pudo durar mucho: se abre una conexión nueva por nadador
+            swimmers, marks = historial.enrich_tracked(lambda: database.connect(args.db))
             print(f"\nTorneos: {swimmers} nadador(es) seguidos, {marks} marca(s) con torneo nuevo.")
         except Exception as exc:  # el torneo es un extra: no debe fallar la sincronización
             print(f"\nNo se pudieron actualizar los torneos: {exc}")

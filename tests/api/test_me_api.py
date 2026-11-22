@@ -106,3 +106,19 @@ def test_registro_guarda_la_aceptacion_de_terminos(tmp_path, monkeypatch):
     rows = {r["email"]: (r["terms_version"], r["terms_accepted_at"]) for r in conn.execute("SELECT email, terms_version, terms_accepted_at FROM app_user")}
     assert rows["a@t.co"][0] and rows["a@t.co"][1]
     assert rows["b@t.co"] == (None, None)
+
+
+def test_historial_del_nadador_incluye_las_marcas_del_historial_completo(client, tmp_path):
+    """/swimmers/{id}/history une el ranking con las marcas extra del Historial Deportivo."""
+    import os
+
+    conn = db.connect(os.environ["FECNA_DB"])
+    conn.execute(
+        "INSERT INTO swimmer_mark (swimmer_id, event_id, event_name, pool_type, time_ms, result_date, points, tournament) "
+        "VALUES ('1','E1','100 libre','LC',65000,'2022-04-02',150,'TORNEO 2022')")
+    conn.commit()
+    conn.close()
+    items = client.get("/swimmers/1/history").json()["items"]
+    assert [i["date"] for i in items] == ["2022-04-02", "2026-01-01"]
+    assert items[0]["tournament"] == "TORNEO 2022" and items[0]["points"] == 150
+    assert len(client.get("/swimmers/1/history", params={"event_id": "E1", "pool": "LC"}).json()["items"]) == 2

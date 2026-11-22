@@ -3,7 +3,7 @@ import { File, Paths } from 'expo-file-system';
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useState } from 'react';
-import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { api, apiImage, Item } from '../../api';
 import { c, font } from '../../theme';
@@ -78,6 +78,7 @@ export default function Nadador() {
   const [busy, setBusy] = useState(false);
   const [shareOpen, setShareOpen] = useState(false);
   const [scope, setScope] = useState<string | null>(null); // campeonato elegido (null = mejores marcas)
+  const [ficha, setFicha] = useState<{ uri: string; name: string; file?: any } | null>(null); // ficha ya generada
   const [photo, setPhoto] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -166,21 +167,39 @@ export default function Nadador() {
       const name = `ficha-${profile.swimmer_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
       if (Platform.OS === 'web') {
         const file = new (globalThis as any).File([bytes], name, { type: 'image/png' });
-        const nav: any = navigator;
-        if (nav.canShare?.({ files: [file] })) await nav.share({ files: [file], title: 'Ficha NATIA' }).catch(() => {});
-        else {
-          const a = document.createElement('a');
-          a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
-        }
+        setFicha({ uri: URL.createObjectURL(file), name, file });
       } else {
         const file = new File(Paths.cache, name);
         file.create({ overwrite: true });
         file.write(new Uint8Array(bytes));
-        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: 'Compartir ficha' });
-        else setError('Este dispositivo no permite compartir archivos.');
+        setFicha({ uri: file.uri, name });
       }
     } catch (e: any) { setError(e.message || 'No se pudo generar la ficha.'); }
     finally { setBusy(false); }
+  };
+
+  // Compartir/descargar la ficha ya generada. Va en un toque aparte porque los navegadores (iPhone)
+  // solo permiten "compartir" justo después de un toque del usuario, no tras esperar al servidor.
+  const shareReady = async () => {
+    if (!ficha) return;
+    setError(null);
+    try {
+      if (Platform.OS === 'web') {
+        const nav: any = navigator;
+        if (nav.canShare?.({ files: [ficha.file] })) await nav.share({ files: [ficha.file], title: 'Ficha NATIA' });
+        else downloadReady();
+      } else if (await Sharing.isAvailableAsync()) {
+        await Sharing.shareAsync(ficha.uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: 'Compartir ficha' });
+      } else setError('Este dispositivo no permite compartir archivos.');
+    } catch (e: any) {
+      if (e?.name !== 'AbortError') setError(e?.message || 'No se pudo compartir la ficha.');
+    }
+  };
+
+  const downloadReady = () => {
+    if (!ficha || Platform.OS !== 'web') return;
+    const a = document.createElement('a');
+    a.href = ficha.uri; a.download = ficha.name; document.body.appendChild(a); a.click(); a.remove();
   };
 
   const stats = useMemo(() => {
@@ -393,6 +412,19 @@ export default function Nadador() {
             {photo ? <Pressable onPress={() => setPhoto(null)} accessibilityLabel="Quitar foto"><Text style={s.link}>Quitar</Text></Pressable> : null}
           </Pressable>
           <Text style={[s.small, { marginTop: 6 }]}>La foto solo se usa para armar la imagen; no se guarda en NATIA.</Text>
+        </ConfirmDialog>
+
+        <ConfirmDialog
+          visible={!!ficha}
+          title="Tu ficha está lista"
+          message={Platform.OS === 'web' ? 'Pulsa Compartir, o Descargar para guardarla. En el iPhone también puedes mantener presionada la imagen.' : 'Pulsa Compartir para enviarla o guardarla.'}
+          confirmLabel="Compartir"
+          onConfirm={shareReady}
+          onCancel={() => setFicha(null)}
+        >
+          {ficha ? <Image source={{ uri: ficha.uri }} style={{ width: 216, height: 384, alignSelf: 'center', marginTop: 12, borderRadius: 12, backgroundColor: c.chip }} resizeMode="contain" accessibilityLabel="Vista previa de la ficha" /> : null}
+          {Platform.OS === 'web' ? <Pressable onPress={downloadReady} style={{ marginTop: 10, alignSelf: 'center' }}><Text style={s.link}>Descargar imagen</Text></Pressable> : null}
+          <ErrorText text={error} />
         </ConfirmDialog>
 
         {!profile && !loading && !searching ? <Empty text="Busca un nadador o abre uno desde el Ranking." /> : null}

@@ -1,1 +1,1 @@
-Crear modulo de roles y permisos
+Crear modulo de roles y permisos para poder habilitar las opciones de la app

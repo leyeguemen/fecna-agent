@@ -13,7 +13,8 @@ const tab = (title: string, icon: string) => ({
 export default function TabsLayout() {
   const { can, pendingLink } = useAuth();
   // La pestaña Admin aparece si el usuario puede hacer al menos una de sus acciones.
-  const isAdmin = ['sincronizar', 'cargar_programa', 'gestionar_usuarios'].some(can);
+  const isAdmin = ['sincronizar', 'cargar_programa'].some(can);
+  const canManage = can('gestionar_usuarios');
   if (pendingLink) return <Redirect href="/vincular?first=1" />;
   return (
     <Tabs screenOptions={{
@@ -31,6 +32,8 @@ export default function TabsLayout() {
       <Tabs.Screen name="torneos" options={tab('Torneos', 'calendar')} />
       {/* Admin solo visible con rol admin (el backend igual responde 403 a los demás). */}
       <Tabs.Screen name="admin" options={{ ...tab('Admin', 'sync'), href: isAdmin ? undefined : null }} />
+      {/* Roles y permisos: solo con el permiso «gestionar_usuarios». */}
+      <Tabs.Screen name="roles" options={{ ...tab('Roles', 'shield'), href: canManage ? undefined : null }} />
       {/* Perfil se abre desde el avatar: se oculta de la barra, pero sigue siendo navegable (href: null la sacaba de las rutas). */}
       <Tabs.Screen name="perfil" options={{ tabBarItemStyle: { display: 'none' } }} />
     </Tabs>

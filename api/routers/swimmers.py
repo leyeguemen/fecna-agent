@@ -55,7 +55,7 @@ def swimmer_options(league: str | None = None):
     }
 
 
-@router.get("/compare", dependencies=[Depends(security.require_permission("comparar", fresh=False))])
+@router.get("/compare", dependencies=[Depends(security.require_permission("comparar"))])
 def compare(a: str, b: str, event_id: str, pool: Literal["LC", "SC"] | None = None):
     """Compara las mejores marcas de dos nadadores en una prueba."""
     conn = read_conn()
@@ -157,7 +157,7 @@ def get_swimmer_history(swimmer_id: str, event_id: str | None = None, pool: str 
 MAX_PHOTO_BYTES = 8 * 1024 * 1024
 
 
-@router.post("/{swimmer_id}/ficha-redes", dependencies=[Depends(security.require_permission("ficha_redes", fresh=False))])
+@router.post("/{swimmer_id}/ficha-redes", dependencies=[Depends(security.require_permission("ficha_redes"))])
 @limiter.limit("20/minute")
 def get_swimmer_ficha_redes(
     request: Request,

@@ -68,10 +68,17 @@ def _rows():
 
 
 def _auth(c):
+    """Sesión de un usuario real en la base de app (los permisos se consultan ahí)."""
+    import os
+
     from api import security
 
-    c.headers["Authorization"] = "Bearer " + security.create_token(
-        {"id": 1, "email": "u@t.co", "role": "user"})
+    conn = db.connect(os.environ["FECNA_APP_DB"])
+    if db.get_user_by_email(conn, "u@t.co") is None:
+        db.create_user(conn, "u@t.co", "clave12345")
+    row = db.get_user_by_email(conn, "u@t.co")
+    conn.close()
+    c.headers["Authorization"] = "Bearer " + security.create_token(row)
     return c
 
 

@@ -2,9 +2,11 @@ import { createContext, useCallback, useContext, useEffect, useMemo, useState } 
 import { api, AuthResp, Role, setToken, setUnauthorizedHandler } from './api';
 import { storage } from './storage';
 
-type User = { email: string; role: Role };
+type User = { email: string; role: Role; permissions?: string[] };
 type Ctx = {
   user: User | null;
+  /** ¿Tiene este permiso? (el servidor igual lo valida; aquí solo se muestran u ocultan opciones) */
+  can: (permission: string) => boolean;
   loading: boolean;
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, acceptTerms: boolean) => Promise<void>;
@@ -24,7 +26,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
 
   const persist = useCallback(async (r: AuthResp) => {
     setToken(r.token);
-    setUser({ email: r.email, role: r.role });
+    setUser({ email: r.email, role: r.role, permissions: r.permissions });
     await storage.set(KEY, JSON.stringify(r));
   }, []);
 
@@ -42,8 +44,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
         if (raw) {
           const r: AuthResp = JSON.parse(raw);
           setToken(r.token);
-          const me = await api<{ email: string; role: Role }>('/auth/me'); // valida token y rol vigente
-          setUser({ email: me.email, role: me.role });
+          const me = await api<{ email: string; role: Role; permissions?: string[] }>('/auth/me'); // valida token y rol vigente
+          setUser({ email: me.email, role: me.role, permissions: me.permissions });
         }
       } catch {
         setToken(null);
@@ -53,8 +55,14 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     })();
   }, [signOut]);
 
+  const can = useCallback(
+    (permission: string) => (user?.permissions ? user.permissions.includes(permission) : user?.role === 'admin'),
+    [user],
+  );
+
   const value = useMemo<Ctx>(() => ({
     user,
+    can,
     loading,
     signIn: async (email, password) =>
       persist(await api<AuthResp>('/auth/login', { body: { email, password }, auth: false })),
@@ -66,7 +74,7 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
     signOut,
     pendingLink,
     clearPendingLink: () => setPendingLink(false),
-  }), [user, loading, persist, signOut, pendingLink]);
+  }), [user, can, loading, persist, signOut, pendingLink]);
 
   return <AuthCtx.Provider value={value}>{children}</AuthCtx.Provider>;
 }

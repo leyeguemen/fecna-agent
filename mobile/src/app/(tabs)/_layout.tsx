@@ -11,8 +11,9 @@ const tab = (title: string, icon: string) => ({
 });
 
 export default function TabsLayout() {
-  const { user, pendingLink } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { can, pendingLink } = useAuth();
+  // La pestaña Admin aparece si el usuario puede hacer al menos una de sus acciones.
+  const isAdmin = ['sincronizar', 'cargar_programa', 'gestionar_usuarios'].some(can);
   if (pendingLink) return <Redirect href="/vincular?first=1" />;
   return (
     <Tabs screenOptions={{

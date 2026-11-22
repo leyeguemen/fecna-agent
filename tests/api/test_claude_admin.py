@@ -82,13 +82,21 @@ def api(tmp_path, monkeypatch):
     path = tmp_path / "r.db"
     db.connect(path).close()
     monkeypatch.setenv("FECNA_DB", str(path))
+    monkeypatch.setenv("FECNA_APP_DB", str(tmp_path / "app.db"))
     from api import main, security
 
     c = TestClient(main.app)
 
     def as_role(role):
-        c.headers["Authorization"] = "Bearer " + security.create_token(
-            {"id": 1, "email": "x@y.co", "role": role})
+        # Las acciones de admin leen el rol vigente de la base: el usuario tiene que existir.
+        conn = db.connect(tmp_path / "app.db")
+        email = f"{role}@y.co"
+        row = db.get_user_by_email(conn, email)
+        if row is None:
+            db.create_user(conn, email, "clave12345", role=role)
+            row = db.get_user_by_email(conn, email)
+        conn.close()
+        c.headers["Authorization"] = "Bearer " + security.create_token(row)
         return c
 
     return as_role

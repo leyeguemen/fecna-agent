@@ -3,9 +3,10 @@
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Query, Request, UploadFile, status
 from fastapi.responses import HTMLResponse, Response
 
+from api import security
 from api.deps import read_conn
 from api.routers.auth import limiter
 from fecna_agent import db, ficha, ficha_imagen, programa
@@ -54,7 +55,7 @@ def swimmer_options(league: str | None = None):
     }
 
 
-@router.get("/compare")
+@router.get("/compare", dependencies=[Depends(security.require_permission("comparar", fresh=False))])
 def compare(a: str, b: str, event_id: str, pool: Literal["LC", "SC"] | None = None):
     """Compara las mejores marcas de dos nadadores en una prueba."""
     conn = read_conn()
@@ -156,7 +157,7 @@ def get_swimmer_history(swimmer_id: str, event_id: str | None = None, pool: str 
 MAX_PHOTO_BYTES = 8 * 1024 * 1024
 
 
-@router.post("/{swimmer_id}/ficha-redes")
+@router.post("/{swimmer_id}/ficha-redes", dependencies=[Depends(security.require_permission("ficha_redes", fresh=False))])
 @limiter.limit("20/minute")
 def get_swimmer_ficha_redes(
     request: Request,

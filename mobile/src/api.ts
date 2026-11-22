@@ -51,7 +51,7 @@ export async function api<T = any>(
 }
 
 export type Role = 'user' | 'admin';
-export type AuthResp = { token: string; email: string; role: Role };
+export type AuthResp = { token: string; email: string; role: Role; permissions?: string[] };
 export type Item = Record<string, any>;
 
 /** POST multipart que devuelve una imagen (la ficha para redes), con la sesión actual. */

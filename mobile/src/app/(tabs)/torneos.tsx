@@ -7,8 +7,8 @@ import { c, font } from '../../theme';
 import { Chip, ConfirmDialog, Empty, ErrorText, Header } from '../../ui';
 
 export default function Torneos() {
-  const { user } = useAuth();
-  const isAdmin = user?.role === 'admin';
+  const { can } = useAuth();
+  const isAdmin = can('eliminar_programa');
   const [toDelete, setToDelete] = useState<Item | null>(null);
   const [deleting, setDeleting] = useState(false);
   const [msg, setMsg] = useState<string | null>(null);

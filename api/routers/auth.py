@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 
 from api import security
 from api.deps import app_conn
-from fecna_agent import auth, db
+from fecna_agent import auth, db, permisos
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -51,7 +51,8 @@ def register(request: Request, body: RegisterBody):
     finally:
         conn.close()
     token = security.create_token(user)
-    return {"token": token, "email": user["email"], "role": user["role"]}
+    return {"token": token, "email": user["email"], "role": user["role"],
+            "permissions": permisos.permissions_for(user["role"])}
 
 
 @router.post("/login")
@@ -68,9 +69,13 @@ def login(request: Request, body: Credentials):
             detail="Email o contraseña incorrectos.",
         )
     token = security.create_token(user)
-    return {"token": token, "email": user["email"], "role": user["role"]}
+    return {"token": token, "email": user["email"], "role": user["role"],
+            "permissions": permisos.permissions_for(user["role"])}
 
 
 @router.get("/me")
 def me(user: dict = Depends(security.current_user)):
-    return {"email": user["email"], "role": user["role"]}
+    role = security.current_role(user)  # rol vigente: refleja cambios hechos por un admin
+    if role is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado.")
+    return {"email": user["email"], "role": role, "permissions": permisos.permissions_for(role)}

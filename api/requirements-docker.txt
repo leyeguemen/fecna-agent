@@ -35,3 +35,6 @@ anthropic>=0.40
 requests>=2.31
 
 python-multipart>=0.0.9
+
+# Ficha para redes (imagen PNG): fecna_agent/ficha_imagen.py
+Pillow>=10

@@ -1,13 +1,14 @@
+import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
 import { useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
-import { api, apiText, Item } from '../../api';
+import { api, apiImage, Item } from '../../api';
 import { c, font } from '../../theme';
 import { SOURCE_NOTE } from '../../legal';
-import { Avatar, Empty, ErrorText, Icon, SourceNote } from '../../ui';
+import { Avatar, ConfirmDialog, Empty, ErrorText, Icon, SourceNote } from '../../ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -75,6 +76,9 @@ export default function Nadador() {
   const [chartW, setChartW] = useState(0);
   const [loading, setLoading] = useState(false);
   const [busy, setBusy] = useState(false);
+  const [shareOpen, setShareOpen] = useState(false);
+  const [scope, setScope] = useState<string | null>(null); // campeonato elegido (null = mejores marcas)
+  const [photo, setPhoto] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Historial de la prueba elegida.
@@ -134,22 +138,45 @@ export default function Nadador() {
     catch (err: any) { setError(err.message); }
   };
 
-  // Descarga la ficha: en web como archivo; en el teléfono con la hoja de compartir.
-  const downloadFicha = async () => {
+  // Campeonatos en los que hay marcas con torneo conocido (solo nadadores seguidos), el más reciente primero.
+  const tournaments = useMemo(() => {
+    const last = new Map<string, string>();
+    for (const h of all) if (h.tournament && (last.get(h.tournament) ?? '') < h.date) last.set(h.tournament, h.date);
+    return [...last.entries()].sort((x, y) => (x[1] < y[1] ? 1 : -1)).map(([name]) => name);
+  }, [all]);
+
+  const pickPhoto = async () => {
+    const r = await DocumentPicker.getDocumentAsync({ type: 'image/*', copyToCacheDirectory: true });
+    if (!r.canceled) setPhoto(r.assets[0]);
+  };
+
+  // Genera la ficha 9:16 en el servidor y la comparte: hoja de compartir en el teléfono; en la web,
+  // compartir del sistema si existe o descarga del archivo.
+  const shareFicha = async () => {
     if (!profile) return;
-    setBusy(true); setError(null);
+    setShareOpen(false); setBusy(true); setError(null);
     try {
-      const html = await apiText(`/swimmers/${encodeURIComponent(profile.swimmer_id)}/ficha`);
-      const name = `ficha-${profile.swimmer_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.html`;
+      const form = new FormData();
+      if (scope) form.append('tournament', scope);
+      if (photo) {
+        if (Platform.OS === 'web' && photo.file) form.append('photo', photo.file, photo.name);
+        else form.append('photo', { uri: photo.uri, name: photo.name || 'foto.jpg', type: photo.mimeType || 'image/jpeg' } as any);
+      }
+      const bytes = await apiImage(`/swimmers/${encodeURIComponent(profile.swimmer_id)}/ficha-redes`, form);
+      const name = `ficha-${profile.swimmer_name.toLowerCase().replace(/[^a-z0-9]+/g, '-')}.png`;
       if (Platform.OS === 'web') {
-        const blob = new Blob([html], { type: 'text/html' });
-        const a = document.createElement('a');
-        a.href = URL.createObjectURL(blob); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        const file = new (globalThis as any).File([bytes], name, { type: 'image/png' });
+        const nav: any = navigator;
+        if (nav.canShare?.({ files: [file] })) await nav.share({ files: [file], title: 'Ficha NATIA' }).catch(() => {});
+        else {
+          const a = document.createElement('a');
+          a.href = URL.createObjectURL(file); a.download = name; document.body.appendChild(a); a.click(); a.remove();
+        }
       } else {
         const file = new File(Paths.cache, name);
         file.create({ overwrite: true });
-        file.write(html);
-        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'text/html', dialogTitle: 'Ficha del nadador' });
+        file.write(new Uint8Array(bytes));
+        if (await Sharing.isAvailableAsync()) await Sharing.shareAsync(file.uri, { mimeType: 'image/png', UTI: 'public.png', dialogTitle: 'Compartir ficha' });
         else setError('Este dispositivo no permite compartir archivos.');
       }
     } catch (e: any) { setError(e.message || 'No se pudo generar la ficha.'); }
@@ -264,8 +291,8 @@ export default function Nadador() {
               <Pressable style={[s.btn, s.btnPrimary]} onPress={() => setCmpOpen((v) => !v)}>
                 <Text style={[s.btnText, { color: c.white }]}>Comparar con…</Text>
               </Pressable>
-              <Pressable style={[s.btn, s.btnOutline, busy && { opacity: 0.6 }]} onPress={downloadFicha} disabled={busy}>
-                {busy ? <ActivityIndicator color={c.primary} /> : <Text style={[s.btnText, { color: c.primary }]}>Descargar ficha</Text>}
+              <Pressable style={[s.btn, s.btnOutline, busy && { opacity: 0.6 }]} onPress={() => setShareOpen(true)} disabled={busy}>
+                {busy ? <ActivityIndicator color={c.primary} /> : <Text style={[s.btnText, { color: c.primary }]}>Ficha para redes</Text>}
               </Pressable>
             </View>
 
@@ -343,6 +370,30 @@ export default function Nadador() {
             <SourceNote text={SOURCE_NOTE} />
           </>
         ) : null}
+
+        <ConfirmDialog
+          visible={shareOpen}
+          title="Ficha para redes"
+          message="Imagen vertical lista para WhatsApp, historias e Instagram. Elige qué mostrar y, si quieres, agrega una foto."
+          confirmLabel="Generar y compartir"
+          onConfirm={shareFicha}
+          onCancel={() => setShareOpen(false)}
+        >
+          <Text style={[s.small, { marginTop: 14, marginBottom: 6 }]}>Marcas a mostrar</Text>
+          <ScrollView style={{ maxHeight: 190 }}>
+            {[null, ...tournaments].map((t) => (
+              <Pressable key={t ?? 'all'} onPress={() => setScope(t)} style={[s.row, { marginBottom: 6 }, scope === t && { borderColor: c.primary, borderWidth: 1.5 }]}>
+                <Text style={[s.rowName, { flex: 1 }]} numberOfLines={2}>{t ?? 'Mis mejores marcas (todas)'}</Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+          {!tournaments.length ? <Text style={s.small}>Sigue al nadador para elegir por campeonato.</Text> : null}
+          <Pressable onPress={pickPhoto} style={[s.row, { marginTop: 8 }]}>
+            <Text style={[s.rowName, { flex: 1 }]} numberOfLines={1}>{photo ? `Foto: ${photo.name}` : 'Agregar foto (opcional)'}</Text>
+            {photo ? <Pressable onPress={() => setPhoto(null)} accessibilityLabel="Quitar foto"><Text style={s.link}>Quitar</Text></Pressable> : null}
+          </Pressable>
+          <Text style={[s.small, { marginTop: 6 }]}>La foto solo se usa para armar la imagen; no se guarda en NATIA.</Text>
+        </ConfirmDialog>
 
         {!profile && !loading && !searching ? <Empty text="Busca un nadador o abre uno desde el Ranking." /> : null}
       </ScrollView>

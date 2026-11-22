@@ -3,11 +3,12 @@
 from datetime import date
 from typing import Literal
 
-from fastapi import APIRouter, HTTPException, Query, status
-from fastapi.responses import HTMLResponse
+from fastapi import APIRouter, File, Form, HTTPException, Query, Request, UploadFile, status
+from fastapi.responses import HTMLResponse, Response
 
 from api.deps import read_conn
-from fecna_agent import db, ficha, programa
+from api.routers.auth import limiter
+from fecna_agent import db, ficha, ficha_imagen, programa
 from fecna_agent.times import ms_to_time
 
 router = APIRouter(prefix="/swimmers", tags=["swimmers"])
@@ -150,6 +151,49 @@ def get_swimmer_history(swimmer_id: str, event_id: str | None = None, pool: str 
         for row in rows
     ]
     return {"items": items}
+
+
+MAX_PHOTO_BYTES = 8 * 1024 * 1024
+
+
+@router.post("/{swimmer_id}/ficha-redes")
+@limiter.limit("20/minute")
+def get_swimmer_ficha_redes(
+    request: Request,
+    swimmer_id: str,
+    tournament: str | None = Form(default=None, max_length=200),
+    photo: UploadFile | None = File(default=None),
+):
+    """Imagen PNG 9:16 para compartir en redes. La foto es opcional y no se guarda."""
+    photo_bytes = None
+    if photo is not None:
+        photo_bytes = photo.file.read(MAX_PHOTO_BYTES + 1)
+        if len(photo_bytes) > MAX_PHOTO_BYTES:
+            raise HTTPException(status_code=413, detail="La foto pesa demasiado (máximo 8 MB).")
+    conn = read_conn()
+    try:
+        profile = db.swimmer_summary(conn, swimmer_id)
+        names = conn.execute(
+            "SELECT first_name, last_name, gender FROM ranking_results WHERE swimmer_id = ? "
+            "ORDER BY result_date DESC LIMIT 1", (swimmer_id,)).fetchone()
+        ranks_rows = db.swimmer_event_ranks(conn, swimmer_id)
+        rows = [dict(r) for r in db.history(conn, swimmer_id)]
+    finally:
+        conn.close()
+    if profile is None or not ranks_rows:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Nadador no encontrado.")
+    ranks = {(r["event_id"], r["pool_type"]): (r["national_rank"], r["best_ms"]) for r in ranks_rows}
+    marks = ficha_imagen.select_marks(rows, ranks, tournament or None)
+    if not marks:
+        raise HTTPException(status_code=404, detail="Sin marcas para esa selección.")
+    profile = {**profile, "age": ranks_rows[0]["age"],
+               "first_name": names["first_name"] if names else None,
+               "last_name": names["last_name"] if names else None}
+    try:
+        png = ficha_imagen.render_png(profile, marks, tournament or None, photo_bytes)
+    except (ValueError, OSError):
+        raise HTTPException(status_code=422, detail="No pudimos leer esa foto. Prueba con otra imagen (JPG o PNG).")
+    return Response(content=png, media_type="image/png", headers={"Cache-Control": "no-store"})
 
 
 @router.get("/{swimmer_id}/ficha", response_class=HTMLResponse)

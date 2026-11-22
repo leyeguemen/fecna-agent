@@ -196,3 +196,11 @@ def test_permiso_de_sistema_nuevo_se_siembra_en_una_base_existente(tmp_path):
     assert "ver_ranking" in roles["admin"]["permissions"]
     assert "ver_ranking" in db.permission_keys(conn)
     assert "ver_ranking" not in roles["user"]["permissions"]  # no se le devuelve a un rol que se lo quitaron
+
+
+def test_historial_por_demanda_exige_sincronizar_y_nadador_existente(env):
+    client, register, h = env
+    user, admin = register("ana@x.co"), register("boss@x.co")
+    for method in (client.get, client.post):
+        assert method("/admin/swimmers/1/historial", headers=h(user["token"])).status_code == 403
+        assert method("/admin/swimmers/zzz/historial", headers=h(admin["token"])).status_code == 404

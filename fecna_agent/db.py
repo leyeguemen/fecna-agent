@@ -879,6 +879,28 @@ def authenticate(conn: sqlite3.Connection, email: str, password: str) -> sqlite3
     return None
 
 
+def get_user_by_id(conn, user_id: int):
+    return conn.execute("SELECT * FROM app_user WHERE id = ?", (user_id,)).fetchone()
+
+
+def list_users(conn, q: str | None = None, limit: int = 50) -> list[dict]:
+    """Usuarios para administrar roles (sin datos de acceso), más recientes primero."""
+    from . import auth
+
+    where, params = "", []
+    if q and q.strip():
+        where, params = "WHERE email LIKE ?", [f"%{auth.normalize_email(q)}%"]
+    rows = conn.execute(
+        f"SELECT id, email, role, active, created_at FROM app_user {where} ORDER BY id DESC LIMIT ?",
+        [*params, limit],
+    ).fetchall()
+    return [dict(r) for r in rows]
+
+
+def count_active_admins(conn) -> int:
+    return conn.execute("SELECT COUNT(*) FROM app_user WHERE role = 'admin' AND active = 1").fetchone()[0]
+
+
 def set_role(conn: sqlite3.Connection, user_id: int, role: str) -> None:
     conn.execute("UPDATE app_user SET role = ? WHERE id = ?", (role, user_id))
     conn.commit()

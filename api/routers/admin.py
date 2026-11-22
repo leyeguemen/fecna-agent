@@ -13,8 +13,8 @@ from fastapi import APIRouter, Depends, HTTPException, status
 from pydantic import BaseModel
 
 from api import security
-from api.deps import read_conn
-from fecna_agent import db
+from api.deps import app_conn, read_conn
+from fecna_agent import db, permisos
 
 router = APIRouter(prefix="/admin", tags=["admin"])
 
@@ -36,7 +36,7 @@ def _gh():
 
 
 @router.post("/sync", status_code=status.HTTP_202_ACCEPTED)
-def start_sync(body: SyncBody, admin: dict = Depends(security.require_admin)):
+def start_sync(body: SyncBody, admin: dict = Depends(security.require_permission("sincronizar"))):
     url, headers = _gh()
     resp = requests.post(f"{url}/dispatches", headers=headers, timeout=15,
                       json={"ref": os.environ.get("GITHUB_REF", "main"),
@@ -48,7 +48,7 @@ def start_sync(body: SyncBody, admin: dict = Depends(security.require_admin)):
 
 
 @router.get("/sync/status")
-def sync_status(admin: dict = Depends(security.require_admin)):
+def sync_status(admin: dict = Depends(security.require_permission("sincronizar"))):
     conn = read_conn()
     try:
         last = db.last_sync(conn)
@@ -70,3 +70,48 @@ def sync_status(admin: dict = Depends(security.require_admin)):
     except requests.RequestException:
         pass
     return result
+
+
+# --- Roles y usuarios ---------------------------------------------------------------
+
+class RoleBody(BaseModel):
+    role: str
+
+
+@router.get("/roles")
+def list_roles(admin: dict = Depends(security.require_permission("gestionar_usuarios"))):
+    """Catálogo: roles y qué permisos tiene cada uno."""
+    return permisos.catalog()
+
+
+@router.get("/users")
+def list_users(q: str | None = None, limit: int = 50,
+               admin: dict = Depends(security.require_permission("gestionar_usuarios"))):
+    conn = app_conn()
+    try:
+        items = db.list_users(conn, q, max(1, min(limit, 100)))
+    finally:
+        conn.close()
+    return {"items": [{**u, "active": bool(u["active"]),
+                       "role_name": permisos.ROLES.get(u["role"], u["role"])} for u in items]}
+
+
+@router.put("/users/{user_id}/role")
+def set_user_role(user_id: int, body: RoleBody,
+                  admin: dict = Depends(security.require_permission("gestionar_usuarios"))):
+    if body.role not in permisos.ROLES:
+        raise HTTPException(status_code=422, detail="Rol no válido.")
+    if str(user_id) == str(admin["id"]):
+        raise HTTPException(status_code=409, detail="No puedes cambiar tu propio rol.")
+    conn = app_conn()
+    try:
+        target = db.get_user_by_id(conn, user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+        if target["role"] == "admin" and body.role != "admin" and db.count_active_admins(conn) <= 1:
+            raise HTTPException(status_code=409, detail="Debe quedar al menos un administrador.")
+        db.set_role(conn, user_id, body.role)
+    finally:
+        conn.close()
+    security.clear_role_cache(user_id)
+    return {"id": user_id, "email": target["email"], "role": body.role}

@@ -137,7 +137,7 @@ _MAX_PDF_BYTES = 10 * 1024 * 1024  # 10 MB: los programas reales pesan < 1 MB
 
 @router.post("", status_code=status.HTTP_201_CREATED)
 def upload_competition(
-    file: UploadFile = File(...), admin: dict = Depends(security.require_admin)
+    file: UploadFile = File(...), admin: dict = Depends(security.require_permission("cargar_programa"))
 ):
     if file.content_type and file.content_type != "application/pdf":
         raise HTTPException(
@@ -188,7 +188,7 @@ def upload_competition(
 
 
 @router.delete("/{comp_id}", status_code=status.HTTP_204_NO_CONTENT)
-def delete_competition(comp_id: int, admin: dict = Depends(security.require_admin)):
+def delete_competition(comp_id: int, admin: dict = Depends(security.require_permission("eliminar_programa"))):
     conn = app_conn()
     try:
         db.delete_competition(conn, comp_id)

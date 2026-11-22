@@ -135,7 +135,7 @@ def get_swimmer_profile(
 def get_swimmer_history(swimmer_id: str, event_id: str | None = None, pool: str | None = None):
     conn = read_conn()
     try:
-        rows = db.history(conn, swimmer_id, event_id=event_id, pool_type=pool)
+        rows = db.full_history(conn, swimmer_id, event_id=event_id, pool_type=pool)
     finally:
         conn.close()
     items = [
@@ -178,7 +178,7 @@ def get_swimmer_ficha_redes(
             "SELECT first_name, last_name, gender FROM ranking_results WHERE swimmer_id = ? "
             "ORDER BY result_date DESC LIMIT 1", (swimmer_id,)).fetchone()
         ranks_rows = db.swimmer_event_ranks(conn, swimmer_id)
-        rows = [dict(r) for r in db.history(conn, swimmer_id)]
+        rows = db.full_history(conn, swimmer_id)
     finally:
         conn.close()
     if profile is None or not ranks_rows:

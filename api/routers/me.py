@@ -96,13 +96,11 @@ def follow(swimmer_id: str, background: BackgroundTasks, user: dict = Depends(se
 
 
 def _enrich(swimmer_id: str) -> None:
-    conn = app_conn()
+    """Historial completo del nadador, en segundo plano (abre y cierra su propia conexión)."""
     try:
-        historial.enrich_swimmer(conn, swimmer_id)
+        historial.enrich_swimmer(app_conn, swimmer_id)
     except Exception:
         pass
-    finally:
-        conn.close()
 
 
 @router.delete("/following/{swimmer_id}", status_code=status.HTTP_204_NO_CONTENT)

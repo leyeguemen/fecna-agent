@@ -366,7 +366,7 @@ export default function Nadador() {
 
             {groups.length ? (
               <>
-                <Text style={s.section}>Todas las marcas · {all.length}</Text>
+                <Text style={s.section}>Todas las marcas · {all.length}{all.length ? ` · desde ${shortDate(all[0].date)}` : ''}</Text>
                 {groups.map((g) => {
                   const isOpen = openGroups[g.key] ?? (selected ? `${selected.event_id}|${selected.pool}` === g.key : false);
                   return (

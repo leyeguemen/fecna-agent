@@ -39,7 +39,7 @@ def translate_sql(sql: str, has_params: bool = True) -> str:
 
 TABLES = ("ranking_results", "catalogs", "sync_log", "competition",
           "competition_entry", "competition_watch", "app_user", "swimmer_follow",
-          "app_role", "app_permission", "role_permission")
+          "app_role", "app_permission", "role_permission", "swimmer_mark")
 
 # Columnas añadidas después de crear las tablas en Postgres (idempotente).
 # Antes del esquema: la vista ranking_public usa columnas que una base existente aún no tiene.

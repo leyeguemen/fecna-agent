@@ -54,6 +54,30 @@ export type Role = 'user' | 'admin';
 export type AuthResp = { token: string; email: string; role: Role };
 export type Item = Record<string, any>;
 
+/** POST multipart que devuelve una imagen (la ficha para redes), con la sesión actual. */
+export async function apiImage(path: string, form: FormData): Promise<ArrayBuffer> {
+  const ctrl = new AbortController();
+  const timer = setTimeout(() => ctrl.abort(), TIMEOUT_MS);
+  let res: Response;
+  try {
+    res = await fetch(`${API_URL}${path}`, {
+      method: 'POST', body: form, signal: ctrl.signal,
+      headers: token ? { Authorization: `Bearer ${token}` } : {},
+    });
+  } catch {
+    throw new ApiError(0, 'No se pudo conectar con el servidor. Reintenta en unos segundos.');
+  } finally {
+    clearTimeout(timer);
+  }
+  if (res.status === 401) onUnauthorized();
+  if (!res.ok) {
+    let detail = `Error ${res.status}`;
+    try { const j = await res.json(); if (typeof j.detail === 'string') detail = j.detail; } catch {}
+    throw new ApiError(res.status, detail);
+  }
+  return res.arrayBuffer();
+}
+
 /** GET que devuelve texto (p. ej. la ficha HTML descargable), con la sesión actual. */
 export async function apiText(path: string): Promise<string> {
   const res = await fetch(`${API_URL}${path}`, { headers: token ? { Authorization: `Bearer ${token}` } : {} });

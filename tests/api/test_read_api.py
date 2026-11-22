@@ -264,3 +264,27 @@ def test_rankings_filtro_por_liga_y_catalogo_de_ligas(client):
     assert valle and len(valle) < len(todas)
     assert all(i["league"] == "Liga Andina" for i in valle)
     assert client.get("/rankings?event_id=50L&league=NoExiste").json()["items"] == []
+
+
+def test_ficha_redes_devuelve_png(client):
+    resp = client.post("/swimmers/1/ficha-redes")
+    assert resp.status_code == 200
+    assert resp.headers["content-type"] == "image/png"
+    assert resp.content[:8] == b"\x89PNG\r\n\x1a\n"
+
+
+def test_ficha_redes_con_foto(client):
+    from io import BytesIO
+    from PIL import Image
+    buf = BytesIO()
+    Image.new("RGB", (300, 400), (200, 100, 50)).save(buf, "JPEG")
+    resp = client.post("/swimmers/1/ficha-redes", files={"photo": ("f.jpg", buf.getvalue(), "image/jpeg")})
+    assert resp.status_code == 200
+
+
+def test_ficha_redes_foto_invalida_y_torneo_sin_marcas(client):
+    bad = client.post("/swimmers/1/ficha-redes", files={"photo": ("f.jpg", b"no es una imagen", "image/jpeg")})
+    assert bad.status_code == 422
+    none = client.post("/swimmers/1/ficha-redes", data={"tournament": "NO EXISTE"})
+    assert none.status_code == 404
+    assert client.post("/swimmers/zzz/ficha-redes").status_code == 404

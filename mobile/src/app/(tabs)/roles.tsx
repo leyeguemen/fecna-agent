@@ -170,7 +170,7 @@ export default function Roles() {
 
   return (
     <View style={s.root}>
-      <Header title="Roles y permisos" subtitle="Quién puede hacer qué en la app" right={<ProfileButton />} />
+      <Header title="Seguridad" subtitle="Roles, permisos y usuarios" right={<ProfileButton />} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', gap: 8, flexShrink: 0 }}>
           <Chip label="Usuarios" selected={section === 'usuarios'} onPress={() => setSection('usuarios')} />

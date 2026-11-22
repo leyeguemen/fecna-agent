@@ -73,11 +73,11 @@ def current_user(
 
 
 # --- Rol vigente y permisos ---------------------------------------------------------
-# El token lleva el rol con el que se inició sesión (dura 7 días). Para las acciones de
-# administrador se consulta el rol actual en la base (con una caché corta), de modo que quitar
-# un rol o borrar una cuenta surta efecto en segundos y no al vencer el token.
+# El token lleva el rol con el que se inició sesión (dura 7 días). Los permisos se consultan en la
+# base (con una caché corta): cambiar un rol, editar sus permisos o borrar una cuenta surte
+# efecto en segundos y no al vencer el token.
 _ROLE_TTL = 30  # segundos
-_ROLE_CACHE: dict[tuple, tuple[float, str | None]] = {}
+_ACCESS_CACHE: dict[tuple, tuple[float, tuple[str, frozenset] | None]] = {}
 
 
 def _cache_scope() -> str:
@@ -86,21 +86,21 @@ def _cache_scope() -> str:
 
 
 def clear_role_cache(user_id=None) -> None:
-    """Olvida el rol en caché (de un usuario, o de todos)."""
+    """Olvida el acceso en caché (de un usuario, o de todos: úsalo al editar roles y permisos)."""
     if user_id is None:
-        _ROLE_CACHE.clear()
+        _ACCESS_CACHE.clear()
     else:
-        for key in [k for k in _ROLE_CACHE if k[1] == str(user_id)]:
-            _ROLE_CACHE.pop(key, None)
+        for key in [k for k in _ACCESS_CACHE if k[1] == str(user_id)]:
+            _ACCESS_CACHE.pop(key, None)
 
 
-def current_role(user: dict) -> str | None:
-    """Rol vigente del usuario en la base, o None si ya no existe o está inactivo."""
+def current_access(user: dict) -> tuple[str, frozenset] | None:
+    """(rol vigente, permisos) del usuario según la base, o None si ya no existe o está inactivo."""
     from api.deps import app_conn
     from fecna_agent import db
 
     key = (_cache_scope(), str(user.get("id")))
-    hit = _ROLE_CACHE.get(key)
+    hit = _ACCESS_CACHE.get(key)
     if hit and time.monotonic() - hit[0] < _ROLE_TTL:
         return hit[1]
     try:
@@ -110,27 +110,29 @@ def current_role(user: dict) -> str | None:
     conn = app_conn()
     try:
         row = db.get_user_by_id(conn, uid)
+        access = (row["role"], frozenset(db.role_permissions(conn, row["role"]))) if row and row["active"] else None
     finally:
         conn.close()
-    role = row["role"] if row and row["active"] else None
-    _ROLE_CACHE[key] = (time.monotonic(), role)
-    return role
+    _ACCESS_CACHE[key] = (time.monotonic(), access)
+    return access
 
 
-def require_permission(permission: str, fresh: bool = True):
-    """Dependencia FastAPI: exige el permiso o lanza 403 (401 si la cuenta ya no existe).
+def current_role(user: dict) -> str | None:
+    access = current_access(user)
+    return access[0] if access else None
 
-    fresh=True consulta el rol vigente en la base; fresh=False usa el rol del token (sin
-    consultar), para permisos que tienen todos los usuarios."""
-    from fecna_agent import permisos
+
+def require_permission(permission: str):
+    """Dependencia FastAPI: exige el permiso o lanza 403 (401 si la cuenta ya no existe)."""
 
     def dependency(user: dict = Depends(current_user)) -> dict:
-        role = current_role(user) if fresh else user.get("role")
-        if role is None:
+        access = current_access(user)
+        if access is None:
             raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado.")
-        if not permisos.has(role, permission):
+        role, permissions = access
+        if permission not in permissions:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="No tienes permiso para esta acción.")
-        return {**user, "role": role}
+        return {**user, "role": role, "permissions": sorted(permissions)}
 
     return dependency

@@ -42,7 +42,7 @@ class AskBody(BaseModel):
 
 @router.post("/ask")
 @limiter.limit("30/minute")
-def ask(request: Request, body: AskBody, user: dict = Depends(security.require_permission("chat", fresh=False))):
+def ask(request: Request, body: AskBody, user: dict = Depends(security.require_permission("chat"))):
     if os.environ.get("ANTHROPIC_API_KEY"):
         _check_daily_limit(user["id"])
         conn = read_conn()

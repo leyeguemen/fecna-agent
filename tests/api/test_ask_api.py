@@ -11,13 +11,19 @@ def client(tmp_path, monkeypatch):
     db_path = tmp_path / "read.db"
     db.connect(db_path).close()
     monkeypatch.setenv("FECNA_DB", str(db_path))
+    monkeypatch.setenv("FECNA_APP_DB", str(tmp_path / "app.db"))
 
     from api import main
 
     from api import security
 
+    app_db = db.connect(tmp_path / "app.db")
+    db.create_user(app_db, "u@test.co", "clave12345")
+    row = db.get_user_by_email(app_db, "u@test.co")
+    app_db.close()
+
     c = TestClient(main.app)
-    token = security.create_token({"id": 1, "email": "u@test.co", "role": "user"})
+    token = security.create_token(row)
     c.headers["Authorization"] = f"Bearer {token}"
     return c
 

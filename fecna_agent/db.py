@@ -127,6 +127,25 @@ CREATE TABLE IF NOT EXISTS app_user (
   terms_accepted_at TIMESTAMP
 );
 
+-- Roles y permisos (editables desde la app). Valores de partida: ver permisos.py
+CREATE TABLE IF NOT EXISTS app_role (
+  id        TEXT PRIMARY KEY,
+  name      TEXT NOT NULL,
+  is_system INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS app_permission (
+  key       TEXT PRIMARY KEY,
+  label     TEXT NOT NULL,
+  is_system INTEGER NOT NULL DEFAULT 0
+);
+
+CREATE TABLE IF NOT EXISTS role_permission (
+  role_id        TEXT NOT NULL,
+  permission_key TEXT NOT NULL,
+  PRIMARY KEY (role_id, permission_key)
+);
+
 CREATE TABLE IF NOT EXISTS swimmer_follow (
   user_id      INTEGER NOT NULL,
   swimmer_id   TEXT NOT NULL,
@@ -170,7 +189,8 @@ def _ensure_pg_schema(conn, url: str) -> None:
                    AND EXISTS (SELECT 1 FROM information_schema.columns
                                WHERE table_name = 'app_user' AND column_name = 'terms_version')
                    AND EXISTS (SELECT 1 FROM information_schema.columns
-                               WHERE table_name = 'ranking_results' AND column_name = 'tournament')"""
+                               WHERE table_name = 'ranking_results' AND column_name = 'tournament')
+                   AND to_regclass('public.app_role') IS NOT NULL"""
     ready = conn.execute(check).fetchone()[0]
     conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
     if not ready:
@@ -182,6 +202,7 @@ def _ensure_pg_schema(conn, url: str) -> None:
                 conn.executescript(pg.translate_schema(SCHEMA))
                 conn.executescript(pg.RLS_SQL)
                 conn.executescript(pg.MIGRATIONS_SQL)
+                seed_roles(conn)
             conn.commit()
         finally:
             conn.execute(f"SELECT pg_advisory_unlock({_PG_MIGRATION_LOCK})")
@@ -203,6 +224,7 @@ def connect(db_path: Path | str = DEFAULT_DB_PATH):
     conn.row_factory = sqlite3.Row
     conn.executescript(SCHEMA)
     _migrate(conn)
+    seed_roles(conn)
     return conn
 
 
@@ -877,6 +899,99 @@ def authenticate(conn: sqlite3.Connection, email: str, password: str) -> sqlite3
         return None
     auth.hash_password(password)  # gasta el mismo costo de PBKDF2 que el camino normal
     return None
+
+
+# --- Roles y permisos ---------------------------------------------------------------
+
+def seed_roles(conn) -> None:
+    """Siembra permisos de sistema y roles de partida; no pisa lo que el admin ya cambió."""
+    from . import permisos
+
+    for key, label in permisos.SYSTEM_PERMISSIONS.items():
+        conn.execute("INSERT OR IGNORE INTO app_permission (key, label, is_system) VALUES (?, ?, 1)", (key, label))
+    for rid, (name, perms) in permisos.DEFAULT_ROLES.items():
+        known = conn.execute("SELECT 1 FROM app_role WHERE id = ?", (rid,)).fetchone()
+        if not known:
+            conn.execute("INSERT OR IGNORE INTO app_role (id, name, is_system) VALUES (?, ?, 1)", (rid, name))
+            for key in perms:
+                conn.execute("INSERT OR IGNORE INTO role_permission (role_id, permission_key) VALUES (?, ?)", (rid, key))
+    # El admin conserva siempre todos los permisos, incluidos los que se agreguen después.
+    conn.execute(
+        "INSERT OR IGNORE INTO role_permission (role_id, permission_key) "
+        "SELECT ?, key FROM app_permission", (permisos.ADMIN_ROLE,))
+    conn.commit()
+
+
+def role_permissions(conn, role_id: str | None) -> list[str]:
+    """Permisos vigentes de un rol (vacío si el rol no existe)."""
+    rows = conn.execute(
+        "SELECT permission_key FROM role_permission WHERE role_id = ? ORDER BY permission_key", (role_id or "",)
+    ).fetchall()
+    return [r[0] for r in rows]
+
+
+def role_exists(conn, role_id: str) -> bool:
+    return conn.execute("SELECT 1 FROM app_role WHERE id = ?", (role_id,)).fetchone() is not None
+
+
+def list_roles(conn) -> list[dict]:
+    roles = conn.execute("SELECT id, name, is_system FROM app_role ORDER BY is_system DESC, name").fetchall()
+    links: dict[str, list[str]] = {}
+    for r in conn.execute("SELECT role_id, permission_key FROM role_permission ORDER BY permission_key").fetchall():
+        links.setdefault(r[0], []).append(r[1])
+    counts = {r[0]: r[1] for r in conn.execute("SELECT role, COUNT(*) FROM app_user GROUP BY role").fetchall()}
+    return [{"id": r["id"], "name": r["name"], "is_system": bool(r["is_system"]),
+             "permissions": links.get(r["id"], []), "users": counts.get(r["id"], 0)} for r in roles]
+
+
+def save_role(conn, role_id: str, name: str, permissions: list[str], create: bool) -> None:
+    """Crea o actualiza un rol y reemplaza sus permisos."""
+    if create:
+        conn.execute("INSERT INTO app_role (id, name, is_system) VALUES (?, ?, 0)", (role_id, name))
+    else:
+        conn.execute("UPDATE app_role SET name = ? WHERE id = ?", (name, role_id))
+    conn.execute("DELETE FROM role_permission WHERE role_id = ?", (role_id,))
+    for key in sorted(set(permissions)):
+        conn.execute("INSERT INTO role_permission (role_id, permission_key) VALUES (?, ?)", (role_id, key))
+    conn.commit()
+
+
+def delete_role(conn, role_id: str) -> None:
+    conn.execute("DELETE FROM role_permission WHERE role_id = ?", (role_id,))
+    conn.execute("DELETE FROM app_role WHERE id = ?", (role_id,))
+    conn.commit()
+
+
+def list_permissions(conn) -> list[dict]:
+    rows = conn.execute("SELECT key, label, is_system FROM app_permission ORDER BY is_system DESC, key").fetchall()
+    counts = {r[0]: r[1] for r in conn.execute(
+        "SELECT permission_key, COUNT(*) FROM role_permission GROUP BY permission_key").fetchall()}
+    return [{"key": r["key"], "label": r["label"], "is_system": bool(r["is_system"]),
+             "roles": counts.get(r["key"], 0)} for r in rows]
+
+
+def permission_keys(conn) -> set[str]:
+    return {r[0] for r in conn.execute("SELECT key FROM app_permission").fetchall()}
+
+
+def create_permission(conn, key: str, label: str) -> None:
+    from . import permisos
+
+    conn.execute("INSERT INTO app_permission (key, label, is_system) VALUES (?, ?, 0)", (key, label))
+    conn.execute("INSERT OR IGNORE INTO role_permission (role_id, permission_key) VALUES (?, ?)",
+                 (permisos.ADMIN_ROLE, key))
+    conn.commit()
+
+
+def update_permission_label(conn, key: str, label: str) -> None:
+    conn.execute("UPDATE app_permission SET label = ? WHERE key = ?", (label, key))
+    conn.commit()
+
+
+def delete_permission(conn, key: str) -> None:
+    conn.execute("DELETE FROM role_permission WHERE permission_key = ?", (key,))
+    conn.execute("DELETE FROM app_permission WHERE key = ?", (key,))
+    conn.commit()
 
 
 def get_user_by_id(conn, user_id: int):

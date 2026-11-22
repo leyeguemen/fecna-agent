@@ -13,7 +13,7 @@ from slowapi.util import get_remote_address
 
 from api import security
 from api.deps import app_conn
-from fecna_agent import auth, db, permisos
+from fecna_agent import auth, db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
@@ -36,6 +36,14 @@ class RegisterBody(Credentials):
     accept_terms: bool = False  # el cliente nuevo lo exige; los antiguos no lo envían
 
 
+def _permissions(role: str) -> list[str]:
+    conn = app_conn()
+    try:
+        return db.role_permissions(conn, role)
+    finally:
+        conn.close()
+
+
 @router.post("/register", status_code=status.HTTP_201_CREATED)
 @limiter.limit("10/minute")
 def register(request: Request, body: RegisterBody):
@@ -52,7 +60,7 @@ def register(request: Request, body: RegisterBody):
         conn.close()
     token = security.create_token(user)
     return {"token": token, "email": user["email"], "role": user["role"],
-            "permissions": permisos.permissions_for(user["role"])}
+            "permissions": _permissions(user["role"])}
 
 
 @router.post("/login")
@@ -70,12 +78,12 @@ def login(request: Request, body: Credentials):
         )
     token = security.create_token(user)
     return {"token": token, "email": user["email"], "role": user["role"],
-            "permissions": permisos.permissions_for(user["role"])}
+            "permissions": _permissions(user["role"])}
 
 
 @router.get("/me")
 def me(user: dict = Depends(security.current_user)):
-    role = security.current_role(user)  # rol vigente: refleja cambios hechos por un admin
-    if role is None:
+    access = security.current_access(user)  # rol y permisos vigentes: reflejan cambios de un admin
+    if access is None:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado.")
-    return {"email": user["email"], "role": role, "permissions": permisos.permissions_for(role)}
+    return {"email": user["email"], "role": access[0], "permissions": sorted(access[1])}

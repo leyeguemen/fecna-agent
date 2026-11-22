@@ -1,49 +1,28 @@
-"""Roles y permisos de NATIA.
+"""Roles y permisos de NATIA: valores de partida.
 
-Rol = quién eres; permiso = qué puedes hacer. El catálogo vive aquí (en código) y el rol de cada
-usuario en app_user.role. Más adelante un «plan» (suscripción) podrá sumar permisos y límites
-sin tocar las pantallas: solo se pregunta «¿tiene este permiso?».
+Rol = quién eres; permiso = qué puedes hacer. Los roles, los permisos y qué permisos tiene cada rol
+viven en la base (tablas app_role, app_permission, role_permission) y el admin los edita desde la
+app. Aquí solo están los valores con los que se siembra la base la primera vez.
+
+Los permisos «de sistema» están enlazados con el código (cada ruta del servidor exige uno): se les
+puede cambiar la etiqueta, pero no borrarlos. Los permisos propios que cree el admin sirven para
+funciones futuras (planes, etc.); hoy no abren nada por sí solos.
 """
 
-ROLES: dict[str, str] = {
-    "user": "Usuario",
-    "admin": "Administrador",
-}
-
-PERMISSIONS: dict[str, str] = {
+SYSTEM_PERMISSIONS: dict[str, str] = {
     "chat": "Preguntar al chat",
     "comparar": "Comparar nadadores",
     "ficha_redes": "Generar fichas para redes",
     "cargar_programa": "Cargar programas de campeonato",
     "eliminar_programa": "Eliminar programas de campeonato",
     "sincronizar": "Sincronizar el ranking con FECNA",
-    "gestionar_usuarios": "Gestionar los roles de los usuarios",
+    "gestionar_usuarios": "Gestionar roles, permisos y usuarios",
 }
 
-_BASE = {"chat", "comparar", "ficha_redes"}
-
-ROLE_PERMISSIONS: dict[str, frozenset[str]] = {
-    "user": frozenset(_BASE),
-    "admin": frozenset(PERMISSIONS),
+# id -> (nombre, permisos iniciales). admin siempre tiene todos los permisos.
+DEFAULT_ROLES: dict[str, tuple[str, set[str]]] = {
+    "user": ("Usuario", {"chat", "comparar", "ficha_redes"}),
+    "admin": ("Administrador", set(SYSTEM_PERMISSIONS)),
 }
 
-
-def permissions_for(role: str | None) -> list[str]:
-    """Permisos del rol, ordenados. Un rol desconocido no recibe ninguno."""
-    return sorted(ROLE_PERMISSIONS.get(role or "", frozenset()))
-
-
-def has(role: str | None, permission: str) -> bool:
-    return permission in ROLE_PERMISSIONS.get(role or "", frozenset())
-
-
-def catalog() -> dict:
-    """Roles con sus permisos, para mostrarlos en Admin."""
-    return {
-        "roles": [
-            {"id": rid, "name": name,
-             "permissions": [{"key": p, "label": PERMISSIONS[p]} for p in permissions_for(rid)]}
-            for rid, name in ROLES.items()
-        ],
-        "permissions": [{"key": k, "label": v} for k, v in PERMISSIONS.items()],
-    }
+ADMIN_ROLE = "admin"  # rol protegido: no se edita ni se borra y conserva todos los permisos

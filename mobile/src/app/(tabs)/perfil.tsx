@@ -1,13 +1,14 @@
+import Constants from 'expo-constants';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
+import { Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
 import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { Avatar, Button, Card, Chip, ConfirmDialog, ErrorText, Field, Icon } from '../../ui';
 
 export default function Perfil() {
-  const { user, signOut } = useAuth();
+  const { user, signOut, can } = useAuth();
   const [me, setMe] = useState<Item | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -17,6 +18,11 @@ export default function Perfil() {
   const [pwd, setPwd] = useState(false);
   const [cur, setCur] = useState('');
   const [next, setNext] = useState('');
+  const [rep, setRep] = useState(false);
+  const [repTitle, setRepTitle] = useState('');
+  const [repText, setRepText] = useState('');
+  const [repScreen, setRepScreen] = useState('');
+  const [repBusy, setRepBusy] = useState(false);
 
   const load = useCallback(() => {
     api('/me').then(setMe).catch((e) => setError(e.message));
@@ -32,6 +38,16 @@ export default function Perfil() {
       await api('/me/password', { body: { current: cur, new: next } });
       setPwd(false); setCur(''); setNext(''); setNotice('Contraseña actualizada.');
     } catch (e: any) { setError(e.message); }
+  };
+  const sendReport = async () => {
+    setRepBusy(true); setError(null);
+    try {
+      await api('/reports', { body: { title: repTitle.trim(), description: repText.trim(), screen: repScreen.trim() || undefined,
+        platform: Platform.OS, app_version: Constants.expoConfig?.version } });
+      setRep(false); setRepTitle(''); setRepText(''); setRepScreen('');
+      setNotice('Reporte enviado. Aparecerá en el tablero de GitHub en unos segundos. ¡Gracias!');
+    } catch (e: any) { setError(e.message); }
+    finally { setRepBusy(false); }
   };
   const removeAccount = async () => {
     try { await api('/me', { method: 'DELETE' }); setDel(false); signOut(); }
@@ -76,6 +92,9 @@ export default function Perfil() {
         <Text style={s.h}>CUENTA</Text>
         <Card>
           <Pressable style={s.line} onPress={() => { setError(null); setPwd(true); }}><Text style={s.text}>Cambiar contraseña</Text><Icon name="chevron" size={18} /></Pressable>
+          {can('reportar_problema') ? (
+            <Pressable style={s.line} onPress={() => { setError(null); setRep(true); }}><Text style={s.text}>Reportar un problema</Text><Icon name="chevron" size={18} /></Pressable>
+          ) : null}
           <Pressable style={s.line} onPress={() => router.push('/terminos')}><Text style={s.text}>Términos y condiciones</Text><Icon name="chevron" size={18} /></Pressable>
           <Pressable style={[s.line, { borderBottomWidth: 0 }]} onPress={() => { setDelText(''); setDel(true); }}><Text style={s.text}>Eliminar mi cuenta y datos</Text><Icon name="chevron" size={18} /></Pressable>
         </Card>
@@ -89,6 +108,18 @@ export default function Perfil() {
       <ConfirmDialog visible={logout} title="¿Cerrar sesión?" confirmLabel="Cerrar sesión"
         message="Tendrás que ingresar de nuevo con tu correo y contraseña."
         onConfirm={() => { setLogout(false); signOut(); }} onCancel={() => setLogout(false)} />
+
+      <ConfirmDialog visible={rep} title="Reportar un problema" confirmLabel={repBusy ? 'Enviando…' : 'Enviar'}
+        message="Tu reporte se publica en GitHub y lo puede ver cualquiera. No incluyas contraseñas ni datos personales."
+        confirmDisabled={repBusy || repTitle.trim().length < 3 || repText.trim().length < 5} onConfirm={sendReport} onCancel={() => setRep(false)}>
+        <View style={{ gap: 10, marginTop: 10 }}>
+          <Field label="Título" value={repTitle} onChangeText={setRepTitle} maxLength={120} placeholder="Qué falla, en pocas palabras" />
+          <Field label="¿Qué pasó?" value={repText} onChangeText={setRepText} maxLength={2000} multiline numberOfLines={4}
+            placeholder="Cuéntalo con tus palabras" style={{ height: 110, textAlignVertical: 'top', paddingTop: 12 }} />
+          <Field label="Pantalla (opcional)" value={repScreen} onChangeText={setRepScreen} maxLength={40} placeholder="Torneos, Ranking…" />
+          <ErrorText text={error} />
+        </View>
+      </ConfirmDialog>
 
       <ConfirmDialog visible={pwd} title="Cambiar contraseña" confirmLabel="Guardar" message="Mínimo 8 caracteres, con letras y números."
         confirmDisabled={!cur || next.length < 8} onConfirm={changePwd} onCancel={() => setPwd(false)}>

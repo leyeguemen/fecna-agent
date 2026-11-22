@@ -1,0 +1,33 @@
+# Crea un issue a partir de un reporte hecho desde la app. Lo dispara el servidor (workflow_dispatch):
+# así el token del servidor solo necesita permiso de Actions y no de Issues.
+# Los textos llegan por variables de entorno (nunca se interpolan en el shell).
+name: Reporte desde la app
+
+on:
+  workflow_dispatch:
+    inputs:
+      titulo:
+        description: Título del reporte
+        required: true
+      cuerpo:
+        description: Texto del reporte (Markdown)
+        required: true
+      etiquetas:
+        description: Etiquetas separadas por coma
+        required: false
+        default: "bug,desde-la-app"
+
+permissions:
+  issues: write
+
+jobs:
+  crear:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      TITULO: ${{ inputs.titulo }}
+      CUERPO: ${{ inputs.cuerpo }}
+      ETIQUETAS: ${{ inputs.etiquetas }}
+    steps:
+      - run: gh issue create --title "$TITULO" --body "$CUERPO" --label "$ETIQUETAS"

@@ -1,0 +1,23 @@
+# Crea (o actualiza) las etiquetas del tablero de reportes. Se ejecuta a mano: Actions → Etiquetas → Run workflow.
+name: Etiquetas
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  etiquetas:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - run: |
+          gh label create android      --color 3DDC84 --description "Pasa en la app Android" --force
+          gh label create iphone-web   --color 1D76DB --description "Pasa en la web del iPhone" --force
+          gh label create servidor     --color 5319E7 --description "API o base de datos" --force
+          gh label create urgente      --color B60205 --description "Bloquea el uso de la app" --force
+          gh label create desde-la-app --color FBCA04 --description "Reportado desde la propia app" --force
+          gh label create por-probar   --color 0E8A16 --description "Corregido: falta que quien reportó lo pruebe" --force

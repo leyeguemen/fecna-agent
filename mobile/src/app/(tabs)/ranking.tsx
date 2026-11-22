@@ -2,12 +2,15 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Modal, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
+import { useAuth } from '../../auth';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
 import { SOURCE_NOTE } from '../../legal';
 import { Chip, Empty, ErrorText, Header, SourceNote } from '../../ui';
 
 export default function Ranking() {
+  const { can } = useAuth();
+  const canOpenSwimmer = can('ver_nadador');
   const [cat, setCat] = useState<{ pruebas: Item[]; categorias: Item[]; ligas: string[] } | null>(null);
   const [event, setEvent] = useState<Item | null>(null);
   const [pool, setPool] = useState<'LC' | 'SC'>('LC');
@@ -70,7 +73,7 @@ export default function Ranking() {
           ListEmptyComponent={<Empty text="Sin resultados con estos filtros." />}
           ListFooterComponent={<SourceNote text={SOURCE_NOTE} />}
           renderItem={({ item }) => (
-            <Pressable style={s.item} onPress={() => router.push({ pathname: '/nadador', params: { id: item.swimmer_id } })}>
+            <Pressable style={s.item} disabled={!canOpenSwimmer} onPress={() => router.push({ pathname: '/nadador', params: { id: item.swimmer_id } })}>
               <Text style={s.pos}>{item.pos}</Text>
               <View style={{ flex: 1 }}>
                 <Text style={s.name} numberOfLines={1}>{item.swimmer_name}</Text>

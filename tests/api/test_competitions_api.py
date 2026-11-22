@@ -66,6 +66,14 @@ def _register(client, email, monkeypatch=None, admin=False, password="Secreta123
     return resp.json()["token"]
 
 
+def _viewer(client):
+    """Cabeceras de un usuario normal registrado (ver campeonatos exige sesión)."""
+    r = client.post("/auth/register", json={"email": "viewer@x.co", "password": "Secreta123"})
+    if r.status_code != 201:  # ya registrado en esta prueba
+        r = client.post("/auth/login", json={"email": "viewer@x.co", "password": "Secreta123"})
+    return {"Authorization": f"Bearer {r.json()['token']}"}
+
+
 def _mock_parse_pdf(monkeypatch):
     monkeypatch.setattr(
         "api.routers.competitions.programa.parse_pdf",
@@ -159,7 +167,7 @@ def _uploaded_comp(client, monkeypatch):
 
 def test_list_competitions(client, monkeypatch):
     comp_id, _ = _uploaded_comp(client, monkeypatch)
-    resp = client.get("/competitions")
+    resp = client.get("/competitions", headers=_viewer(client))
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert items[0]["id"] == comp_id
@@ -169,7 +177,7 @@ def test_list_competitions(client, monkeypatch):
 def test_schedule_filtra_por_swimmer(client, monkeypatch):
     comp_id, _ = _uploaded_comp(client, monkeypatch)
     resp = client.get(f"/competitions/{comp_id}/schedule",
-                       params={"swimmer": "Aaron Daniel Camacho"})
+                       params={"swimmer": "Aaron Daniel Camacho"}, headers=_viewer(client))
     assert resp.status_code == 200
     items = resp.json()["items"]
     assert len(items) == 1
@@ -181,9 +189,9 @@ def test_schedule_filtra_por_swimmer(client, monkeypatch):
 
 def test_clubs_and_swimmers(client, monkeypatch):
     comp_id, _ = _uploaded_comp(client, monkeypatch)
-    clubs = client.get(f"/competitions/{comp_id}/clubs").json()["items"]
+    clubs = client.get(f"/competitions/{comp_id}/clubs", headers=_viewer(client)).json()["items"]
     assert set(clubs) == {"CFEN", "AQUS", "CDDQ"}
-    swimmers = client.get(f"/competitions/{comp_id}/swimmers").json()["items"]
+    swimmers = client.get(f"/competitions/{comp_id}/swimmers", headers=_viewer(client)).json()["items"]
     names = {s["swimmer_name"] for s in swimmers}
     assert "Aaron Daniel Camacho" in names
 
@@ -259,13 +267,13 @@ def test_delete_requiere_admin_y_hace_cascada(client, monkeypatch):
     assert resp_admin.status_code == 204
 
     # Cascada: ya no aparece en el listado ni tiene cronograma.
-    assert client.get("/competitions").json()["items"] == []
-    assert client.get(f"/competitions/{comp_id}/schedule").json()["items"] == []
+    assert client.get("/competitions", headers=_viewer(client)).json()["items"] == []
+    assert client.get(f"/competitions/{comp_id}/schedule", headers=_viewer(client)).json()["items"] == []
 
 
 def test_schedule_busqueda_parcial_sin_mayusculas_ni_tildes(client, monkeypatch):
     comp_id, _ = _uploaded_comp(client, monkeypatch)
     for term in ("aaron c", "AARON", "camacho aaron", "  aar  dan "):
-        items = client.get(f"/competitions/{comp_id}/schedule", params={"swimmer": term}).json()["items"]
+        items = client.get(f"/competitions/{comp_id}/schedule", params={"swimmer": term}, headers=_viewer(client)).json()["items"]
         assert [i["swimmer_name"] for i in items] == ["Aaron Daniel Camacho"], term
-    assert client.get(f"/competitions/{comp_id}/schedule", params={"swimmer": "aaron z"}).json()["items"] == []
+    assert client.get(f"/competitions/{comp_id}/schedule", params={"swimmer": "aaron z"}, headers=_viewer(client)).json()["items"] == []

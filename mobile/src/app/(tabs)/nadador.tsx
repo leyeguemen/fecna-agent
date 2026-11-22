@@ -6,6 +6,7 @@ import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import Svg, { Circle, Line, Polyline } from 'react-native-svg';
 import { api, apiImage, Item } from '../../api';
+import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { SOURCE_NOTE } from '../../legal';
 import { Avatar, ConfirmDialog, Empty, ErrorText, Icon, SourceNote } from '../../ui';
@@ -57,6 +58,9 @@ function Evolution({ points, width }: { points: Item[]; width: number }) {
 }
 
 export default function Nadador() {
+  const { can } = useAuth();
+  const canCompare = can('comparar');
+  const canShare = can('ficha_redes');
   const { id } = useLocalSearchParams<{ id?: string }>();
   const insets = useSafeAreaInsets();
   const [searching, setSearching] = useState(false);
@@ -306,16 +310,22 @@ export default function Nadador() {
               </>
             ) : null}
 
-            <View style={{ flexDirection: 'row', gap: 12 }}>
-              <Pressable style={[s.btn, s.btnPrimary]} onPress={() => setCmpOpen((v) => !v)}>
-                <Text style={[s.btnText, { color: c.white }]}>Comparar con…</Text>
-              </Pressable>
-              <Pressable style={[s.btn, s.btnOutline, busy && { opacity: 0.6 }]} onPress={() => setShareOpen(true)} disabled={busy}>
-                {busy ? <ActivityIndicator color={c.primary} /> : <Text style={[s.btnText, { color: c.primary }]}>Ficha para redes</Text>}
-              </Pressable>
-            </View>
+            {canCompare || canShare ? (
+              <View style={{ flexDirection: 'row', gap: 12 }}>
+                {canCompare ? (
+                  <Pressable style={[s.btn, s.btnPrimary]} onPress={() => setCmpOpen((v) => !v)}>
+                    <Text style={[s.btnText, { color: c.white }]}>Comparar con…</Text>
+                  </Pressable>
+                ) : null}
+                {canShare ? (
+                  <Pressable style={[s.btn, s.btnOutline, busy && { opacity: 0.6 }]} onPress={() => setShareOpen(true)} disabled={busy}>
+                    {busy ? <ActivityIndicator color={c.primary} /> : <Text style={[s.btnText, { color: c.primary }]}>Ficha para redes</Text>}
+                  </Pressable>
+                ) : null}
+              </View>
+            ) : null}
 
-            {cmpOpen ? (
+            {cmpOpen && canCompare ? (
               <View style={s.card}>
                 {!selected ? <Text style={s.small}>Elige primero una prueba.</Text> : !cmp ? (
                   <>

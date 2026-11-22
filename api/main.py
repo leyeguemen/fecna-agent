@@ -51,8 +51,8 @@ app.add_middleware(
 app.include_router(auth_router.router)
 # Datos de deportistas: solo con sesión iniciada.
 _login = [Depends(security.current_user)]
-app.include_router(rankings_router.router, dependencies=_login)
-app.include_router(swimmers_router.router, dependencies=_login)
+app.include_router(rankings_router.router, dependencies=[Depends(security.require_permission("ver_ranking"))])
+app.include_router(swimmers_router.router, dependencies=[Depends(security.require_permission("ver_nadador"))])
 app.include_router(competitions_router.router)
 app.include_router(ask_router.router)
 app.include_router(admin_router.router)

@@ -18,3 +18,15 @@ def _sin_cache_de_roles():
     security.clear_role_cache()
     yield
     security.clear_role_cache()
+
+
+@pytest.fixture(autouse=True)
+def _usuario_con_todo_salvo_en_pruebas_de_roles(request, monkeypatch):
+    """El rol de partida de «user» es mínimo (ranking, nadador, torneos). Las pruebas que no tratan
+    de permisos usan un usuario con todo lo de consumo; test_roles_api prueba los valores reales."""
+    if "test_roles_api" in request.node.nodeid:
+        return
+    from fecna_agent import permisos
+
+    full = {"ver_ranking", "ver_nadador", "ver_torneos", "chat", "comparar", "ficha_redes"}
+    monkeypatch.setitem(permisos.DEFAULT_ROLES, "user", ("Usuario", full))

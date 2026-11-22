@@ -10,6 +10,9 @@ funciones futuras (planes, etc.); hoy no abren nada por sí solos.
 """
 
 SYSTEM_PERMISSIONS: dict[str, str] = {
+    "ver_ranking": "Ver el ranking",
+    "ver_nadador": "Ver la ficha y las marcas de un nadador",
+    "ver_torneos": "Ver los campeonatos y sus programas",
     "chat": "Preguntar al chat",
     "comparar": "Comparar nadadores",
     "ficha_redes": "Generar fichas para redes",
@@ -21,7 +24,8 @@ SYSTEM_PERMISSIONS: dict[str, str] = {
 
 # id -> (nombre, permisos iniciales). admin siempre tiene todos los permisos.
 DEFAULT_ROLES: dict[str, tuple[str, set[str]]] = {
-    "user": ("Usuario", {"chat", "comparar", "ficha_redes"}),
+    # Quien se registra solo ve ranking, nadador (sin comparar ni ficha para redes) y torneos.
+    "user": ("Usuario", {"ver_ranking", "ver_nadador", "ver_torneos"}),
     "admin": ("Administrador", set(SYSTEM_PERMISSIONS)),
 }
 

@@ -39,7 +39,8 @@ def test_siembra_de_roles_y_permisos(tmp_path):
     roles = {r["id"]: r for r in db.list_roles(conn)}
     assert set(roles) == {"user", "admin"}
     assert set(roles["admin"]["permissions"]) == set(permisos.SYSTEM_PERMISSIONS)
-    assert set(roles["user"]["permissions"]) == {"chat", "comparar", "ficha_redes"}
+    # Quien se registra solo ve ranking, nadador y torneos: sin chat, comparar ni ficha para redes.
+    assert set(roles["user"]["permissions"]) == {"ver_ranking", "ver_nadador", "ver_torneos"}
     # Volver a conectar no pisa lo que el admin haya cambiado.
     db.save_role(conn, "user", "Usuario", ["chat"], create=False)
     conn.close()
@@ -50,10 +51,10 @@ def test_siembra_de_roles_y_permisos(tmp_path):
 def test_login_y_me_devuelven_permisos(env):
     client, register, h = env
     user, admin = register("ana@x.co"), register("boss@x.co")
-    assert "chat" in user["permissions"] and "sincronizar" not in user["permissions"]
+    assert set(user["permissions"]) == {"ver_ranking", "ver_nadador", "ver_torneos"}
     assert "sincronizar" in admin["permissions"]
     me = client.get("/auth/me", headers=h(user["token"])).json()
-    assert me["role"] == "user" and "chat" in me["permissions"]
+    assert me["role"] == "user" and "ver_ranking" in me["permissions"] and "chat" not in me["permissions"]
 
 
 def test_solo_quien_gestiona_usuarios_ve_roles_y_usuarios(env):
@@ -114,20 +115,37 @@ def test_crud_de_permisos_y_admin_recibe_los_nuevos(env):
     assert client.delete("/admin/permissions/ver_marcas_minimas", headers=H).status_code == 404
 
 
+def test_usuario_nuevo_solo_ve_ranking_nadador_y_torneos(env):
+    client, register, h = env
+    A = h(register("ana@x.co")["token"])
+    assert client.get("/catalogs", headers=A).status_code == 200  # ranking
+    assert client.get("/swimmers/search", params={"q": "ana"}, headers=A).status_code == 200  # nadador
+    assert client.get("/competitions", headers=A).status_code == 200  # torneos
+    # Sin chat, sin comparar, sin ficha para redes.
+    assert client.post("/ask", json={"question": "hola"}, headers=A).status_code == 403
+    assert client.get("/swimmers/compare", params={"a": "1", "b": "2", "event_id": "x"}, headers=A).status_code == 403
+    assert client.post("/swimmers/1/ficha-redes", headers=A).status_code == 403
+    # Y sin sesión, ni los campeonatos (antes eran públicos).
+    assert client.get("/competitions").status_code == 401
+
+
 def test_cambiar_permisos_de_un_rol_surte_efecto_de_inmediato(env):
     client, register, h = env
     ana, boss = register("ana@x.co"), register("boss@x.co")
     H, A = h(boss["token"]), h(ana["token"])
-    assert client.get("/swimmers/compare", params={"a": "1", "b": "2", "event_id": "x"}, headers=A).status_code != 403
-    # El admin le quita «comparar» al rol Usuario: Ana lo pierde sin volver a entrar.
-    client.put("/admin/roles/user", json={"name": "Usuario", "permissions": ["chat", "ficha_redes"]}, headers=H)
+    assert client.get("/competitions", headers=A).status_code == 200
     assert client.get("/swimmers/compare", params={"a": "1", "b": "2", "event_id": "x"}, headers=A).status_code == 403
-    assert "comparar" not in client.get("/auth/me", headers=A).json()["permissions"]
-    # Un rol propio con solo el chat: la ficha para redes queda cerrada.
+    # El admin le da «comparar» al rol Usuario y le quita «ver_torneos»: Ana lo nota sin volver a entrar.
+    client.put("/admin/roles/user", json={"name": "Usuario", "permissions": ["ver_ranking", "ver_nadador", "comparar"]}, headers=H)
+    assert client.get("/swimmers/compare", params={"a": "1", "b": "2", "event_id": "x"}, headers=A).status_code != 403
+    assert client.get("/competitions", headers=A).status_code == 403
+    me = client.get("/auth/me", headers=A).json()
+    assert "comparar" in me["permissions"] and "ver_torneos" not in me["permissions"]
+    # Un rol propio con solo el chat: ya no ve ranking.
     client.post("/admin/roles", json={"id": "basico", "name": "Básico", "permissions": ["chat"]}, headers=H)
     uid = _user_id(client, h, boss["token"], "ana@x.co")
     client.put(f"/admin/users/{uid}/role", json={"role": "basico"}, headers=H)
-    assert client.post("/swimmers/1/ficha-redes", headers=A).status_code == 403
+    assert client.get("/catalogs", headers=A).status_code == 403
 
 
 def test_cambiar_rol_surte_efecto_de_inmediato_y_protecciones(env):

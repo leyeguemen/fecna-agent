@@ -1,0 +1,20 @@
+name: Proponer una mejora
+description: Una idea para que NATIA sea mejor
+title: "[Mejora] "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: "Este reporte es público: no incluyas datos personales."
+  - type: textarea
+    id: idea
+    attributes:
+      label: ¿Qué te gustaría que hiciera la app?
+    validations:
+      required: true
+  - type: textarea
+    id: para-que
+    attributes:
+      label: ¿Para qué te serviría?
+    validations:
+      required: false

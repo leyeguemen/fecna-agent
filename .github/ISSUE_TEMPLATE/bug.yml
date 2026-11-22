@@ -1,0 +1,60 @@
+name: Reportar un problema (bug)
+description: Algo no funciona o se ve mal en NATIA
+title: "[Bug] "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. **Este reporte es público**: no pongas contraseñas, correos ni datos personales (tuyos ni de otros nadadores, menos de menores de edad).
+  - type: textarea
+    id: que-paso
+    attributes:
+      label: ¿Qué pasó?
+      description: Describe el problema con tus palabras.
+    validations:
+      required: true
+  - type: textarea
+    id: esperaba
+    attributes:
+      label: ¿Qué esperabas que pasara?
+    validations:
+      required: false
+  - type: textarea
+    id: pasos
+    attributes:
+      label: Pasos para repetirlo
+      placeholder: |
+        1. Abro Torneos
+        2. Escribo un nombre en el filtro
+        3. ...
+    validations:
+      required: false
+  - type: dropdown
+    id: pantalla
+    attributes:
+      label: ¿En qué pantalla?
+      options: [Chat, Ranking, Nadador, Torneos, Admin, Seguridad, Perfil, Inicio de sesión / registro, Ficha para redes, Otra]
+    validations:
+      required: true
+  - type: dropdown
+    id: dispositivo
+    attributes:
+      label: ¿Dónde lo usas?
+      options: [Android (app), iPhone (web instalada), Navegador de escritorio, Otro]
+    validations:
+      required: true
+  - type: dropdown
+    id: rol
+    attributes:
+      label: ¿Con qué tipo de cuenta?
+      options: [Usuario, Administrador, No sé]
+    validations:
+      required: false
+  - type: textarea
+    id: captura
+    attributes:
+      label: Captura de pantalla
+      description: Arrastra la imagen aquí. Revisa que no muestre datos personales.
+    validations:
+      required: false

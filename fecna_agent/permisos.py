@@ -20,6 +20,7 @@ SYSTEM_PERMISSIONS: dict[str, str] = {
     "eliminar_programa": "Eliminar programas de campeonato",
     "sincronizar": "Sincronizar el ranking con FECNA",
     "gestionar_usuarios": "Gestionar roles, permisos y usuarios",
+    "reportar_problema": "Reportar un problema desde la app (se publica en GitHub)",
 }
 
 # id -> (nombre, permisos iniciales). admin siempre tiene todos los permisos.

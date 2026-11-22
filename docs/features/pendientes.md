@@ -12,15 +12,18 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
    - **escudo real del club** (hoy es el nombre dentro de un círculo): subir el logo por club;
    - **puesto dentro del torneo** (hoy «Nac.» solo sale si la marca es su mejor de esa prueba): habría que traerlo de FECNA.
 
+5. **Skill `/bugs`** para atender los reportes del tablero (listar issues, tomar uno, corregir con pruebas, `Closes #N`, mover a «Probar»). Requiere el tablero activo (ver `docs/features/reportes-bugs.md`). Nunca publica updates ni toca producción sin que lo pidas.
+
 ## Pulido y deuda técnica
-5. **Las rutas de lectura** (ranking, nadadores) validan solo el token: una cuenta desactivada conserva ese acceso hasta que venza (7 días). Pasarlas a la consulta vigente (ya existe `require_permission`).
-6. **La sincronización solo agrega**: no refleja correcciones ni borrados de FECNA. Si importa, una sincronización completa periódica con comparación.
-7. **Día irrecuperable** `2025-11-06` (50 y 100 libre F LC): el servidor de FECNA falla con 500 en ese día; nada que hacer salvo que lo corrijan.
-8. **Test en vivo contra Supabase** (`tests/test_pg_live.py`) se cuelga si el pooler está lleno; conviene un timeout.
-9. **iPhone nativo** necesitaría cuenta Apple Developer (99 USD/año); hoy es la web instalada (PWA).
+6. **Las rutas de lectura** (ranking, nadadores) validan solo el token: una cuenta desactivada conserva ese acceso hasta que venza (7 días). Pasarlas a la consulta vigente (ya existe `require_permission`).
+7. **La sincronización solo agrega**: no refleja correcciones ni borrados de FECNA. Si importa, una sincronización completa periódica con comparación.
+8. **Día irrecuperable** `2025-11-06` (50 y 100 libre F LC): el servidor de FECNA falla con 500 en ese día; nada que hacer salvo que lo corrijan.
+9. **Test en vivo contra Supabase** (`tests/test_pg_live.py`) se cuelga si el pooler está lleno; conviene un timeout.
+10. **iPhone nativo** necesitaría cuenta Apple Developer (99 USD/año); hoy es la web instalada (PWA).
 
 ## Operativos (los haces tú)
 - Borrar los servicios viejos de Render `fecna-api` y `fecna-app` cuando ya no uses el APK anterior.
 - **Rotar la contraseña de la base de datos** en Supabase (una vez se coló en un commit local, sin llegar a subirse) y actualizar `DATABASE_URL` en `natia-api`, en los secretos de GitHub Actions y en tu `.env`.
 - Revisión legal de los **términos y condiciones** (cita la Ley 1581 de 2012; ya tiene el correo de contacto).
 - Probar con cuentas de prueba los roles y la restricción del usuario nuevo.
+- Activar el tablero de bugs (3 pasos en `docs/features/reportes-bugs.md`).

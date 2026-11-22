@@ -12,6 +12,7 @@ from slowapi.middleware import SlowAPIMiddleware
 from api import security
 from api.deps import read_conn
 from api.routers import admin as admin_router
+from api.routers import reports as reports_router
 from api.routers import ask as ask_router
 from api.routers import auth as auth_router
 from api.routers import competitions as competitions_router
@@ -56,6 +57,7 @@ app.include_router(swimmers_router.router, dependencies=[Depends(security.requir
 app.include_router(competitions_router.router)
 app.include_router(ask_router.router)
 app.include_router(admin_router.router)
+app.include_router(reports_router.router)
 app.include_router(me_router.router)
 
 

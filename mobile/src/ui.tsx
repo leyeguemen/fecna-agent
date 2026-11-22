@@ -69,11 +69,11 @@ export function Button({ title, onPress, variant = 'primary', disabled, loading 
   );
 }
 
-export function Field({ label, ...props }: { label: string } & TextInputProps) {
+export function Field({ label, style, ...props }: { label: string } & TextInputProps) {
   return (
     <View>
       <Text style={s.label}>{label}</Text>
-      <TextInput placeholderTextColor="#8AA3B5" autoCapitalize="none" style={s.input} {...props} />
+      <TextInput placeholderTextColor="#8AA3B5" autoCapitalize="none" {...props} style={[s.input, style]} />
     </View>
   );
 }

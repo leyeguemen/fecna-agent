@@ -1,4 +1,5 @@
 import { createContext, useCallback, useContext, useEffect, useMemo, useState } from 'react';
+import { AppState } from 'react-native';
 import { api, AuthResp, Role, setToken, setUnauthorizedHandler } from './api';
 import { storage } from './storage';
 
@@ -54,6 +55,23 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       }
     })();
   }, [signOut]);
+
+  // Rol y permisos pueden cambiar mientras la app está abierta (un admin los edita): se vuelven a
+  // pedir al volver a la app y cada 45 s. Si la cuenta ya no existe, la API responde 401 y se cierra la sesión.
+  const loggedIn = !!user;
+  useEffect(() => {
+    if (!loggedIn) return;
+    const refresh = async () => {
+      try {
+        const me = await api<{ email: string; role: Role; permissions?: string[] }>('/auth/me');
+        setUser((u) => (u && (u.role !== me.role || JSON.stringify(u.permissions) !== JSON.stringify(me.permissions))
+          ? { ...u, role: me.role, permissions: me.permissions } : u));
+      } catch {}
+    };
+    const timer = setInterval(refresh, 45_000);
+    const sub = AppState.addEventListener('change', (state) => { if (state === 'active') refresh(); });
+    return () => { clearInterval(timer); sub.remove(); };
+  }, [loggedIn]);
 
   const can = useCallback(
     (permission: string) => (user?.permissions ? user.permissions.includes(permission) : user?.role === 'admin'),

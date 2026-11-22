@@ -18,6 +18,8 @@ from api.deps import app_conn, read_conn
 from fecna_agent import db, programa
 from fecna_agent.times import ms_to_time
 
+_see = Depends(security.require_permission("ver_torneos"))  # ver campeonatos: con sesión y permiso
+
 router = APIRouter(prefix="/competitions", tags=["competitions"])
 
 
@@ -48,7 +50,7 @@ class WatchBody(BaseModel):
 
 
 # --- Público -------------------------------------------------------------------
-@router.get("")
+@router.get("", dependencies=[_see])
 def list_competitions():
     conn = app_conn()
     try:
@@ -69,7 +71,7 @@ def list_competitions():
     }
 
 
-@router.get("/{comp_id}/schedule")
+@router.get("/{comp_id}/schedule", dependencies=[_see])
 def get_schedule(comp_id: int, club: str | None = None, swimmer: str | None = None):
     conn = app_conn()
     try:
@@ -79,7 +81,7 @@ def get_schedule(comp_id: int, club: str | None = None, swimmer: str | None = No
     return {"items": [_entry_item(r) for r in rows]}
 
 
-@router.get("/{comp_id}/clubs")
+@router.get("/{comp_id}/clubs", dependencies=[_see])
 def get_clubs(comp_id: int):
     conn = app_conn()
     try:
@@ -89,7 +91,7 @@ def get_clubs(comp_id: int):
     return {"items": clubs}
 
 
-@router.get("/{comp_id}/swimmers")
+@router.get("/{comp_id}/swimmers", dependencies=[_see])
 def get_swimmers(comp_id: int):
     conn = app_conn()
     try:
@@ -101,7 +103,7 @@ def get_swimmers(comp_id: int):
 
 # --- Usuario (Bearer) ------------------------------------------------------------
 @router.get("/{comp_id}/watch")
-def get_watch(comp_id: int, user: dict = Depends(security.current_user)):
+def get_watch(comp_id: int, user: dict = _see):
     conn = app_conn()
     try:
         names = db.list_watched(conn, comp_id, user_id=int(user["id"]))
@@ -111,7 +113,7 @@ def get_watch(comp_id: int, user: dict = Depends(security.current_user)):
 
 
 @router.put("/{comp_id}/watch")
-def put_watch(comp_id: int, body: WatchBody, user: dict = Depends(security.current_user)):
+def put_watch(comp_id: int, body: WatchBody, user: dict = _see):
     conn = app_conn()
     try:
         db.set_watched(conn, comp_id, body.names, user_id=int(user["id"]))
@@ -122,7 +124,7 @@ def put_watch(comp_id: int, body: WatchBody, user: dict = Depends(security.curre
 
 
 @router.get("/{comp_id}/alerts")
-def get_alerts(comp_id: int, user: dict = Depends(security.current_user)):
+def get_alerts(comp_id: int, user: dict = _see):
     conn = app_conn()
     try:
         rows = db.watched_schedule(conn, comp_id, user_id=int(user["id"]))

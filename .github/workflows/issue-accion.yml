@@ -1,0 +1,45 @@
+# Comenta, etiqueta o cierra un issue. Lo dispara la skill /bugs (workflow_dispatch) para que el token
+# del proyecto no necesite permiso de Issues. Los textos llegan por variables de entorno.
+name: Acción sobre un issue
+
+on:
+  workflow_dispatch:
+    inputs:
+      numero:
+        description: Número del issue
+        required: true
+      comentario:
+        description: Comentario a publicar (opcional)
+        required: false
+      agregar_etiquetas:
+        description: Etiquetas a agregar, separadas por coma (opcional)
+        required: false
+      quitar_etiquetas:
+        description: Etiquetas a quitar, separadas por coma (opcional)
+        required: false
+      cerrar:
+        description: "true para cerrar el issue"
+        required: false
+        default: "false"
+
+permissions:
+  issues: write
+
+jobs:
+  accion:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+      NUMERO: ${{ inputs.numero }}
+      COMENTARIO: ${{ inputs.comentario }}
+      AGREGAR: ${{ inputs.agregar_etiquetas }}
+      QUITAR: ${{ inputs.quitar_etiquetas }}
+      CERRAR: ${{ inputs.cerrar }}
+    steps:
+      - run: |
+          [[ "$NUMERO" =~ ^[0-9]+$ ]] || { echo "Número de issue no válido"; exit 1; }
+          if [ -n "$COMENTARIO" ]; then gh issue comment "$NUMERO" --body "$COMENTARIO"; fi
+          if [ -n "$AGREGAR" ]; then gh issue edit "$NUMERO" --add-label "$AGREGAR"; fi
+          if [ -n "$QUITAR" ]; then gh issue edit "$NUMERO" --remove-label "$QUITAR" || true; fi
+          if [ "$CERRAR" = "true" ]; then gh issue close "$NUMERO"; fi

@@ -12,7 +12,7 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
    - **escudo real del club** (hoy es el nombre dentro de un círculo): subir el logo por club;
    - **puesto dentro del torneo** (hoy «Nac.» solo sale si la marca es su mejor de esa prueba): habría que traerlo de FECNA.
 
-5. **Skill `/bugs`** para atender los reportes del tablero (listar issues, tomar uno, corregir con pruebas, `Closes #N`, mover a «Probar»). Requiere el tablero activo (ver `docs/features/reportes-bugs.md`). Nunca publica updates ni toca producción sin que lo pidas.
+5. ~~Skill `/bugs`~~ — **hecha** (`.claude/skills/bugs/`): lista los issues, toma uno, lo reproduce, lo corrige con pruebas y lo deja «por probar». Detalle en `docs/features/reportes-bugs.md`.
 
 ## Pulido y deuda técnica
 6. **Las rutas de lectura** (ranking, nadadores) validan solo el token: una cuenta desactivada conserva ese acceso hasta que venza (7 días). Pasarlas a la consulta vigente (ya existe `require_permission`).

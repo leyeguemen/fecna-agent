@@ -1079,10 +1079,20 @@ def swimmer_summary(conn, swimmer_id: str) -> dict | None:
 
 
 def verify_swimmer_birth(conn, swimmer_id: str, birth_date: str) -> bool:
-    """True si la fecha de nacimiento (AAAA-MM-DD) coincide con la del nadador."""
+    """True si la fecha de nacimiento (AAAA-MM-DD) coincide con la del nadador.
+
+    FECNA a veces guarda la fecha con día y mes invertidos (5 de diciembre como 12 de mayo); un padre
+    que escribe la fecha real no coincidiría nunca. Por eso también se acepta la fecha con día y mes
+    intercambiados cuando eso es una fecha válida (día ≤ 12). Son como mucho dos candidatas por nadador,
+    y el vínculo ya está limitado a 5 intentos por minuto."""
+    candidates = [birth_date]
+    parts = birth_date.split("-")
+    if len(parts) == 3 and parts[1].isdigit() and parts[2].isdigit() and int(parts[2]) <= 12 and int(parts[1]) != int(parts[2]):
+        candidates.append(f"{parts[0]}-{int(parts[2]):02d}-{int(parts[1]):02d}")
+    marks = ", ".join("?" for _ in candidates)
     row = conn.execute(
-        "SELECT 1 FROM ranking_results WHERE swimmer_id = ? AND birth_date = ? LIMIT 1",
-        (swimmer_id, birth_date),
+        f"SELECT 1 FROM ranking_results WHERE swimmer_id = ? AND birth_date IN ({marks}) LIMIT 1",
+        (swimmer_id, *candidates),
     ).fetchone()
     return row is not None
 

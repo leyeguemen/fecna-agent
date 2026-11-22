@@ -105,7 +105,7 @@ def test_colombia_parsea_jornada_hora_y_club():
 def test_colombia_parsea_variante_con_codigos_de_categoria():
     comp, entries = programa.parse_text(COLOMBIA_CODIGOS)
     assert comp["source_format"] == "colombia"
-    assert comp["name"] == "TUSNAMI ENDURANCE TEAM"
+    assert comp["name"] == "TUSNAMI ENDURANCE TEAM · Chequeo Departamental de Natación"
     assert len(entries) == 4
     villota = next(e for e in entries if e["swimmer_name"] == "Juan Jose Villota Melo")
     assert villota["event_number"] == 2

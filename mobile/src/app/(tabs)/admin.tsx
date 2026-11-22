@@ -11,7 +11,9 @@ export default function Admin() {
   const [confirmSync, setConfirmSync] = useState<null | 'incremental' | 'completa'>(null);
   const [pdf, setPdf] = useState<DocumentPicker.DocumentPickerAsset | null>(null);
   const [confirmPub, setConfirmPub] = useState(false);
-  const [busy, setBusy] = useState(false);
+  const [syncing, setSyncing] = useState(false);
+  const [publishing, setPublishing] = useState(false);
+  const busy = syncing || publishing;
   const [msg, setMsg] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -28,7 +30,7 @@ export default function Admin() {
   const sync = async () => {
     const modo = confirmSync;
     if (!modo) return;
-    setConfirmSync(null); setBusy(true); setError(null); setMsg(null);
+    setConfirmSync(null); setSyncing(true); setError(null); setMsg(null);
     try {
       await api('/admin/sync', { body: { modo } });
       setMsg(modo === 'completa'
@@ -36,7 +38,7 @@ export default function Admin() {
         : 'Sincronización en cola. Corre en segundo plano; puedes cerrar la app.');
       setTimeout(refresh, 4000);
     } catch (e: any) { setError(e.message); }
-    finally { setBusy(false); }
+    finally { setSyncing(false); }
   };
 
   const choose = async () => {
@@ -46,7 +48,7 @@ export default function Admin() {
 
   const publish = async () => {
     if (!pdf) return;
-    setConfirmPub(false); setBusy(true); setError(null); setMsg(null);
+    setConfirmPub(false); setPublishing(true); setError(null); setMsg(null);
     try {
       const form = new FormData();
       // En web el asset trae el File del navegador; en el teléfono se envía por URI.
@@ -56,7 +58,7 @@ export default function Admin() {
       setMsg(`Programa publicado${r?.status ? ` (${r.status})` : ''}.`);
       setPdf(null);
     } catch (e: any) { setError(e.message); }
-    finally { setBusy(false); }
+    finally { setPublishing(false); }
   };
 
   const run = status?.run;
@@ -80,7 +82,7 @@ export default function Admin() {
             Trae solo las novedades desde la última marca guardada, con un margen de 30 días por si FECNA publica resultados con retraso.
           </Text>
           <View style={{ gap: 12 }}>
-            <Button title="Sincronizar ahora" onPress={() => setConfirmSync('incremental')} loading={busy} />
+            <Button title="Sincronizar ahora" onPress={() => setConfirmSync('incremental')} loading={syncing} disabled={busy} />
             <Button title="Sincronización completa" variant="outline" onPress={() => setConfirmSync('completa')} disabled={busy} />
           </View>
         </Card>
@@ -88,8 +90,9 @@ export default function Admin() {
         <Card>
           <Text style={s.h}>PROGRAMA DE CAMPEONATO (PDF)</Text>
           <View style={{ gap: 12, marginTop: 8 }}>
-            <Button title={pdf ? pdf.name : 'Elegir PDF'} variant="outline" onPress={choose} />
-            <Button title="Publicar programa" onPress={() => setConfirmPub(true)} disabled={!pdf} loading={busy} />
+            <Button title={pdf ? pdf.name : 'Elegir PDF'} variant="outline" onPress={choose} disabled={busy} />
+            <Button title="Publicar programa" onPress={() => setConfirmPub(true)} disabled={!pdf || busy} loading={publishing} />
+            {publishing ? <Text style={s.sub}>Subiendo y leyendo el programa… puede tardar hasta un minuto. No cierres la app.</Text> : null}
           </View>
         </Card>
 

@@ -176,22 +176,29 @@ _CO_ENTRY_CODE = re.compile(
 )
 
 
+# Línea de fechas del encabezado: «31 de octubre a 01 de noviembre de 2026»
+_CO_DATES = re.compile(r"^\d{1,2} de \w+", re.IGNORECASE)
+
+
 def _parse_colombia(lines: list[str]) -> tuple[dict, list[dict]]:
     competition = {"name": None, "pool_type": "LC", "source_format": "colombia"}
     entries: list[dict] = []
     ev: dict | None = None
     heat = start_time = session_no = session_date = None
     expect_distance = False
+    title: list[str] = []  # encabezado antes de la primera sesión: organizador + nombre del campeonato
 
     for raw_line in lines:
         line = raw_line.strip()
         if not line:
             continue
-        if (competition["name"] is None and line and not line.startswith("Session:")
+        if (len(title) < 2 and session_no is None and not line.startswith("Session:")
                 and not _CO_EVENT.match(line) and not _CO_DIST.match(line)
                 and not _CO_HEAT.search(line) and not line.startswith("R1:")
-                and not _CO_ENTRY.match(line) and not _CO_ENTRY_CODE.match(line)):
-            competition["name"] = line
+                and not _CO_ENTRY.match(line) and not _CO_ENTRY_CODE.match(line)
+                and not _CO_DATES.match(line)):
+            title.append(line)
+            competition["name"] = " · ".join(title)  # p. ej. «LIGA X · I Chequeo Departamental…»
         m = _CO_SESSION.search(line)
         if m:
             session_no = int(m.group(1))
@@ -437,16 +444,17 @@ def _positional_lines(page, bands: int = 3) -> list[str]:
 def _colombia_lines(pdf) -> list[str]:
     """Aplana PDFs Colombia Acuática, separando columnas/bloques por posición."""
     out: list[str] = []
-    title_done = False
+    title_lines = 0  # encabezado: organizador + nombre del campeonato (las 2 primeras líneas)
     for page in pdf.pages:
         for line in (page.extract_text() or "").splitlines():
             line = line.strip()
             if not line:
                 continue
             low = line.lower()
-            if not title_done and not low.startswith("page ") and not line.startswith("Session:"):
+            if (title_lines < 2 and not low.startswith("page ") and not line.startswith("Session:")
+                    and not _CO_DATES.match(line)):
                 out.append(line)
-                title_done = True
+                title_lines += 1
             if _CO_SESSION.search(line):
                 out.append(line.strip())
         out.extend(_positional_lines(page, bands=3))

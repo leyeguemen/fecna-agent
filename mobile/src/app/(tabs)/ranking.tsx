@@ -129,7 +129,7 @@ const s = StyleSheet.create({
   name: { fontFamily: font.semi, color: c.text, fontSize: 14 },
   sub: { fontFamily: font.body, color: c.muted, fontSize: 12, marginTop: 2 },
   time: { fontFamily: font.bold, color: c.deep, fontSize: 15 },
-  search: { margin: 16, height: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body },
+  search: { margin: 16, height: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body, fontSize: 14, color: c.text, flexShrink: 0 },
   opt: { paddingHorizontal: 20, paddingVertical: 14, borderBottomWidth: 1, borderBottomColor: c.border },
   close: { height: 56, alignItems: 'center', justifyContent: 'center' },
   closeText: { color: c.primary, fontFamily: font.bold },

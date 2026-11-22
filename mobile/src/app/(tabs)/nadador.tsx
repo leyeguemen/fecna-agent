@@ -440,7 +440,7 @@ const s = StyleSheet.create({
   subtitle: { color: c.headerSub, fontFamily: font.body, fontSize: 12, marginTop: 2 },
   action: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: c.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: c.white },
   actionText: { color: c.primary, fontFamily: font.semi, fontSize: 12 },
-  search: { height: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body },
+  search: { height: 48, minHeight: 48, borderWidth: 1, borderColor: c.input, borderRadius: 14, paddingHorizontal: 14, backgroundColor: c.white, fontFamily: font.body, fontSize: 14, color: c.text, flexShrink: 0 },
   card: { backgroundColor: c.white, borderWidth: 1, borderColor: c.border, borderRadius: 16, padding: 14, gap: 2 },
   cardHead: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', marginBottom: 10, gap: 8 },
   cardTitle: { fontFamily: font.bold, fontSize: 14, color: c.text, flexShrink: 1 },

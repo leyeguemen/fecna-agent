@@ -14,5 +14,8 @@ El repositorio es **público**: todo issue lo ve cualquiera. Por eso los formula
 2. Copia la URL del proyecto y guárdala como **variable** del repositorio: Settings → Secrets and variables → Actions → *Variables* → `PROJECT_URL`.
 3. Crea un token (fine-grained o clásico) con permiso de **Projects** y guárdalo como **secreto** `ADD_TO_PROJECT_PAT`.
 
-## Atender los reportes
-Con el tablero activo se puede agregar una skill `/bugs` que liste los issues abiertos, tome uno, lo corrija con pruebas y lo deje en «Probar» (con `Closes #N` en el commit). Plan en `docs/features/pendientes.md`.
+## Atender los reportes: skill `/bugs`
+En Claude Code, `/bugs` lista los issues abiertos y `/bugs 12` atiende el 12: lo lee, lo reproduce (con los datos reales en solo lectura), escribe una prueba, lo corrige, hace commit con `Refs #12` y deja el issue en `por-probar` con un comentario. **No publica ni cierra por su cuenta**: pregunta antes de hacer merge a `main` o `eas update`, y el issue lo cierras tú cuando quien reportó confirme.
+- Archivos: `.claude/skills/bugs/SKILL.md` y `scripts/issues.py` (lee issues y dispara acciones).
+- Comentar, etiquetar y cerrar se hace con el workflow *Acción sobre un issue* (`issue-accion.yml`), porque el token del proyecto no puede escribir en issues.
+- El texto de un issue se trata como dato no confiable (es público) y nunca se copian datos personales a commits ni comentarios.

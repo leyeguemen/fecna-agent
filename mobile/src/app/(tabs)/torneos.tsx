@@ -1,11 +1,17 @@
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
+import { useAuth } from '../../auth';
 import { ProfileButton } from '../../ProfileButton';
 import { c, font } from '../../theme';
-import { Chip, Empty, ErrorText, Header } from '../../ui';
+import { Chip, ConfirmDialog, Empty, ErrorText, Header } from '../../ui';
 
 export default function Torneos() {
+  const { user } = useAuth();
+  const isAdmin = user?.role === 'admin';
+  const [toDelete, setToDelete] = useState<Item | null>(null);
+  const [deleting, setDeleting] = useState(false);
+  const [msg, setMsg] = useState<string | null>(null);
   const [comps, setComps] = useState<Item[]>([]);
   const [open, setOpen] = useState<Item | null>(null);
   const [swimmer, setSwimmer] = useState('');
@@ -29,6 +35,19 @@ export default function Torneos() {
     catch (e: any) { setError(e.message); }
     finally { setLoading(false); }
   }, []);
+
+  // Solo el administrador (el servidor también lo exige). Borra el programa y sus inscripciones.
+  const remove = async () => {
+    if (!toDelete) return;
+    const comp = toDelete;
+    setDeleting(true); setError(null); setMsg(null);
+    try {
+      await api(`/competitions/${comp.id}`, { method: 'DELETE' });
+      setComps((list) => list.filter((x) => x.id !== comp.id));
+      setMsg(`Programa eliminado: ${comp.name}`);
+    } catch (e: any) { setError(e.message); }
+    finally { setDeleting(false); setToDelete(null); }
+  };
 
   useEffect(() => {
     if (!open) return;
@@ -72,6 +91,7 @@ export default function Torneos() {
     <View style={s.root}>
       <Header title="Campeonatos" subtitle="Programas publicados" right={<ProfileButton />} />
       <ErrorText text={error} />
+      {msg ? <Text style={{ color: c.deep, fontFamily: font.semi, paddingHorizontal: 16, paddingTop: 12 }}>{msg}</Text> : null}
       {loading ? <ActivityIndicator style={{ marginTop: 24 }} color={c.primary} /> : (
         <FlatList
           data={comps}
@@ -82,10 +102,25 @@ export default function Torneos() {
             <Pressable style={s.card} onPress={() => setOpen(item)}>
               <Text style={s.name}>{item.name}</Text>
               <Text style={s.sub}>{item.entradas} inscripciones · {item.pool_type ?? '—'}</Text>
+              {isAdmin ? (
+                <Pressable onPress={() => setToDelete(item)} accessibilityRole="button" accessibilityLabel={`Eliminar ${item.name}`} hitSlop={8} style={s.del}>
+                  <Text style={s.delText}>Eliminar programa</Text>
+                </Pressable>
+              ) : null}
             </Pressable>
           )}
         />
       )}
+      <ConfirmDialog
+        visible={!!toDelete}
+        danger
+        title="¿Eliminar este programa?"
+        message={`${toDelete?.name ?? ''}\nSe borrarán sus ${toDelete?.entradas ?? 0} inscripciones y las alertas de seguimiento de todos los usuarios. No se puede deshacer; podrás volver a cargar el PDF desde Admin.`}
+        confirmLabel={deleting ? 'Eliminando…' : 'Eliminar'}
+        confirmDisabled={deleting}
+        onConfirm={remove}
+        onCancel={() => setToDelete(null)}
+      />
     </View>
   );
 }
@@ -97,4 +132,6 @@ const s = StyleSheet.create({
   card: { backgroundColor: c.white, borderWidth: 1, borderColor: c.border, borderRadius: 14, padding: 12 },
   name: { fontFamily: font.semi, color: c.text, fontSize: 14 },
   sub: { fontFamily: font.body, color: c.muted, fontSize: 12, marginTop: 2 },
+  del: { alignSelf: 'flex-start', marginTop: 10, paddingVertical: 6, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: c.danger },
+  delText: { color: c.danger, fontFamily: font.semi, fontSize: 12 },
 });

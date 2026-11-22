@@ -1,6 +1,6 @@
 # Agrega cada issue nuevo al tablero (GitHub Projects) cuando está configurado.
-# Configuración (una vez): variable PROJECT_URL (Settings → Secrets and variables → Actions → Variables)
-# con la URL del tablero, y el secreto ADD_TO_PROJECT_PAT con un token que tenga permiso «Projects».
+# Configuración (una vez): PROJECT_URL con la URL del tablero (sirve como variable o como secreto) y el
+# secreto ADD_TO_PROJECT_PAT con un token clásico que tenga el permiso «project».
 # Mientras no estén, este workflow no hace nada.
 name: Issues al tablero
 
@@ -11,9 +11,15 @@ on:
 jobs:
   agregar:
     runs-on: ubuntu-latest
-    if: ${{ vars.PROJECT_URL != '' }}
+    env:
+      PROJECT: ${{ vars.PROJECT_URL || secrets.PROJECT_URL }}
     steps:
-      - uses: actions/add-to-project@v1.0.2
+      - name: Agregar al tablero
+        if: ${{ env.PROJECT != '' }}
+        uses: actions/add-to-project@v1.0.2
         with:
-          project-url: ${{ vars.PROJECT_URL }}
+          project-url: ${{ env.PROJECT }}
           github-token: ${{ secrets.ADD_TO_PROJECT_PAT }}
+      - name: Sin configurar
+        if: ${{ env.PROJECT == '' }}
+        run: echo "PROJECT_URL no está configurada (variable o secreto); no se agrega al tablero."

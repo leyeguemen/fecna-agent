@@ -183,3 +183,16 @@ def test_cuenta_borrada_pierde_acceso(env):
     security.clear_role_cache()
     assert client.get("/admin/sync/status", headers=h(admin["token"])).status_code == 401
     assert client.get("/auth/me", headers=h(admin["token"])).status_code == 401
+
+
+def test_permiso_de_sistema_nuevo_se_siembra_en_una_base_existente(tmp_path):
+    """Si una versión del código agrega un permiso de sistema, una base ya creada lo recibe (y el admin)."""
+    conn = db.connect(tmp_path / "x.db")
+    conn.execute("DELETE FROM app_permission WHERE key = 'ver_ranking'")
+    conn.execute("DELETE FROM role_permission WHERE permission_key = 'ver_ranking'")
+    conn.commit()
+    db.seed_roles(conn)
+    roles = {r["id"]: r for r in db.list_roles(conn)}
+    assert "ver_ranking" in roles["admin"]["permissions"]
+    assert "ver_ranking" in db.permission_keys(conn)
+    assert "ver_ranking" not in roles["user"]["permissions"]  # no se le devuelve a un rol que se lo quitaron

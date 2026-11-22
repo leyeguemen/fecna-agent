@@ -207,6 +207,8 @@ def _ensure_pg_schema(conn, url: str) -> None:
         finally:
             conn.execute(f"SELECT pg_advisory_unlock({_PG_MIGRATION_LOCK})")
             conn.commit()
+    # Una vez por proceso: si el código trae permisos de sistema nuevos, se registran (y el admin los recibe).
+    seed_roles(conn)
     _PG_SCHEMA_READY.add(url)
 
 

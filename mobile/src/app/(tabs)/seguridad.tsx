@@ -1,3 +1,4 @@
+import { router } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
@@ -17,7 +18,7 @@ type Dialog =
 const slug = (t: string) =>
   t.toLowerCase().normalize('NFD').replace(/[̀-ͯ]/g, '').replace(/[^a-z0-9]+/g, '_').replace(/^_+|_+$/g, '').slice(0, 30);
 
-export default function Roles() {
+export default function Seguridad() {
   const { user } = useAuth();
   const [section, setSection] = useState<Section>('usuarios');
   const [roles, setRoles] = useState<Item[]>([]);
@@ -170,7 +171,7 @@ export default function Roles() {
 
   return (
     <View style={s.root}>
-      <Header title="Seguridad" subtitle="Roles, permisos y usuarios" right={<ProfileButton />} />
+      <Header title="Seguridad" subtitle="Usuarios, roles y permisos" onBack={() => router.replace('/config')} right={<ProfileButton />} />
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
         <View style={{ flexDirection: 'row', gap: 8, flexShrink: 0 }}>
           <Chip label="Usuarios" selected={section === 'usuarios'} onPress={() => setSection('usuarios')} />

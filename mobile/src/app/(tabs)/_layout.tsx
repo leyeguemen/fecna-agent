@@ -16,8 +16,11 @@ const SCREENS = [
   { path: '/ranking', perms: ['ver_ranking'] },
   { path: '/nadador', perms: ['ver_nadador'] },
   { path: '/torneos', perms: ['ver_torneos'] },
-  { path: '/admin', perms: ['sincronizar', 'cargar_programa'] },
-  { path: '/roles', perms: ['gestionar_usuarios'] },
+  { path: '/config', perms: ['sincronizar', 'cargar_programa', 'gestionar_usuarios'] },
+  { path: '/seguridad', perms: ['gestionar_usuarios'] },
+  { path: '/sincronizar', perms: ['sincronizar'] },
+  { path: '/programa', perms: ['cargar_programa'] },
+  { path: '/historial', perms: ['sincronizar'] },
 ];
 // Una pestaña oculta con display:none sigue siendo una ruta válida (href:null la elimina).
 const hidden = { tabBarItemStyle: { display: 'none' as const } };
@@ -26,8 +29,7 @@ export default function TabsLayout() {
   const { can, pendingLink } = useAuth();
   const pathname = usePathname();
   const allowed = (perms: string[]) => perms.some(can);
-  const isAdmin = allowed(['sincronizar', 'cargar_programa']);
-  const canManage = can('gestionar_usuarios');
+  const isAdmin = allowed(['sincronizar', 'cargar_programa', 'gestionar_usuarios']);
   if (pendingLink) return <Redirect href="/vincular?first=1" />;
   // Si la pantalla actual ya no está permitida (o el rol cambió), ir a la primera que sí lo esté.
   const here = SCREENS.find((sc) => sc.path === pathname);
@@ -50,10 +52,13 @@ export default function TabsLayout() {
       <Tabs.Screen name="ranking" options={{ ...tab('Ranking', 'ranking'), ...(can('ver_ranking') ? {} : hidden) }} />
       <Tabs.Screen name="nadador" options={{ ...tab('Nadador', 'swimmer'), ...(can('ver_nadador') ? {} : hidden) }} />
       <Tabs.Screen name="torneos" options={{ ...tab('Torneos', 'calendar'), ...(can('ver_torneos') ? {} : hidden) }} />
-      {/* Admin solo visible con rol admin (el backend igual responde 403 a los demás). */}
-      <Tabs.Screen name="admin" options={{ ...tab('Admin', 'sync'), href: isAdmin ? undefined : null }} />
-      {/* Seguridad (roles, permisos y usuarios): solo con el permiso «gestionar_usuarios». */}
-      <Tabs.Screen name="roles" options={{ ...tab('Seguridad', 'shield'), href: canManage ? undefined : null }} />
+      {/* Configuración: una sola pestaña para lo administrativo; solo con algún permiso de administración. */}
+      <Tabs.Screen name="config" options={{ ...tab('Config', 'gear'), href: isAdmin ? undefined : null }} />
+      {/* Sub-pantallas de Configuración: rutas válidas, fuera de la barra (el backend igual valida cada permiso). */}
+      <Tabs.Screen name="seguridad" options={hidden} />
+      <Tabs.Screen name="sincronizar" options={hidden} />
+      <Tabs.Screen name="programa" options={hidden} />
+      <Tabs.Screen name="historial" options={hidden} />
       {/* Perfil se abre desde el avatar: se oculta de la barra, pero sigue siendo navegable (href: null la sacaba de las rutas). */}
       <Tabs.Screen name="perfil" options={{ tabBarItemStyle: { display: 'none' } }} />
     </Tabs>

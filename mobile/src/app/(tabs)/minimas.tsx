@@ -56,9 +56,14 @@ export default function Minimas() {
   useEffect(() => { if (data?.gender === 'M' || data?.gender === 'F') setGender(data.gender); }, [data?.swimmer_id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
-    if (mode !== 'c' || !category) return;
-    api(`/minimas/tabla?tournament=${tournament}&category=${category}&gender=${gender}`).then(setTable).catch((e) => setError(e.message));
-  }, [mode, tournament, category, gender]);
+    // La categoría puede ser todavía la del campeonato anterior: se espera a que se corrija antes de pedir la tabla.
+    if (mode !== 'c' || !category || !cats.some((x) => x.id === category)) return;
+    let current = true;
+    api(`/minimas/tabla?tournament=${tournament}&category=${category}&gender=${gender}`)
+      .then((r) => { if (current) { setTable(r); setError(null); } })
+      .catch((e) => { if (current) setError(e.message); });
+    return () => { current = false; };
+  }, [mode, tournament, category, gender, tournaments]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     if (!picking || q.trim().length < 3) { setResults([]); return; }

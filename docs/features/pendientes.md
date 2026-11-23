@@ -21,6 +21,11 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 9. **Test en vivo contra Supabase** (`tests/test_pg_live.py`) se cuelga si el pooler está lleno; conviene un timeout.
 10. **iPhone nativo** necesitaría cuenta Apple Developer (99 USD/año); hoy es la web instalada (PWA).
 
+## Legal, seguridad y presentación
+11. **Derechos de autor** — definir y declarar la autoría y la licencia de la app y del código, y el uso de los datos de FECNA.
+12. **Proteger la app (seguridad informática)** — revisar y endurecer la seguridad de la app, el servidor y la base de datos.
+13. **Crear el «Acerca de»** — pantalla con la información de la app.
+
 ## Operativos (los haces tú)
 - Borrar los servicios viejos de Render `fecna-api` y `fecna-app` cuando ya no uses el APK anterior.
 - **Rotar la contraseña de la base de datos** en Supabase (una vez se coló en un commit local, sin llegar a subirse) y actualizar `DATABASE_URL` en `natia-api`, en los secretos de GitHub Actions y en tu `.env`.

@@ -48,6 +48,7 @@ Pendiente (detalle en `docs/features/pendientes.md`):
 - Que la sincronización también corrija marcas y no solo agregue.
 - La prueba `tests/test_pg_live.py` se cuelga: hay que endurecerla.
 - Aviso al nadador cuando cumple una marca mínima.
+- Derechos de autor, proteger la app (seguridad informática) y crear el «Acerca de».
 
 ## Primera tarea
 Lee `docs/features/pendientes.md`, resúmeme en 5 líneas qué entendiste del proyecto y pregúntame cuál pendiente atacamos. No cambies código hasta que te lo confirme.

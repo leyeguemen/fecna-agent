@@ -28,7 +28,7 @@ export const TERMS: { title: string; body: string }[] = [
   },
   {
     title: '6. Datos personales',
-    body: 'La app muestra nombre, club, liga, categoría, año de nacimiento y marcas de deportistas, incluidos menores de edad, tomados de una fuente pública; no muestra la fecha de nacimiento exacta. El acceso exige una cuenta. Vincular tu nadador se verifica con su fecha de nacimiento: hazlo solo con tu propia ficha o la de un menor a tu cargo. De tu cuenta guardamos tu correo y el vínculo con tu nadador, solo para prestar el servicio, y puedes eliminarlos en Perfil → Eliminar mi cuenta. Tratamos los datos conforme a la normativa colombiana de protección de datos personales (Ley 1581 de 2012). Para pedir la corrección o el retiro de los datos de un deportista, escribe a leoye.work@gmail.com.',
+    body: 'La app muestra nombre, club, liga, categoría, año de nacimiento y marcas de deportistas, incluidos menores de edad, tomados de una fuente pública; no muestra la fecha de nacimiento exacta. El acceso exige una cuenta. Vincular tu nadador se verifica con su fecha de nacimiento: hazlo solo con tu propia ficha o la de un menor a tu cargo. De tu cuenta guardamos tu correo y el vínculo con tu nadador, solo para prestar el servicio, y puedes eliminarlos en Perfil → Eliminar mi cuenta. Tratamos los datos conforme a la normativa colombiana de protección de datos personales (Ley 1581 de 2012). Para pedir la corrección o el retiro de los datos de un deportista, o la eliminación de una cuenta desactivada, escribe a leoye.work@gmail.com.',
   },
   {
     title: '7. Uso aceptable',

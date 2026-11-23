@@ -9,10 +9,33 @@ import json
 import os
 
 from . import db as database
+from .pg import PgConnection
 from .sql_guard import MAX_ROWS, check_select
 
 DEFAULT_MODEL = "claude-haiku-5-5"
 MAX_TURNS = 6
+SQL_TIMEOUT_MS = 5000  # tiempo máximo de una consulta libre del chat en Postgres
+
+
+def _run_readonly(conn, sql: str):
+    """Ejecuta el SQL libre del chat sin poder escribir (segunda capa tras sql_guard).
+
+    Postgres: transacción READ ONLY con statement_timeout; al terminar se descarta (rollback).
+    SQLite: PRAGMA query_only mientras dura la consulta.
+    """
+    if isinstance(conn, PgConnection):
+        conn.commit()  # SET TRANSACTION debe ser lo primero de una transacción nueva
+        conn.execute("SET TRANSACTION READ ONLY")
+        conn.execute(f"SET LOCAL statement_timeout = {int(SQL_TIMEOUT_MS)}")
+        try:
+            return conn.execute(sql).fetchmany(MAX_ROWS)
+        finally:
+            conn.rollback()
+    conn.execute("PRAGMA query_only = ON")
+    try:
+        return conn.execute(sql).fetchmany(MAX_ROWS)
+    finally:
+        conn.execute("PRAGMA query_only = OFF")
 
 SYSTEM = (
     "Eres NATIA, el asistente de natación. Tus datos vienen del ranking de FECNA (Colombia). Responde en español, "
@@ -82,8 +105,8 @@ def run_tool(conn, name: str, args: dict) -> str:
                     "swimmer_name, club_code, age, seed_raw)\n"
                     "Notas: time_ms en milisegundos (menor es mejor); pool_type LC/SC; gender M/F.")
         if name == "consultar":
-            sql = check_select(args["sql"])
-            return _fmt(conn.execute(sql).fetchmany(MAX_ROWS))
+            sql = check_select(args["sql"], "postgres" if isinstance(conn, PgConnection) else "sqlite")
+            return _fmt(_run_readonly(conn, sql))
         if name == "buscar_nadador":
             rows = conn.execute(
                 """SELECT DISTINCT swimmer_id, swimmer_name, gender, club, league

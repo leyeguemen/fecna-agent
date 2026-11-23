@@ -40,7 +40,7 @@ def test_siembra_de_roles_y_permisos(tmp_path):
     assert set(roles) == {"user", "admin"}
     assert set(roles["admin"]["permissions"]) == set(permisos.SYSTEM_PERMISSIONS)
     # Quien se registra solo ve ranking, nadador y torneos: sin chat, comparar ni ficha para redes.
-    assert set(roles["user"]["permissions"]) == {"ver_ranking", "ver_nadador", "ver_torneos"}
+    assert set(roles["user"]["permissions"]) == {"ver_ranking", "ver_nadador", "ver_torneos", "ver_minimas"}
     # Volver a conectar no pisa lo que el admin haya cambiado.
     db.save_role(conn, "user", "Usuario", ["chat"], create=False)
     conn.close()
@@ -51,7 +51,7 @@ def test_siembra_de_roles_y_permisos(tmp_path):
 def test_login_y_me_devuelven_permisos(env):
     client, register, h = env
     user, admin = register("ana@x.co"), register("boss@x.co")
-    assert set(user["permissions"]) == {"ver_ranking", "ver_nadador", "ver_torneos"}
+    assert set(user["permissions"]) == {"ver_ranking", "ver_nadador", "ver_torneos", "ver_minimas"}
     assert "sincronizar" in admin["permissions"]
     me = client.get("/auth/me", headers=h(user["token"])).json()
     assert me["role"] == "user" and "ver_ranking" in me["permissions"] and "chat" not in me["permissions"]

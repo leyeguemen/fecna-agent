@@ -21,3 +21,13 @@ Alternativas descartadas: formulario manual (lento) y traerlas desde FECNA (no h
 - ¿Hay una ventana de tiempo en que cuentan las marcas (p. ej. solo las logradas entre fechas X e Y)?
 - ¿Una sola lista nacional o varias (nacional infantil, juvenil, mayores)?
 - ¿Se debe avisar al nadador seguido cuando cumple una marca mínima?
+
+
+---
+
+## Implementado (2026-11-22)
+- Fuente: Reglamento FECNA 2026, art. 13 (Infantiles, Interligas, Interclubes). Piscina larga (50 m). Categoría = año del campeonato − año de nacimiento.
+- Las tablas del PDF son imágenes (no se pueden leer por texto ni OCR de forma fiable): se transcribieron a `fecna_agent/minimas.py` y se cargan solas en `minimum_mark` si la tabla está vacía. El admin corrige tiempos en Config → «Cargar marcas mínimas» (permiso `cargar_minimas`).
+- Pestaña «Mínimas» (permiso `ver_minimas`): «Mi nadador» (por defecto el vinculado, o buscar otro; cumple / diferencia por prueba) y «Por categoría».
+- Pendiente: que el chat consulte las mínimas; aviso al cumplir una marca; la ventana de fechas en que cuentan las marcas (no está en el reglamento).
+- Rarezas del propio reglamento (se cargaron tal cual): p. ej. 200 M femenino 14 años Interclubes 03:19,27 frente a 02:54,27 en las demás categorías.

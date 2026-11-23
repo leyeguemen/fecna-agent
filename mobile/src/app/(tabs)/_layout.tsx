@@ -16,7 +16,9 @@ const SCREENS = [
   { path: '/ranking', perms: ['ver_ranking'] },
   { path: '/nadador', perms: ['ver_nadador'] },
   { path: '/torneos', perms: ['ver_torneos'] },
-  { path: '/config', perms: ['sincronizar', 'cargar_programa', 'gestionar_usuarios'] },
+  { path: '/minimas', perms: ['ver_minimas'] },
+  { path: '/config', perms: ['sincronizar', 'cargar_programa', 'gestionar_usuarios', 'cargar_minimas'] },
+  { path: '/cargar-minimas', perms: ['cargar_minimas'] },
   { path: '/seguridad', perms: ['gestionar_usuarios'] },
   { path: '/sincronizar', perms: ['sincronizar'] },
   { path: '/programa', perms: ['cargar_programa'] },
@@ -29,7 +31,7 @@ export default function TabsLayout() {
   const { can, pendingLink } = useAuth();
   const pathname = usePathname();
   const allowed = (perms: string[]) => perms.some(can);
-  const isAdmin = allowed(['sincronizar', 'cargar_programa', 'gestionar_usuarios']);
+  const isAdmin = allowed(['sincronizar', 'cargar_programa', 'gestionar_usuarios', 'cargar_minimas']);
   if (pendingLink) return <Redirect href="/vincular?first=1" />;
   // Si la pantalla actual ya no está permitida (o el rol cambió), ir a la primera que sí lo esté.
   const here = SCREENS.find((sc) => sc.path === pathname);
@@ -52,6 +54,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="ranking" options={{ ...tab('Ranking', 'ranking'), ...(can('ver_ranking') ? {} : hidden) }} />
       <Tabs.Screen name="nadador" options={{ ...tab('Nadador', 'swimmer'), ...(can('ver_nadador') ? {} : hidden) }} />
       <Tabs.Screen name="torneos" options={{ ...tab('Torneos', 'calendar'), ...(can('ver_torneos') ? {} : hidden) }} />
+      <Tabs.Screen name="minimas" options={{ ...tab('Mínimas', 'target'), ...(can('ver_minimas') ? {} : hidden) }} />
       {/* Configuración: una sola pestaña para lo administrativo; solo con algún permiso de administración. */}
       <Tabs.Screen name="config" options={{ ...tab('Config', 'gear'), href: isAdmin ? undefined : null }} />
       {/* Sub-pantallas de Configuración: rutas válidas, fuera de la barra (el backend igual valida cada permiso). */}
@@ -59,6 +62,7 @@ export default function TabsLayout() {
       <Tabs.Screen name="sincronizar" options={hidden} />
       <Tabs.Screen name="programa" options={hidden} />
       <Tabs.Screen name="historial" options={hidden} />
+      <Tabs.Screen name="cargar-minimas" options={hidden} />
       {/* Perfil se abre desde el avatar: se oculta de la barra, pero sigue siendo navegable (href: null la sacaba de las rutas). */}
       <Tabs.Screen name="perfil" options={{ tabBarItemStyle: { display: 'none' } }} />
     </Tabs>

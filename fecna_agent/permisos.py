@@ -20,13 +20,15 @@ SYSTEM_PERMISSIONS: dict[str, str] = {
     "eliminar_programa": "Eliminar programas de campeonato",
     "sincronizar": "Sincronizar el ranking con FECNA",
     "gestionar_usuarios": "Gestionar roles, permisos y usuarios",
+    "ver_minimas": "Ver las marcas mínimas y compararse",
+    "cargar_minimas": "Corregir las marcas mínimas del reglamento",
     "reportar_problema": "Reportar un problema desde la app (se publica en GitHub)",
 }
 
 # id -> (nombre, permisos iniciales). admin siempre tiene todos los permisos.
 DEFAULT_ROLES: dict[str, tuple[str, set[str]]] = {
     # Quien se registra solo ve ranking, nadador (sin comparar ni ficha para redes) y torneos.
-    "user": ("Usuario", {"ver_ranking", "ver_nadador", "ver_torneos"}),
+    "user": ("Usuario", {"ver_ranking", "ver_nadador", "ver_torneos", "ver_minimas"}),
     "admin": ("Administrador", set(SYSTEM_PERMISSIONS)),
 }
 

@@ -3,7 +3,7 @@
 Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica dónde está el detalle.
 
 ## Funciones nuevas
-1. **Marcas mínimas del campeonato nacional** — el admin carga el documento oficial; el chat y el perfil comparan con las marcas del nadador. Plan y dudas abiertas en `docs/features/marcas-minimas.md`. Falta un **ejemplo real del documento** (PDF/Excel) para empezar.
+1. ~~Marcas mínimas del campeonato nacional~~ — **hecho** (tabla `minimum_mark` con el Reglamento FECNA 2026, pestaña *Mínimas* y corrección por el admin en Configuración; ver `fecna_agent/minimas.py`). Pendiente de esta línea: que el chat consulte las mínimas, aviso al nadador cuando cumple una marca y la ventana de fechas en que cuentan. Detalle en `docs/features/marcas-minimas.md`.
 2. **Roles y permisos, fases 2 y 3** — planes con límites (chat, fichas, nadadores seguidos) y pasarela de pago. La fase 1 (CRUD de roles, permisos y usuarios en la pestaña *Seguridad*) ya está hecha. Detalle y cuidados en `docs/features/roles-permisos.md`. Antes hay que decidir **dónde se cobra** (tiendas Google/Apple 15–30 % vs web) y revisar el modelo con un asesor legal.
 3. ~~Historial completo de marcas de FECNA~~ — **hecho** para nadadores seguidos/vinculados (tabla `swimmer_mark`, no altera rankings; ver `fecna_agent/historial.py`). Pendiente de esta línea: que el chat consulte `swimmer_mark` (hoy solo ve `ranking_public`), y un botón «Actualizar historial».
 4. **Ficha para redes, mejoras:**
@@ -15,11 +15,16 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 5. ~~Skill `/bugs`~~ — **hecha** (`.claude/skills/bugs/`): lista los issues, toma uno, lo reproduce, lo corrige con pruebas y lo deja «por probar». Detalle en `docs/features/reportes-bugs.md`.
 
 ## Pulido y deuda técnica
-6. **Las rutas de lectura** (ranking, nadadores) validan solo el token: una cuenta desactivada conserva ese acceso hasta que venza (7 días). Pasarlas a la consulta vigente (ya existe `require_permission`).
+6. ~~Las rutas validan solo el token~~ — **hecho**: ranking, nadadores, torneos y chat ya usaban `require_permission`; las de la propia cuenta (`/me/*`) ahora usan `active_user`. Una cuenta desactivada o borrada pierde el acceso en máximo 30 s (caché de `current_access`), no al vencer el token.
 7. **La sincronización solo agrega**: no refleja correcciones ni borrados de FECNA. Si importa, una sincronización completa periódica con comparación.
 8. **Día irrecuperable** `2025-11-06` (50 y 100 libre F LC): el servidor de FECNA falla con 500 en ese día; nada que hacer salvo que lo corrijan.
 9. **Test en vivo contra Supabase** (`tests/test_pg_live.py`) se cuelga si el pooler está lleno; conviene un timeout.
 10. **iPhone nativo** necesitaría cuenta Apple Developer (99 USD/año); hoy es la web instalada (PWA).
+
+## Legal, seguridad y presentación
+11. **Derechos de autor** — definir y declarar la autoría y la licencia de la app y del código, y el uso de los datos de FECNA.
+12. **Proteger la app (seguridad informática)** — revisar y endurecer la seguridad de la app, el servidor y la base de datos.
+13. **Crear el «Acerca de»** — pantalla con la información de la app.
 
 ## Operativos (los haces tú)
 - Borrar los servicios viejos de Render `fecna-api` y `fecna-app` cuando ya no uses el APK anterior.

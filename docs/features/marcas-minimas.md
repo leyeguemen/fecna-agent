@@ -3,9 +3,9 @@
 
 ---
 
-## Plan propuesto (2026-11-21, pendiente de aprobar)
+## Plan propuesto (2026-11-21)
 
-**Estado:** sin implementar. Hay dudas abiertas (abajo) que se resuelven antes de programar.
+**Estado:** implementado el 2026-11-22 (ver «Implementado» abajo). Lo que falta está al final.
 
 ### Enfoque recomendado: el admin carga el documento oficial
 1. **Datos:** nueva tabla de marcas mínimas asociada a un campeonato (p. ej. nacional 2026), con fecha de vigencia. Cada fila: prueba, piscina, género, categoría y tiempo mínimo.

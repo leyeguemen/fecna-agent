@@ -118,6 +118,10 @@ class RoleBody(BaseModel):
     role: str
 
 
+class ActiveBody(BaseModel):
+    active: bool
+
+
 class RoleDef(BaseModel):
     id: str | None = None  # solo al crear: identificador corto (minúsculas, números y _)
     name: str
@@ -276,3 +280,24 @@ def set_user_role(user_id: int, body: RoleBody, admin: dict = _manage):
         conn.close()
     security.clear_role_cache(user_id)
     return {"id": user_id, "email": target["email"], "role": body.role}
+
+
+@router.put("/users/{user_id}/active")
+def set_user_active(user_id: int, body: ActiveBody, admin: dict = _manage):
+    """Activa o desactiva una cuenta (no se borra nada: solo deja de poder entrar)."""
+    if str(user_id) == str(admin["id"]):
+        raise HTTPException(status_code=409, detail="No puedes desactivar tu propia cuenta.")
+    conn = app_conn()
+    try:
+        target = db.get_user_by_id(conn, user_id)
+        if target is None:
+            raise HTTPException(status_code=404, detail="Usuario no encontrado.")
+        if (not body.active and target["role"] == permisos.ADMIN_ROLE and target["active"]
+                and db.count_active_admins(conn) <= 1):
+            raise HTTPException(status_code=409, detail="No se puede desactivar al último administrador activo. "
+                                                         "Asigna ese rol a otra cuenta primero.")
+        db.set_active(conn, user_id, body.active)
+    finally:
+        conn.close()
+    security.clear_role_cache(user_id)
+    return {"id": user_id, "email": target["email"], "active": body.active}

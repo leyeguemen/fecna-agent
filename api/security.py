@@ -122,17 +122,26 @@ def current_role(user: dict) -> str | None:
     return access[0] if access else None
 
 
+def active_user(user: dict = Depends(current_user)) -> dict:
+    """Dependencia FastAPI: token válido y cuenta vigente (existe y está activa), o 401.
+
+    Úsala en las rutas de la propia cuenta, que no exigen un permiso concreto. Devuelve el rol y
+    los permisos vigentes, no los del token.
+    """
+    access = current_access(user)
+    if access is None:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado.")
+    role, permissions = access
+    return {**user, "role": role, "permissions": sorted(permissions)}
+
+
 def require_permission(permission: str):
     """Dependencia FastAPI: exige el permiso o lanza 403 (401 si la cuenta ya no existe)."""
 
-    def dependency(user: dict = Depends(current_user)) -> dict:
-        access = current_access(user)
-        if access is None:
-            raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="No autenticado.")
-        role, permissions = access
-        if permission not in permissions:
+    def dependency(user: dict = Depends(active_user)) -> dict:
+        if permission not in user["permissions"]:
             raise HTTPException(status_code=status.HTTP_403_FORBIDDEN,
                                 detail="No tienes permiso para esta acción.")
-        return {**user, "role": role, "permissions": sorted(permissions)}
+        return user
 
     return dependency

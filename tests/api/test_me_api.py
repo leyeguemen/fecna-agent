@@ -71,6 +71,38 @@ def test_eliminar_cuenta_borra_todo(client):
     assert client.post("/auth/login", json={"email": "u@test.co", "password": "clave1234"}).status_code == 401
 
 
+def test_cuenta_desactivada_pierde_acceso_a_me_aunque_el_token_siga_vigente(client):
+    import os
+
+    from api import security
+
+    conn = db.connect(os.environ["FECNA_APP_DB"])
+    conn.execute("UPDATE app_user SET active = 0 WHERE email = 'u@test.co'")
+    conn.commit()
+    conn.close()
+    security.clear_role_cache()
+    assert client.get("/me").status_code == 401
+    assert client.put("/me/swimmer", json={"swimmer_id": "1", "birth_date": "2008-05-01"}).status_code == 401
+    assert client.delete("/me/swimmer").status_code == 401
+    assert client.put("/me/following/2").status_code == 401
+    assert client.delete("/me/following/2").status_code == 401
+    assert client.post("/me/password", json={"current": "clave1234", "new": "nueva1234"}).status_code == 401
+    assert client.delete("/me").status_code == 401
+
+
+def test_perfil_devuelve_el_rol_vigente_y_no_el_del_token(client):
+    import os
+
+    from api import security
+
+    conn = db.connect(os.environ["FECNA_APP_DB"])
+    conn.execute("UPDATE app_user SET role = 'admin' WHERE email = 'u@test.co'")
+    conn.commit()
+    conn.close()
+    security.clear_role_cache()
+    assert client.get("/me").json()["role"] == "admin"
+
+
 def test_comparar_nadadores(client):
     r = client.get("/swimmers/compare?a=1&b=2&event_id=E1&pool=LC").json()
     assert r["a"]["swimmer_name"] == "Ana Perez" and r["diff_ms"] == 1000

@@ -40,7 +40,7 @@ def _summary(swimmer_id: str | None) -> dict | None:
 
 
 @router.get("")
-def my_profile(user: dict = Depends(security.current_user)):
+def my_profile(user: dict = Depends(security.active_user)):
     conn = app_conn()
     try:
         swimmer_id = db.get_user_swimmer_id(conn, _uid(user))
@@ -53,7 +53,7 @@ def my_profile(user: dict = Depends(security.current_user)):
 
 @router.put("/swimmer")
 @limiter.limit("5/minute")  # frena la adivinanza de fechas de nacimiento
-def link_swimmer(request: Request, body: LinkBody, background: BackgroundTasks, user: dict = Depends(security.current_user)):
+def link_swimmer(request: Request, body: LinkBody, background: BackgroundTasks, user: dict = Depends(security.active_user)):
     if not _DATE.match(body.birth_date):
         raise HTTPException(status_code=422, detail="Fecha inválida (usa AAAA-MM-DD).")
     rconn = read_conn()
@@ -74,7 +74,7 @@ def link_swimmer(request: Request, body: LinkBody, background: BackgroundTasks, 
 
 
 @router.delete("/swimmer", status_code=status.HTTP_204_NO_CONTENT)
-def unlink_swimmer(user: dict = Depends(security.current_user)):
+def unlink_swimmer(user: dict = Depends(security.active_user)):
     conn = app_conn()
     try:
         db.set_user_swimmer(conn, _uid(user), None)
@@ -83,7 +83,7 @@ def unlink_swimmer(user: dict = Depends(security.current_user)):
 
 
 @router.put("/following/{swimmer_id}", status_code=status.HTTP_204_NO_CONTENT)
-def follow(swimmer_id: str, background: BackgroundTasks, user: dict = Depends(security.current_user)):
+def follow(swimmer_id: str, background: BackgroundTasks, user: dict = Depends(security.active_user)):
     summary = _summary(swimmer_id)
     if summary is None:
         raise HTTPException(status_code=404, detail="Nadador no encontrado.")
@@ -104,7 +104,7 @@ def _enrich(swimmer_id: str) -> None:
 
 
 @router.delete("/following/{swimmer_id}", status_code=status.HTTP_204_NO_CONTENT)
-def unfollow(swimmer_id: str, user: dict = Depends(security.current_user)):
+def unfollow(swimmer_id: str, user: dict = Depends(security.active_user)):
     conn = app_conn()
     try:
         db.unfollow_swimmer(conn, _uid(user), swimmer_id)
@@ -114,7 +114,7 @@ def unfollow(swimmer_id: str, user: dict = Depends(security.current_user)):
 
 @router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
 @limiter.limit("5/minute")
-def change_password(request: Request, body: PasswordBody, user: dict = Depends(security.current_user)):
+def change_password(request: Request, body: PasswordBody, user: dict = Depends(security.active_user)):
     conn = app_conn()
     try:
         try:
@@ -126,7 +126,7 @@ def change_password(request: Request, body: PasswordBody, user: dict = Depends(s
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)
-def delete_account(user: dict = Depends(security.current_user)):
+def delete_account(user: dict = Depends(security.active_user)):
     conn = app_conn()
     try:
         db.delete_user(conn, _uid(user))

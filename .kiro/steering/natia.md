@@ -44,7 +44,6 @@ Pendiente (detalle en `docs/features/pendientes.md`):
 - Que el chat consulte `swimmer_mark` y las marcas mínimas, y un botón "Actualizar historial".
 - Roles fase 2 y 3: planes y pagos.
 - Mejoras de la ficha para redes (todas las pruebas de un torneo, formato 4:5, escudo del club).
-- Que las rutas de lectura validen el estado de la cuenta en cada llamada.
 - Que la sincronización también corrija marcas y no solo agregue.
 - La prueba `tests/test_pg_live.py` se cuelga: hay que endurecerla.
 - Aviso al nadador cuando cumple una marca mínima.

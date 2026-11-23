@@ -197,6 +197,23 @@ COLUMNS = [
 
 _PG_SCHEMA_READY: set[str] = set()  # URLs cuyo esquema ya se verificó en este proceso
 _PG_MIGRATION_LOCK = 4270001  # clave de pg_advisory_lock: un solo migrador a la vez
+# Si algo de esto falta, se corre la migración. Toda columna nueva de pg.MIGRATIONS_SQL debe estar
+# aquí (lo verifica tests/test_pg.py): si no, una base existente nunca la recibe.
+_PG_READY_CHECK = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
+                   AND to_regclass('public.ranking_public') IS NOT NULL
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'app_user' AND column_name = 'swimmer_id')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'app_user' AND column_name = 'terms_version')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'app_user' AND column_name = 'terms_accepted_at')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'app_user' AND column_name = 'password_changed_at')
+                   AND EXISTS (SELECT 1 FROM information_schema.columns
+                               WHERE table_name = 'ranking_results' AND column_name = 'tournament')
+                   AND to_regclass('public.app_role') IS NOT NULL
+                   AND to_regclass('public.swimmer_mark') IS NOT NULL
+                   AND to_regclass('public.minimum_mark') IS NOT NULL"""
 
 
 def _ensure_pg_schema(conn, url: str) -> None:
@@ -211,15 +228,7 @@ def _ensure_pg_schema(conn, url: str) -> None:
 
     if url in _PG_SCHEMA_READY:
         return
-    check = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
-                   AND to_regclass('public.ranking_public') IS NOT NULL
-                   AND EXISTS (SELECT 1 FROM information_schema.columns
-                               WHERE table_name = 'app_user' AND column_name = 'terms_version')
-                   AND EXISTS (SELECT 1 FROM information_schema.columns
-                               WHERE table_name = 'ranking_results' AND column_name = 'tournament')
-                   AND to_regclass('public.app_role') IS NOT NULL
-                   AND to_regclass('public.swimmer_mark') IS NOT NULL
-                   AND to_regclass('public.minimum_mark') IS NOT NULL"""
+    check = _PG_READY_CHECK
     ready = conn.execute(check).fetchone()[0]
     conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
     if not ready:

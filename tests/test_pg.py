@@ -38,3 +38,15 @@ def test_db_sin_sql_exclusivo_de_sqlite():
 def test_row_por_nombre_e_indice():
     r = pg.Row(["a", "b"], [1, 2])
     assert r["a"] == 1 and r[1] == 2 and dict(r) == {"a": 1, "b": 2}
+
+
+def test_toda_columna_migrada_se_verifica_al_arrancar():
+    """Una columna en MIGRATIONS_SQL que no esté en la verificación nunca llega a una base existente
+    (pasó con app_user.password_changed_at el 2026-11-23)."""
+    import re
+
+    from fecna_agent import db as dbm
+    from fecna_agent import pg as pgm
+
+    for table, column in re.findall(r"ALTER TABLE (\w+) ADD COLUMN IF NOT EXISTS (\w+)", pgm.MIGRATIONS_SQL):
+        assert f"table_name = '{table}' AND column_name = '{column}'" in dbm._PG_READY_CHECK, (table, column)

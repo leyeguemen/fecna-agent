@@ -124,7 +124,8 @@ CREATE TABLE IF NOT EXISTS app_user (
   created_at    TIMESTAMP,
   swimmer_id    TEXT,
   terms_version TEXT,
-  terms_accepted_at TIMESTAMP
+  terms_accepted_at TIMESTAMP,
+  password_changed_at INTEGER  -- epoch (s) del último cambio: los tokens emitidos antes dejan de valer
 );
 
 -- Marcas mínimas de los campeonatos nacionales (reglamento): una por torneo, año, categoría, género y prueba.
@@ -282,6 +283,9 @@ def _migrate(conn: sqlite3.Connection) -> None:
     if user_cols and "terms_version" not in user_cols:
         conn.execute("ALTER TABLE app_user ADD COLUMN terms_version TEXT")
         conn.execute("ALTER TABLE app_user ADD COLUMN terms_accepted_at TIMESTAMP")
+        conn.commit()
+    if user_cols and "password_changed_at" not in user_cols:
+        conn.execute("ALTER TABLE app_user ADD COLUMN password_changed_at INTEGER")
         conn.commit()
 
     watch_cols = {r["name"] for r in conn.execute("PRAGMA table_info(competition_watch)")}
@@ -1337,10 +1341,12 @@ def change_password(conn, user_id: int, current: str, new: str) -> None:
     err = auth.valid_password(new)
     if err:
         raise ValueError(err)
+    import time
+
     hash_hex, salt_hex = auth.hash_password(new)
-    conn.execute(
-        "UPDATE app_user SET password_hash = ?, salt = ? WHERE id = ?",
-        (hash_hex, salt_hex, user_id),
+    conn.execute(  # password_changed_at invalida los tokens emitidos antes (api/security.py)
+        "UPDATE app_user SET password_hash = ?, salt = ?, password_changed_at = ? WHERE id = ?",
+        (hash_hex, salt_hex, int(time.time()), user_id),
     )
     conn.commit()
 

@@ -50,6 +50,7 @@ def create_token(user) -> str:
         "sub": str(user["id"]),
         "email": user["email"],
         "role": user["role"],
+        "iat": int(now.timestamp()),  # se compara con password_changed_at (current_access)
         "exp": now + _EXPIRATION,
     }
     return jwt.encode(payload, _secret(), algorithm=_ALGORITHM)
@@ -69,6 +70,7 @@ def current_user(
         "id": payload.get("sub"),
         "email": payload.get("email"),
         "role": payload.get("role"),
+        "iat": payload.get("iat") or 0,  # tokens anteriores a este campo cuentan como antiguos
     }
 
 
@@ -77,7 +79,7 @@ def current_user(
 # base (con una caché corta): cambiar un rol, editar sus permisos o borrar una cuenta surte
 # efecto en segundos y no al vencer el token.
 _ROLE_TTL = 30  # segundos
-_ACCESS_CACHE: dict[tuple, tuple[float, tuple[str, frozenset] | None]] = {}
+_ACCESS_CACHE: dict[tuple, tuple[float, tuple[str, frozenset, int] | None]] = {}
 
 
 def _cache_scope() -> str:
@@ -94,8 +96,8 @@ def clear_role_cache(user_id=None) -> None:
             _ACCESS_CACHE.pop(key, None)
 
 
-def current_access(user: dict) -> tuple[str, frozenset] | None:
-    """(rol vigente, permisos) del usuario según la base, o None si ya no existe o está inactivo."""
+def _stored_access(user: dict) -> tuple[str, frozenset, int] | None:
+    """(rol, permisos, password_changed_at) según la base (con caché corta), o None si no está activa."""
     from api.deps import app_conn
     from fecna_agent import db
 
@@ -110,11 +112,26 @@ def current_access(user: dict) -> tuple[str, frozenset] | None:
     conn = app_conn()
     try:
         row = db.get_user_by_id(conn, uid)
-        access = (row["role"], frozenset(db.role_permissions(conn, row["role"]))) if row and row["active"] else None
+        access = None
+        if row and row["active"]:
+            changed = row["password_changed_at"] if "password_changed_at" in row.keys() else None
+            access = (row["role"], frozenset(db.role_permissions(conn, row["role"])), int(changed or 0))
     finally:
         conn.close()
     _ACCESS_CACHE[key] = (time.monotonic(), access)
     return access
+
+
+def current_access(user: dict) -> tuple[str, frozenset] | None:
+    """(rol vigente, permisos) del usuario según la base, o None si ya no existe, está inactivo
+    o el token es anterior al último cambio de contraseña (sesión cerrada)."""
+    access = _stored_access(user)
+    if access is None:
+        return None
+    role, permissions, changed_at = access
+    if int(user.get("iat") or 0) < changed_at:
+        return None
+    return role, permissions
 
 
 def current_role(user: dict) -> str | None:

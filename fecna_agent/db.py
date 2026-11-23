@@ -918,20 +918,25 @@ def get_user_by_email(conn: sqlite3.Connection, email: str) -> sqlite3.Row | Non
     ).fetchone()
 
 
-def authenticate(conn: sqlite3.Connection, email: str, password: str) -> sqlite3.Row | None:
-    """Devuelve el Row del usuario si las credenciales son válidas y está activo.
+def check_login(conn: sqlite3.Connection, email: str, password: str) -> tuple[sqlite3.Row | None, str]:
+    """(usuario, estado): «ok», «inactive» (clave correcta pero cuenta desactivada) o «invalid».
 
-    Si el usuario no existe o está inactivo, igualmente se ejecuta un hash de
-    descarte para que el tiempo de respuesta no revele qué emails existen
-    (evita enumeración de usuarios por temporización)."""
+    «inactive» solo sale con la clave correcta: a quien no la sabe no se le revela si la cuenta
+    existe. Siempre se calcula un PBKDF2 (verificar o hash de descarte), así el tiempo de
+    respuesta tampoco revela qué emails existen."""
     from . import auth
     row = get_user_by_email(conn, email)
-    if row and row["active"]:
-        if auth.verify_password(password, row["password_hash"], row["salt"]):
-            return row
-        return None
-    auth.hash_password(password)  # gasta el mismo costo de PBKDF2 que el camino normal
-    return None
+    if row is None:
+        auth.hash_password(password)  # gasta el mismo costo de PBKDF2 que el camino normal
+        return None, "invalid"
+    if not auth.verify_password(password, row["password_hash"], row["salt"]):
+        return None, "invalid"
+    return (row, "ok") if row["active"] else (None, "inactive")
+
+
+def authenticate(conn: sqlite3.Connection, email: str, password: str) -> sqlite3.Row | None:
+    """Devuelve el Row del usuario si las credenciales son válidas y está activo."""
+    return check_login(conn, email, password)[0]
 
 
 # --- Roles y permisos ---------------------------------------------------------------

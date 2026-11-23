@@ -82,3 +82,22 @@ def test_me_token_manipulado(client):
     resp = client.get("/auth/me", headers={"Authorization": f"Bearer {manipulado}"})
     assert resp.status_code == 401
     assert resp.json()["detail"] == "No autenticado."
+
+
+def test_login_de_cuenta_desactivada_pide_escribir_al_correo_solo_con_la_clave_correcta(client, tmp_path):
+    from fecna_agent import db
+
+    client.post("/auth/register", json={"email": "a@b.co", "password": "Secreta123"})
+    conn = db.connect(tmp_path / "app.db")
+    conn.execute("UPDATE app_user SET active = 0 WHERE email = 'a@b.co'")
+    conn.commit()
+    conn.close()
+    ok_pwd = client.post("/auth/login", json={"email": "a@b.co", "password": "Secreta123"})
+    assert ok_pwd.status_code == 403
+    assert "desactivada" in ok_pwd.json()["detail"] and "leoye.work@gmail.com" in ok_pwd.json()["detail"]
+    assert "token" not in ok_pwd.json()
+    # Con la clave equivocada no se revela nada: el mismo error que un correo inexistente.
+    bad = client.post("/auth/login", json={"email": "a@b.co", "password": "mala1234"})
+    none = client.post("/auth/login", json={"email": "no@b.co", "password": "mala1234"})
+    assert bad.status_code == none.status_code == 401
+    assert bad.json()["detail"] == none.json()["detail"]

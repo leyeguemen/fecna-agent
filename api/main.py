@@ -17,6 +17,7 @@ from api.routers import ask as ask_router
 from api.routers import auth as auth_router
 from api.routers import competitions as competitions_router
 from api.routers import me as me_router
+from api.routers import minimas as minimas_router
 from api.routers import rankings as rankings_router
 from api.routers import swimmers as swimmers_router
 from api.startup import ensure_semantic_index
@@ -54,6 +55,7 @@ app.include_router(auth_router.router)
 _login = [Depends(security.current_user)]
 app.include_router(rankings_router.router, dependencies=[Depends(security.require_permission("ver_ranking"))])
 app.include_router(swimmers_router.router, dependencies=[Depends(security.require_permission("ver_nadador"))])
+app.include_router(minimas_router.router, dependencies=[Depends(security.require_permission("ver_minimas"))])
 app.include_router(competitions_router.router)
 app.include_router(ask_router.router)
 app.include_router(admin_router.router)

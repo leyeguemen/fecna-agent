@@ -11,6 +11,7 @@ const OPTIONS = [
   { path: '/sincronizar', perm: 'sincronizar', icon: 'sync', label: 'Sincronizar ranking', note: 'Datos de FECNA' },
   { path: '/programa', perm: 'cargar_programa', icon: 'upload', label: 'Cargar programa', note: 'Torneos' },
   { path: '/historial', perm: 'sincronizar', icon: 'history', label: 'Historial de un nadador', note: 'Bajo demanda' },
+  { path: '/cargar-minimas', perm: 'cargar_minimas', icon: 'target', label: 'Cargar marcas mínimas', note: 'Reglamento 2026' },
 ];
 
 export default function Config() {

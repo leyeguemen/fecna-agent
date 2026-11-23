@@ -28,5 +28,5 @@ def _usuario_con_todo_salvo_en_pruebas_de_roles(request, monkeypatch):
         return
     from fecna_agent import permisos
 
-    full = {"ver_ranking", "ver_nadador", "ver_torneos", "chat", "comparar", "ficha_redes"}
+    full = {"ver_ranking", "ver_nadador", "ver_torneos", "chat", "comparar", "ficha_redes", "ver_minimas"}
     monkeypatch.setitem(permisos.DEFAULT_ROLES, "user", ("Usuario", full))

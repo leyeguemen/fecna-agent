@@ -127,6 +127,17 @@ CREATE TABLE IF NOT EXISTS app_user (
   terms_accepted_at TIMESTAMP
 );
 
+-- Marcas mínimas de los campeonatos nacionales (reglamento): una por torneo, año, categoría, género y prueba.
+CREATE TABLE IF NOT EXISTS minimum_mark (
+  tournament TEXT NOT NULL,
+  year       INTEGER NOT NULL,
+  category   TEXT NOT NULL,
+  gender     TEXT NOT NULL,
+  event_id   TEXT NOT NULL,
+  time_ms    INTEGER NOT NULL,
+  PRIMARY KEY (tournament, year, category, gender, event_id)
+);
+
 -- Historial completo de FECNA (Historial Deportivo) de nadadores seguidos/vinculados. Va aparte del
 -- ranking para no alterar los puestos: ranking_results sigue siendo solo lo que publica el ranking.
 CREATE TABLE IF NOT EXISTS swimmer_mark (
@@ -206,7 +217,8 @@ def _ensure_pg_schema(conn, url: str) -> None:
                    AND EXISTS (SELECT 1 FROM information_schema.columns
                                WHERE table_name = 'ranking_results' AND column_name = 'tournament')
                    AND to_regclass('public.app_role') IS NOT NULL
-                   AND to_regclass('public.swimmer_mark') IS NOT NULL"""
+                   AND to_regclass('public.swimmer_mark') IS NOT NULL
+                   AND to_regclass('public.minimum_mark') IS NOT NULL"""
     ready = conn.execute(check).fetchone()[0]
     conn.commit()  # suelta cualquier bloqueo de la consulta de verificación
     if not ready:
@@ -219,12 +231,14 @@ def _ensure_pg_schema(conn, url: str) -> None:
                 conn.executescript(pg.RLS_SQL)
                 conn.executescript(pg.MIGRATIONS_SQL)
                 seed_roles(conn)
+                seed_minimums(conn)
             conn.commit()
         finally:
             conn.execute(f"SELECT pg_advisory_unlock({_PG_MIGRATION_LOCK})")
             conn.commit()
     # Una vez por proceso: si el código trae permisos de sistema nuevos, se registran (y el admin los recibe).
     seed_roles(conn)
+    seed_minimums(conn)
     _PG_SCHEMA_READY.add(url)
 
 
@@ -243,6 +257,7 @@ def connect(db_path: Path | str = DEFAULT_DB_PATH):
     conn.executescript(SCHEMA)
     _migrate(conn)
     seed_roles(conn)
+    seed_minimums(conn)
     return conn
 
 
@@ -938,6 +953,64 @@ def seed_roles(conn) -> None:
         "INSERT OR IGNORE INTO role_permission (role_id, permission_key) "
         "SELECT ?, key FROM app_permission", (permisos.ADMIN_ROLE,))
     conn.commit()
+
+
+def seed_minimums(conn) -> None:
+    """Carga las marcas del reglamento 2026 solo si la tabla está vacía (no pisa lo que el admin corrija)."""
+    from . import minimas
+
+    if conn.execute("SELECT 1 FROM minimum_mark LIMIT 1").fetchone():
+        return
+    for tournament, category, gender, event_id, ms in minimas.reglamento_2026():
+        conn.execute("INSERT OR IGNORE INTO minimum_mark (tournament, year, category, gender, event_id, time_ms) "
+                     "VALUES (?, ?, ?, ?, ?, ?)", (tournament, minimas.YEAR, category, gender, event_id, ms))
+    conn.commit()
+
+
+def minimum_marks(conn, tournament: str, category: str, gender: str, year: int | None = None) -> dict[str, int]:
+    """event_id → marca mínima (ms) de esa categoría; del año más reciente si no se indica."""
+    if year is None:
+        row = conn.execute("SELECT MAX(year) FROM minimum_mark WHERE tournament = ?", (tournament,)).fetchone()
+        year = row[0]
+    if year is None:
+        return {}
+    rows = conn.execute("SELECT event_id, time_ms FROM minimum_mark WHERE tournament = ? AND year = ? "
+                        "AND category = ? AND gender = ?", (tournament, year, category, gender)).fetchall()
+    return {r[0]: r[1] for r in rows}
+
+
+def minimum_years(conn) -> dict[str, int]:
+    """Torneo → año vigente (el más reciente cargado)."""
+    rows = conn.execute("SELECT tournament, MAX(year) FROM minimum_mark GROUP BY tournament").fetchall()
+    return {r[0]: r[1] for r in rows}
+
+
+def save_minimum_marks(conn, tournament: str, year: int, category: str, gender: str, marks: dict[str, int]) -> int:
+    """Reemplaza las marcas de una categoría/género. marks: event_id → ms (las ausentes se borran)."""
+    conn.execute("DELETE FROM minimum_mark WHERE tournament = ? AND year = ? AND category = ? AND gender = ?",
+                 (tournament, year, category, gender))
+    for event_id, ms in marks.items():
+        conn.execute("INSERT INTO minimum_mark (tournament, year, category, gender, event_id, time_ms) "
+                     "VALUES (?, ?, ?, ?, ?, ?)", (tournament, year, category, gender, event_id, ms))
+    conn.commit()
+    return len(marks)
+
+
+def swimmer_bests(conn, swimmer_id: str, pool_type: str = "LC") -> dict[str, int]:
+    """Mejor marca por prueba (event_id → ms) en esa piscina, con el historial completo."""
+    best: dict[str, int] = {}
+    for m in full_history(conn, swimmer_id, pool_type=pool_type):
+        if m["event_id"] not in best or m["time_ms"] < best[m["event_id"]]:
+            best[m["event_id"]] = m["time_ms"]
+    return best
+
+
+def swimmer_identity(conn, swimmer_id: str) -> dict | None:
+    """Género y año de nacimiento más recientes del nadador (None si no existe)."""
+    row = conn.execute(
+        """SELECT swimmer_name, gender, birth_date, club, league FROM ranking_results WHERE swimmer_id = ?
+           ORDER BY (birth_date IS NULL), result_date DESC LIMIT 1""", (swimmer_id,)).fetchone()
+    return dict(row) if row else None
 
 
 def role_permissions(conn, role_id: str | None) -> list[str]:

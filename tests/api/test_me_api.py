@@ -60,7 +60,7 @@ def test_seguir_y_dejar_de_seguir(client):
 def test_cambiar_contrasena(client):
     assert client.post("/me/password", json={"current": "mala", "new": "nueva1234"}).status_code == 400
     assert client.post("/me/password", json={"current": "clave1234", "new": "corta"}).status_code == 400
-    assert client.post("/me/password", json={"current": "clave1234", "new": "nueva1234"}).status_code == 204
+    assert client.post("/me/password", json={"current": "clave1234", "new": "nueva1234"}).status_code == 200
     ok = client.post("/auth/login", json={"email": "u@test.co", "password": "nueva1234"})
     assert ok.status_code == 200
 

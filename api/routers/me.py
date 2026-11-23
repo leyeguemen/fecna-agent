@@ -112,17 +112,22 @@ def unfollow(swimmer_id: str, user: dict = Depends(security.active_user)):
         conn.close()
 
 
-@router.post("/password", status_code=status.HTTP_204_NO_CONTENT)
+@router.post("/password")
 @limiter.limit("5/minute")
 def change_password(request: Request, body: PasswordBody, user: dict = Depends(security.active_user)):
+    """Cambia la contraseña y cierra las demás sesiones; devuelve un token nuevo (como /auth/login)."""
     conn = app_conn()
     try:
         try:
             db.change_password(conn, _uid(user), body.current, body.new)
         except ValueError as exc:
             raise HTTPException(status_code=400, detail=str(exc)) from exc
+        row = db.get_user_by_id(conn, _uid(user))
     finally:
         conn.close()
+    security.clear_role_cache(user["id"])
+    return {"token": security.create_token(row), "email": row["email"], "role": row["role"],
+            "permissions": user["permissions"]}
 
 
 @router.delete("", status_code=status.HTTP_204_NO_CONTENT)

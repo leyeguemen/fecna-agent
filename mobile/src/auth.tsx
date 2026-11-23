@@ -12,6 +12,8 @@ type Ctx = {
   signIn: (email: string, password: string) => Promise<void>;
   signUp: (email: string, password: string, acceptTerms: boolean) => Promise<void>;
   signOut: () => Promise<void>;
+  /** Cambia la contraseña y guarda el token nuevo: el servidor cierra las sesiones anteriores. */
+  changePassword: (current: string, next: string) => Promise<void>;
   pendingLink: boolean; // recién registrado: ofrecer vincular su nadador
   clearPendingLink: () => void;
 };
@@ -90,6 +92,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
       await persist(r);
     },
     signOut,
+    changePassword: async (current, next) =>
+      persist(await api<AuthResp>('/me/password', { body: { current, new: next } })),
     pendingLink,
     clearPendingLink: () => setPendingLink(false),
   }), [user, can, loading, persist, signOut, pendingLink]);

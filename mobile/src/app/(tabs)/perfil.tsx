@@ -8,7 +8,7 @@ import { c, font } from '../../theme';
 import { Avatar, Button, Card, Chip, ConfirmDialog, ErrorText, Field, Icon } from '../../ui';
 
 export default function Perfil() {
-  const { user, signOut, can } = useAuth();
+  const { user, signOut, can, changePassword } = useAuth();
   const [me, setMe] = useState<Item | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -35,8 +35,8 @@ export default function Perfil() {
   const changePwd = async () => {
     setError(null);
     try {
-      await api('/me/password', { body: { current: cur, new: next } });
-      setPwd(false); setCur(''); setNext(''); setNotice('Contraseña actualizada.');
+      await changePassword(cur, next);
+      setPwd(false); setCur(''); setNext(''); setNotice('Contraseña actualizada. Se cerró la sesión en tus otros dispositivos.');
     } catch (e: any) { setError(e.message); }
   };
   const sendReport = async () => {
@@ -110,7 +110,7 @@ export default function Perfil() {
         onConfirm={() => { setLogout(false); signOut(); }} onCancel={() => setLogout(false)} />
 
       <ConfirmDialog visible={rep} title="Reportar un problema" confirmLabel={repBusy ? 'Enviando…' : 'Enviar'}
-        message="Tu reporte se publica en GitHub y lo puede ver cualquiera. No incluyas contraseñas ni datos personales."
+        message="Tu reporte se publica en GitHub y lo puede ver cualquiera. No incluyas contraseñas, nombres de nadadores, fechas de nacimiento ni otros datos personales."
         confirmDisabled={repBusy || repTitle.trim().length < 3 || repText.trim().length < 5} onConfirm={sendReport} onCancel={() => setRep(false)}>
         <View style={{ gap: 10, marginTop: 10 }}>
           <Field label="Título" value={repTitle} onChangeText={setRepTitle} maxLength={120} placeholder="Qué falla, en pocas palabras" />

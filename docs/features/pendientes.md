@@ -23,7 +23,21 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 
 ## Legal, seguridad y presentación
 11. **Derechos de autor** — definir y declarar la autoría y la licencia de la app y del código, y el uso de los datos de FECNA.
-12. **Proteger la app (seguridad informática)** — revisar y endurecer la seguridad de la app, el servidor y la base de datos.
+12. **Proteger la app (seguridad informática)** — auditoría del 2026-11-23. Hecho:
+   - La base local con datos personales salió del repositorio y de su historial.
+   - El SQL libre del chat se valida con lista blanca (`sqlglot`) y corre en solo lectura con tiempo máximo.
+   - Los límites de intentos usan la IP real (`CF-Connecting-IP`, en `api/routers/auth.py`).
+   - Cambiar la contraseña cierra las demás sesiones (`password_changed_at`).
+   - `/docs` está apagado en Render.
+   - La web envía cabeceras de seguridad.
+   - El aviso de los reportes pide no incluir datos de menores.
+
+   Falta:
+   - Un rol de Postgres restringido para el chat (requiere escribir en producción).
+   - Una CSP para la web, probada en el navegador.
+   - Limitar CORS al dominio de `natia-app`.
+   - Actualizar Expo cuando corrija `minimatch` (`npm audit`, solo herramientas de compilación).
+   - Pedir a GitHub Support la purga de los commits viejos.
 13. **Crear el «Acerca de»** — pantalla con la información de la app.
 
 ## Operativos (los haces tú)

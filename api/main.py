@@ -34,7 +34,16 @@ async def lifespan(app: FastAPI):
     yield
 
 
-app = FastAPI(title="FECNA API", lifespan=lifespan)
+def docs_enabled() -> bool:
+    """/docs, /redoc y /openapi.json solo fuera de Render (que define RENDER=true): en producción
+    no se publica el mapa completo de la API."""
+    return os.environ.get("RENDER") != "true"
+
+
+_docs = docs_enabled()
+app = FastAPI(title="FECNA API", lifespan=lifespan,
+              docs_url="/docs" if _docs else None, redoc_url="/redoc" if _docs else None,
+              openapi_url="/openapi.json" if _docs else None)
 
 app.state.limiter = auth_router.limiter
 app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)

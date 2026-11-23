@@ -46,3 +46,15 @@ services:
       - type: rewrite        # navegación del lado del cliente (expo-router)
         source: /*
         destination: /index.html
+    # Cabeceras de seguridad (Render ya pone HSTS y nosniff). Sin CSP por ahora: hay que probarla
+    # en el navegador antes, porque Expo web puede necesitar scripts y estilos en línea.
+    headers:
+      - path: /*
+        name: X-Frame-Options          # nadie puede incrustar la app en un iframe (clickjacking)
+        value: DENY
+      - path: /*
+        name: Referrer-Policy
+        value: strict-origin-when-cross-origin
+      - path: /*
+        name: Permissions-Policy       # la app no usa cámara, micrófono ni ubicación del navegador
+        value: camera=(), microphone=(), geolocation=()

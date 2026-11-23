@@ -1,9 +1,10 @@
 """Endpoints de autenticación: registro, login y perfil (/auth/*).
 
-Rate limit básico con slowapi (10/minuto por IP) en register/login para
+Rate limit básico con slowapi (10/minuto por IP real, ver client_ip) en register/login para
 mitigar fuerza bruta. Se puede desactivar en tests con FECNA_RATELIMIT_OFF=1
 (leído al construir el limiter, antes de que las pruebas hagan requests)."""
 
+import ipaddress
 import os
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -17,8 +18,24 @@ from fecna_agent import auth, db
 
 router = APIRouter(prefix="/auth", tags=["auth"])
 
+
+def client_ip(request: Request) -> str:
+    """IP del cliente para los límites de intentos.
+
+    Render pasa por Cloudflare (`server: cloudflare`, `cf-ray`), que entrega la IP real en
+    CF-Connecting-IP y la reescribe en cada petición. Sin él, todos los clientes llegarían con la
+    IP del proxy y compartirían un mismo límite. No se usa X-Forwarded-For: Render solo le agrega
+    valores, así que el propio cliente puede escribirlo y falsear su IP.
+    """
+    value = (request.headers.get("cf-connecting-ip") or "").strip()
+    try:
+        return str(ipaddress.ip_address(value))
+    except ValueError:
+        return get_remote_address(request)
+
+
 limiter = Limiter(
-    key_func=get_remote_address,
+    key_func=client_ip,
     enabled=os.environ.get("FECNA_RATELIMIT_OFF") != "1",
 )
 

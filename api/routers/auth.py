@@ -25,6 +25,8 @@ limiter = Limiter(
 
 # Versión vigente de los términos y condiciones (se guarda con la aceptación de cada usuario).
 TERMS_VERSION = "2026-11-21"
+# Correo para solicitudes sobre la cuenta y los datos (el mismo de los términos, sección 6).
+CONTACT_EMAIL = "leoye.work@gmail.com"
 
 
 class Credentials(BaseModel):
@@ -68,9 +70,14 @@ def register(request: Request, body: RegisterBody):
 def login(request: Request, body: Credentials):
     conn = app_conn()
     try:
-        user = db.authenticate(conn, body.email, body.password)
+        user, estado = db.check_login(conn, body.email, body.password)
     finally:
         conn.close()
+    if estado == "inactive":  # solo con la clave correcta: no revela cuentas a quien no la sabe
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail=f"Tu cuenta está desactivada. Escribe a {CONTACT_EMAIL} para reactivarla o eliminarla.",
+        )
     if user is None:
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,

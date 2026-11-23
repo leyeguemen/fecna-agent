@@ -32,6 +32,16 @@ def conn(tmp_path):
     "SELECT COUNT(*) FROM ranking_public WHERE club LIKE '%drop%'",
     "WITH t AS (SELECT * FROM ranking_public) SELECT * FROM t",
     "SELECT EXTRACT(YEAR FROM now()) FROM catalogs",
+    # Consultas típicas del chat: agregados, ventanas, subconsultas, uniones entre tablas permitidas.
+    "SELECT club, COUNT(DISTINCT swimmer_id) AS n FROM ranking_public GROUP BY club ORDER BY n DESC LIMIT 10",
+    "SELECT swimmer_name, MIN(time_ms) FROM ranking_public WHERE event_name ILIKE '%libre%' AND pool_type = 'LC' GROUP BY swimmer_name",
+    "SELECT * FROM (SELECT swimmer_name, time_ms, ROW_NUMBER() OVER (PARTITION BY event_id ORDER BY time_ms) AS pos FROM ranking_public) t WHERE pos <= 3",
+    "SELECT e.swimmer_name, c.name FROM competition_entry e JOIN competition c ON c.id = e.competition_id",
+    "SELECT code, label FROM catalogs WHERE kind = 'prueba' AND lower(label) LIKE '%100%'",
+    "SELECT ROUND(AVG(points), 1), CAST(SUBSTR(result_date, 1, 4) AS INTEGER) AS y FROM ranking_public GROUP BY y",
+    "SELECT CASE WHEN time_ms < 60000 THEN 'sub 1' ELSE 'más' END, COALESCE(club, '-') FROM ranking_public",
+    "WITH a AS (SELECT * FROM ranking_public), b AS (SELECT * FROM a) SELECT COUNT(*) FROM b",
+    "SELECT swimmer_name FROM ranking_public UNION SELECT swimmer_name FROM competition_entry",
 ])
 def test_guard_permite(sql):
     assert check_select(sql)
@@ -44,10 +54,66 @@ def test_guard_permite(sql):
     "SELECT 1; DROP TABLE x",
     "SELECT * FROM pg_shadow",
     "SELECT * FROM information_schema.tables",
+    # Ataques que pasaban el filtro de expresiones regulares (auditoría 2026-11-23).
+    "SELECT email FROM ranking_public, app_user",
+    "SELECT birth_date FROM catalogs , ranking_results LIMIT 1",
+    "SELECT * FROM ranking_public r, (SELECT 1) x, app_user u",
+    "SELECT query_to_xml('select email, password_hash from app_user', true, true, '')",
+    "SELECT set_config('statement_timeout', '0', false)",
+    "SELECT pg_sleep(30)",
+    "SELECT dblink('host=x', 'select 1')",
+    "SELECT * FROM generate_series(1, 100000000000)",
+    "SELECT * FROM public.app_user",
+    "SELECT * INTO copia FROM ranking_public",
+    "SELECT * FROM ranking_public FOR UPDATE",
+    "SELECT current_user",
+    # Un CTE no puede «tapar» una tabla prohibida: dentro de su propio cuerpo se refiere a la real.
+    "WITH app_user AS (SELECT * FROM app_user) SELECT * FROM app_user",
+    "SELECT * FROM (WITH app_user AS (SELECT 1) SELECT * FROM app_user) x, app_user",
+    "WITH RECURSIVE t(n) AS (SELECT 1 UNION ALL SELECT n + 1 FROM t) SELECT * FROM t",
+    "SELECT * FROM ranking_public WHERE swimmer_id IN (SELECT CAST(id AS TEXT) FROM app_user)",
 ])
 def test_guard_rechaza(sql):
     with pytest.raises(ValueError):
         check_select(sql)
+
+
+def test_sql_libre_en_sqlite_corre_en_solo_lectura(conn):
+    """Segunda capa: aunque algo se colara por la guarda, la conexión no deja escribir."""
+    import sqlite3
+
+    with pytest.raises(sqlite3.OperationalError):
+        claude_agent._run_readonly(conn, "DELETE FROM ranking_results")
+    assert conn.execute("SELECT COUNT(*) FROM ranking_results").fetchone()[0] == 2
+    conn.execute("DELETE FROM sync_log")  # al terminar, la conexión vuelve a permitir escribir
+
+
+def test_sql_libre_en_postgres_usa_transaccion_de_solo_lectura_con_tiempo_maximo():
+    from fecna_agent.pg import PgConnection
+
+    sent = []
+
+    class FakeCursor:
+        def execute(self, sql, params=None):
+            sent.append(sql)
+
+        def fetchmany(self, n):
+            return []
+
+    class FakeRaw:
+        def cursor(self, row_factory=None):
+            return FakeCursor()
+
+        def commit(self):
+            sent.append("COMMIT")
+
+        def rollback(self):
+            sent.append("ROLLBACK")
+
+    claude_agent._run_readonly(PgConnection(FakeRaw()), "SELECT 1")
+    assert sent[0] == "COMMIT" and sent[1] == "SET TRANSACTION READ ONLY"
+    assert sent[2].startswith("SET LOCAL statement_timeout")
+    assert sent[3] == "SELECT 1" and sent[-1] == "ROLLBACK"
 
 
 def test_consultar_no_expone_birth_date(conn):

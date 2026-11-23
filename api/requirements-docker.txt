@@ -36,5 +36,9 @@ requests>=2.31
 
 python-multipart>=0.0.9
 
+# fecna_agent/sql_guard.py: analiza el SQL libre del chat (lista blanca de tablas y funciones).
+# Rango fijo: sqlglot cambia su API entre versiones mayores.
+sqlglot>=30.33,<31
+
 # Ficha para redes (imagen PNG): fecna_agent/ficha_imagen.py
 Pillow>=10

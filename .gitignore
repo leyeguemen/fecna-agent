@@ -2,8 +2,8 @@
 data/*
 *.db
 *.sqlite
-# Excepción: la base ANONIMIZADA sí puede publicarse (pseudónimos, solo año)
-!data/fecna_public.db
+# Ninguna base se publica: fecna_public.db NO estaba anonimizada (fechas de nacimiento completas
+# y una cuenta de la app). Producción usa Supabase; local y pruebas no necesitan el archivo versionado.
 
 .venv/
 __pycache__/

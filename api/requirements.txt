@@ -22,3 +22,6 @@ anthropic>=0.40
 requests>=2.31
 
 python-multipart>=0.0.9
+
+# fecna_agent/sql_guard.py: analiza el SQL libre del chat. Rango fijo: cambia su API entre mayores.
+sqlglot>=30.33,<31

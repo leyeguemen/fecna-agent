@@ -8,10 +8,12 @@ import { c, font } from '../../theme';
 import { Button, Card, Chip, ConfirmDialog, Empty, ErrorText, Field, Header } from '../../ui';
 
 type Section = 'usuarios' | 'roles' | 'permisos';
+type UserFilter = 'todas' | 'activas' | 'inactivas';
 type Dialog =
   | { kind: 'userRole'; u: Item; role: string }
   | { kind: 'role'; role: Item | null; id: string; name: string; perms: string[] }
   | { kind: 'perm'; perm: Item | null; key: string; label: string }
+  | { kind: 'deactivate'; u: Item }
   | { kind: 'delRole'; role: Item }
   | { kind: 'delPerm'; perm: Item };
 
@@ -25,6 +27,7 @@ export default function Seguridad() {
   const [perms, setPerms] = useState<Item[]>([]);
   const [users, setUsers] = useState<Item[]>([]);
   const [q, setQ] = useState('');
+  const [userFilter, setUserFilter] = useState<UserFilter>('todas');
   const [dialog, setDialog] = useState<Dialog | null>(null);
   const [idTouched, setIdTouched] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -66,8 +69,23 @@ export default function Seguridad() {
     finally { setBusy(false); }
   };
 
+  // Activar no pide confirmación (no hace daño); los errores salen en pantalla, no en un cuadro.
+  const activate = async (u: Item) => {
+    setBusy(true); setError(null); setMsg(null);
+    try {
+      await api(`/admin/users/${u.id}/active`, { method: 'PUT', body: { active: true } });
+      await loadUsers(q);
+      setMsg(`${u.email} activada: ya puede iniciar sesión.`);
+    } catch (e: any) { setError(e.message); }
+    finally { setBusy(false); }
+  };
+
   const confirm = () => {
     if (!dialog) return;
+    if (dialog.kind === 'deactivate') {
+      return run(() => api(`/admin/users/${dialog.u.id}/active`, { method: 'PUT', body: { active: false } }),
+        `${dialog.u.email} desactivada: ya no puede iniciar sesión.`);
+    }
     if (dialog.kind === 'userRole') {
       return run(() => api(`/admin/users/${dialog.u.id}/role`, { method: 'PUT', body: { role: dialog.role } }),
         `${dialog.u.email} ahora tiene el rol ${roles.find((r) => r.id === dialog.role)?.name ?? dialog.role}. Aplica de inmediato.`);
@@ -86,6 +104,8 @@ export default function Seguridad() {
     if (dialog.kind === 'delRole') return run(() => api(`/admin/roles/${dialog.role.id}`, { method: 'DELETE' }), 'Rol eliminado.');
     if (dialog.kind === 'delPerm') return run(() => api(`/admin/permissions/${dialog.perm.key}`, { method: 'DELETE' }), 'Permiso eliminado.');
   };
+
+  const shown = users.filter((u) => userFilter === 'todas' || (userFilter === 'activas' ? u.active : !u.active));
 
   const permLabel = (key: string) => perms.find((p) => p.key === key)?.label ?? key;
   const toggle = (key: string) => {
@@ -160,6 +180,10 @@ export default function Seguridad() {
           ),
         };
       }
+      case 'deactivate': return {
+        title: '¿Desactivar esta cuenta?', message: `${dialog.u.email}. No podrá iniciar sesión hasta que la actives de nuevo. Sus datos se conservan.`,
+        confirmLabel: 'Desactivar', danger: true, disabled: false, body: null,
+      };
       case 'delRole': return {
         title: '¿Eliminar este rol?', message: `${dialog.role.name}. Dejará de existir; no se puede deshacer.`, confirmLabel: 'Eliminar', danger: true, disabled: false, body: null,
       };
@@ -185,20 +209,40 @@ export default function Seguridad() {
         {section === 'usuarios' ? (
           <>
             <TextInput value={q} onChangeText={setQ} placeholder="Buscar por correo" placeholderTextColor="#8AA3B5" autoCapitalize="none" style={s.search} />
-            {users.length === 0 && !loading ? <Empty text="Sin usuarios para esa búsqueda." /> : null}
-            {users.map((u) => {
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8, flexShrink: 0 }}>
+              <Text style={s.sub}>Mostrar</Text>
+              <Chip label="Todas" selected={userFilter === 'todas'} onPress={() => setUserFilter('todas')} />
+              <Chip label="Activas" selected={userFilter === 'activas'} onPress={() => setUserFilter('activas')} />
+              <Chip label="Inactivas" selected={userFilter === 'inactivas'} onPress={() => setUserFilter('inactivas')} />
+            </View>
+            {shown.length === 0 && !loading ? <Empty text="Sin usuarios para esa búsqueda." /> : null}
+            {shown.map((u) => {
               const self = u.email === user?.email;
               return (
                 <Card key={u.id}>
                   <View style={{ flexDirection: 'row', alignItems: 'center', gap: 10 }}>
-                    <View style={{ flex: 1 }}>
-                      <Text style={s.optName} numberOfLines={1}>{u.email}{self ? ' (tú)' : ''}</Text>
+                    <View style={[{ flex: 1, minWidth: 0 }, !u.active && { opacity: 0.55 }]}>
+                      <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
+                        <Text style={[s.optName, { flexShrink: 1 }]} numberOfLines={1}>{u.email}{self ? ' (tú)' : ''}</Text>
+                        {!u.active ? <Text style={s.inactiveTag}>Inactiva</Text> : null}
+                      </View>
                       <Text style={s.sub}>{u.role_name}</Text>
                     </View>
                     {!self ? (
-                      <Pressable onPress={() => setDialog({ kind: 'userRole', u, role: u.role })} accessibilityRole="button" style={s.smallBtn}>
-                        <Text style={s.smallBtnText}>Cambiar rol</Text>
-                      </Pressable>
+                      <View style={{ gap: 6 }}>
+                        <Pressable onPress={() => setDialog({ kind: 'userRole', u, role: u.role })} accessibilityRole="button" style={s.smallBtn}>
+                          <Text style={[s.smallBtnText, { textAlign: 'center' }]}>Cambiar rol</Text>
+                        </Pressable>
+                        {u.active ? (
+                          <Pressable onPress={() => setDialog({ kind: 'deactivate', u })} accessibilityRole="button" style={[s.smallBtn, { borderColor: c.danger }]}>
+                            <Text style={[s.smallBtnText, { color: c.danger, textAlign: 'center' }]}>Desactivar</Text>
+                          </Pressable>
+                        ) : (
+                          <Pressable onPress={() => activate(u)} disabled={busy} accessibilityRole="button" style={[s.smallBtn, { backgroundColor: c.primary, opacity: busy ? 0.5 : 1 }]}>
+                            <Text style={[s.smallBtnText, { color: c.white, textAlign: 'center' }]}>Activar</Text>
+                          </Pressable>
+                        )}
+                      </View>
                     ) : null}
                   </View>
                 </Card>
@@ -270,5 +314,6 @@ const s = StyleSheet.create({
   tick: { color: c.white, fontFamily: font.bold, fontSize: 14, lineHeight: 16 },
   smallBtn: { borderWidth: 1, borderColor: c.primary, borderRadius: 10, paddingVertical: 6, paddingHorizontal: 12 },
   smallBtnText: { color: c.primary, fontFamily: font.semi, fontSize: 12 },
+  inactiveTag: { fontFamily: font.bold, fontSize: 11, color: c.muted, backgroundColor: '#EEF3F7', borderWidth: 1, borderColor: c.input, borderRadius: 10, paddingVertical: 2, paddingHorizontal: 8, overflow: 'hidden' },
   danger: { color: c.danger, fontFamily: font.semi, fontSize: 13 },
 });

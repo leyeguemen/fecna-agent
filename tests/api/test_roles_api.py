@@ -204,3 +204,31 @@ def test_historial_por_demanda_exige_sincronizar_y_nadador_existente(env):
     for method in (client.get, client.post):
         assert method("/admin/swimmers/1/historial", headers=h(user["token"])).status_code == 403
         assert method("/admin/swimmers/zzz/historial", headers=h(admin["token"])).status_code == 404
+
+
+def test_desactivar_y_activar_cuentas(env):
+    client, register, h = env
+    user, admin = register("ana@x.co"), register("boss@x.co")
+    uid = _user_id(client, h, admin["token"], "ana@x.co")
+    # El usuario normal no puede; el admin sí, y la cuenta desactivada deja de entrar de inmediato.
+    assert client.put(f"/admin/users/{uid}/active", json={"active": False}, headers=h(user["token"])).status_code == 403
+    assert client.put(f"/admin/users/{uid}/active", json={"active": False}, headers=h(admin["token"])).status_code == 200
+    items = client.get("/admin/users", headers=h(admin["token"])).json()["items"]
+    assert next(u for u in items if u["email"] == "ana@x.co")["active"] is False
+    assert client.get("/admin/users", headers=h(user["token"])).status_code in (401, 403)
+    assert client.put(f"/admin/users/{uid}/active", json={"active": True}, headers=h(admin["token"])).status_code == 200
+    assert client.put("/admin/users/9999/active", json={"active": False}, headers=h(admin["token"])).status_code == 404
+
+
+def test_no_se_desactiva_a_si_mismo_ni_al_ultimo_admin(env):
+    client, register, h = env
+    admin = register("boss@x.co")
+    me = _user_id(client, h, admin["token"], "boss@x.co")
+    assert client.put(f"/admin/users/{me}/active", json={"active": False}, headers=h(admin["token"])).status_code == 409
+    # Un rol con «gestionar_usuarios» que no es admin no puede dejar el sistema sin administrador.
+    client.post("/admin/roles", json={"id": "gestor", "name": "Gestor", "permissions": ["gestionar_usuarios"]}, headers=h(admin["token"]))
+    gestor = register("gestor@x.co")
+    gid = _user_id(client, h, admin["token"], "gestor@x.co")
+    client.put(f"/admin/users/{gid}/role", json={"role": "gestor"}, headers=h(admin["token"]))
+    r = client.put(f"/admin/users/{me}/active", json={"active": False}, headers=h(gestor["token"]))
+    assert r.status_code == 409 and "último administrador" in r.json()["detail"]

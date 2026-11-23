@@ -1112,6 +1112,11 @@ def set_role(conn: sqlite3.Connection, user_id: int, role: str) -> None:
     conn.commit()
 
 
+def set_active(conn, user_id: int, active: bool) -> None:
+    conn.execute("UPDATE app_user SET active = ? WHERE id = ?", (1 if active else 0, user_id))
+    conn.commit()
+
+
 def swimmer_profile(
     conn: sqlite3.Connection,
     swimmer_id: str,

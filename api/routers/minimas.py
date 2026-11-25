@@ -56,6 +56,14 @@ def table(tournament: str, category: str, gender: str):
 def swimmer(swimmer_id: str, tournament: str = Query("interligas")):
     """Qué marcas mínimas cumple el nadador y cuánto le falta en las demás (piscina larga)."""
     _check(tournament)
+    out = evaluate_swimmer(swimmer_id, tournament)
+    if out is None:
+        raise HTTPException(status_code=404, detail="Nadador no encontrado.")
+    return out
+
+
+def evaluate_swimmer(swimmer_id: str, tournament: str) -> dict | None:
+    """Mínimas del nadador en ese campeonato (también la usa el Inicio). None si el nadador no existe."""
     mconn = app_conn()
     try:
         year = db.minimum_years(mconn).get(tournament)
@@ -65,7 +73,7 @@ def swimmer(swimmer_id: str, tournament: str = Query("interligas")):
     try:
         ident = db.swimmer_identity(conn, swimmer_id)
         if ident is None:
-            raise HTTPException(status_code=404, detail="Nadador no encontrado.")
+            return None
         best = db.swimmer_bests(conn, swimmer_id, minimas.POOL)
         gender = (ident["gender"] or "").upper() or None
         birth_year = int(ident["birth_date"][:4]) if ident.get("birth_date") else None

@@ -1,6 +1,7 @@
 """Cuenta del usuario: nadador vinculado, nadadores seguidos, contraseña y borrado (/me/*)."""
 
 import re
+from datetime import date
 
 from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
@@ -9,6 +10,7 @@ from api import security
 from api.deps import app_conn, read_conn
 from api.routers.auth import limiter
 from fecna_agent import db, historial
+from fecna_agent.times import ms_to_time
 
 router = APIRouter(prefix="/me", tags=["me"])
 
@@ -61,6 +63,80 @@ def my_profile(user: dict = Depends(security.active_user)):
     swimmer, data_until = _read_info(swimmer_id)
     return {"email": user["email"], "role": user["role"],
             "swimmer": swimmer, "following": following, "data_until": data_until}
+
+
+# Campeonatos de mínimas que se prueban para el Inicio, en orden (el nadador cae en uno según su edad).
+_HOME_MINIMAS = ("infantiles", "interligas")
+
+
+def _home_minima(swimmer_id: str) -> dict | None:
+    """La mínima más cercana que le falta al nadador o, si ya cumple todas, cuántas cumple."""
+    from api.routers.minimas import evaluate_swimmer
+    from fecna_agent import minimas
+
+    for tournament in _HOME_MINIMAS:
+        ev = evaluate_swimmer(swimmer_id, tournament)
+        if not ev or not ev["applicable"]:
+            continue
+        missing = sorted((r for r in ev["rows"] if r["status"] == "falta"), key=lambda r: r["diff_ms"])
+        row = missing[0] if missing else None
+        return {"tournament": tournament, "tournament_label": minimas.TOURNAMENTS[tournament],
+                "category_label": ev["category_label"], "met": ev["met"], "total": ev["total"],
+                "event": row["event"] if row else None, "best": row["best"] if row else None,
+                "minima": row["minima"] if row else None, "diff": row["diff"] if row else None,
+                "best_ms": row["best_ms"] if row else None, "minima_ms": row["minima_ms"] if row else None}
+    return None
+
+
+def _home_competition(rows: list) -> dict | None:
+    """El campeonato más próximo con inscripciones del usuario, y su primera prueba."""
+    if not rows:
+        return None
+    from api.routers.competitions import _entry_item
+
+    comp_id = rows[0]["competition_id"]
+    mine = [r for r in rows if r["competition_id"] == comp_id]
+    return {"id": comp_id, "name": rows[0]["competition_name"], "entries": len(mine),
+            "swimmers": len({r["swimmer_name"] for r in mine}), "first": _entry_item(rows[0])}
+
+
+@router.get("/home")
+def home(user: dict = Depends(security.active_user)):
+    """Resumen de la pantalla de Inicio. Cada bloque sale solo si el rol tiene el permiso de esa sección."""
+    perms = set(user.get("permissions") or [])
+    uid = _uid(user)
+    conn = app_conn()
+    try:
+        swimmer_id = db.get_user_swimmer_id(conn, uid)
+        following = len(db.list_following(conn, uid))
+        torneos = "ver_torneos" in perms
+        comps = len(db.list_competitions(conn)) if torneos else None
+        upcoming = db.upcoming_entries(conn, uid, swimmer_id, date.today().isoformat()) if torneos else []
+    finally:
+        conn.close()
+
+    swimmer = None
+    if swimmer_id:
+        rconn = read_conn()
+        try:
+            summary = db.swimmer_summary(rconn, swimmer_id)
+            profile = db.swimmer_profile(rconn, swimmer_id) if summary and "ver_nadador" in perms else None
+        finally:
+            rconn.close()
+        if summary:
+            top = profile["top_events"][0] if profile and profile["top_events"] else None
+            swimmer = {**summary,
+                       "gender": profile["gender"] if profile else None,
+                       "age": profile["age"] if profile else None,
+                       "top_event": {"event_name": top["event_name"], "pool": top["pool_type"],
+                                     "best_time": ms_to_time(top["best_ms"])[3:] if top["best_ms"] else None,
+                                     "national_rank": top["national_rank"],
+                                     "national_total": top["national_total"]} if top else None}
+
+    return {"swimmer": swimmer,
+            "minima": _home_minima(swimmer_id) if swimmer and "ver_minimas" in perms else None,
+            "next_competition": _home_competition(upcoming),
+            "following": following, "competitions": comps}
 
 
 @router.put("/swimmer")

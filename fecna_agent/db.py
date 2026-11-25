@@ -883,6 +883,30 @@ def watched_schedule(
     ).fetchall()
 
 
+def upcoming_entries(
+    conn: sqlite3.Connection, user_id: int, swimmer_id: str | None, today: str
+) -> list[sqlite3.Row]:
+    """Próximas inscripciones (desde `today`, AAAA-MM-DD) del nadador vinculado, de los que el
+    usuario sigue y de los que vigila en cada campeonato, con el nombre del campeonato."""
+    own, params = "", [today]
+    if swimmer_id:
+        own = "e.swimmer_id = ? OR "
+        params.append(swimmer_id)
+    return conn.execute(
+        f"""SELECT e.*, c.name AS competition_name FROM competition_entry e
+           JOIN competition c ON c.id = e.competition_id
+           WHERE e.session_date >= ?
+             AND ({own}EXISTS (SELECT 1 FROM competition_watch w
+                             WHERE w.competition_id = e.competition_id
+                               AND w.swimmer_name = e.swimmer_name AND w.user_id = ?)
+                  OR EXISTS (SELECT 1 FROM swimmer_follow f
+                             WHERE f.user_id = ? AND (f.swimmer_id = e.swimmer_id
+                                   OR LOWER(f.swimmer_name) = LOWER(e.swimmer_name))))
+           ORDER BY e.session_date, e.start_time IS NULL, e.start_time, e.event_number, e.heat, e.lane""",
+        (*params, user_id, user_id),
+    ).fetchall()
+
+
 def watched_entry(
     conn: sqlite3.Connection, entry_id: int, user_id: int = 0
 ) -> sqlite3.Row | None:

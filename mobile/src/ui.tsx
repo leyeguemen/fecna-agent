@@ -9,6 +9,7 @@ import { c, font } from './theme';
 
 // ---- Iconos (trazos del diseño) ------------------------------------------------
 const ICONS: Record<string, ReactNode> = {
+  home: <Path d="M3 11l9-7 9 7v9a1 1 0 0 1-1 1h-5v-6h-6v6H4a1 1 0 0 1-1-1z" />,
   chat: <Path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />,
   ranking: <Path d="M8 21V10M16 21V4M12 21v-7M3 21h18" />,
   swimmer: <><Circle cx="12" cy="8" r="4" /><Path d="M4 21c0-4 4-6 8-6s8 2 8 6" /></>,
@@ -16,6 +17,7 @@ const ICONS: Record<string, ReactNode> = {
   sync: <><Path d="M21 12a9 9 0 1 1-3-6.7L21 8" /><Path d="M21 3v5h-5" /></>,
   send: <><Path d="M22 2L11 13" /><Path d="M22 2l-7 20-4-9-9-4 20-7z" /></>,
   logout: <><Path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" /><Path d="M16 17l5-5-5-5" /><Path d="M21 12H9" /></>,
+  list: <Path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" />,
   chevron: <Path d="M9 18l6-6-6-6" />,
   search: <><Circle cx="11" cy="11" r="7" /><Path d="M21 21l-4.3-4.3" /></>,
   shield: <Path d="M12 3l8 3v6c0 5-3.5 8-8 9-4.5-1-8-4-8-9V6l8-3z" />,

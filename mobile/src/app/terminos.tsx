@@ -1,21 +1,28 @@
-import { router } from 'expo-router';
-import { ScrollView, StyleSheet, Text, View } from 'react-native';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useRef } from 'react';
+import { ScrollView, ScrollViewInstance, StyleSheet, Text, View } from 'react-native';
 import { SOURCE_NOTE, TERMS, TERMS_VERSION } from '../legal';
 import { c, font } from '../theme';
 import { Button } from '../ui';
 
-// Se puede abrir con o sin sesión (desde Login, Registro y Perfil).
+// Se puede abrir con o sin sesión (desde Login, Registro, Perfil y Acerca de).
+// `seccion` (p. ej. "6") lleva directo a esa sección: Acerca de → Tratamiento de datos.
 export default function Terminos() {
+  const { seccion } = useLocalSearchParams<{ seccion?: string }>();
+  const scroll = useRef<ScrollViewInstance>(null);
+  const target = seccion ? TERMS.findIndex((t) => t.title.startsWith(`${seccion}.`)) : -1;
+
   return (
     <View style={s.root}>
       <View style={s.header}>
         <Text style={s.title}>Términos y condiciones</Text>
         <Text style={s.sub}>NATIA — Tu asistente de natación</Text>
       </View>
-      <ScrollView contentContainerStyle={{ padding: 20, gap: 14 }}>
+      <ScrollView ref={scroll} contentContainerStyle={{ padding: 20, gap: 14 }}>
         <View style={s.note}><Text style={s.noteText}>{SOURCE_NOTE}</Text></View>
-        {TERMS.map((t) => (
-          <View key={t.title} style={{ gap: 4 }}>
+        {TERMS.map((t, i) => (
+          <View key={t.title} style={{ gap: 4 }}
+            onLayout={i === target ? (e) => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 12), animated: false }) : undefined}>
             <Text style={s.h}>{t.title}</Text>
             <Text style={s.p}>{t.body}</Text>
           </View>

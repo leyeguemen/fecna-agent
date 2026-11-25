@@ -49,6 +49,11 @@ def test_vincular_nadador_verifica_fecha(client):
     assert client.get("/me").json()["swimmer"] is None
 
 
+def test_me_incluye_la_fecha_de_los_datos(client):
+    """La pantalla "Acerca de" muestra hasta qué fecha llegan los datos."""
+    assert client.get("/me").json()["data_until"] == "2026-01-01"
+
+
 def test_seguir_y_dejar_de_seguir(client):
     assert client.put("/me/following/2").status_code == 204
     assert [f["swimmer_name"] for f in client.get("/me").json()["following"]] == ["Bea Gil"]

@@ -1,6 +1,22 @@
 // Términos y condiciones de NATIA. Si cambia el texto, sube TERMS_VERSION también en api/routers/auth.py.
 export const TERMS_VERSION = '2026-11-21';
 
+// Correo para soporte y solicitudes sobre datos (el mismo de la sección 6 y de CONTACT_EMAIL en api/routers/auth.py).
+export const CONTACT_EMAIL = 'leoye.work@gmail.com';
+
+// Bibliotecas y fuentes de código abierto que incluye la app (dependencias directas de package.json).
+export const LICENSES: { name: string; license: string }[] = [
+  { name: 'React y React DOM', license: 'MIT' },
+  { name: 'React Native', license: 'MIT' },
+  { name: 'React Native Web', license: 'MIT' },
+  { name: 'Expo, Expo Router y módulos de Expo', license: 'MIT' },
+  { name: 'react-native-safe-area-context', license: 'MIT' },
+  { name: 'react-native-screens', license: 'MIT' },
+  { name: 'react-native-svg', license: 'MIT' },
+  { name: 'Fuente Inter', license: 'SIL Open Font License 1.1' },
+  { name: 'Fuente Space Grotesk', license: 'SIL Open Font License 1.1' },
+];
+
 // Aviso corto que se muestra junto a los datos.
 export const SOURCE_NOTE =
   'NATIA es una app independiente: no está avalada por FECNA. Los datos se toman del ranking público de FECNA.';

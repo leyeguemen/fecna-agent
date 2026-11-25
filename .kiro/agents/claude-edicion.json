@@ -1,0 +1,85 @@
+{
+  "name": "claude-edicion",
+  "description": "Delegado de Claude Code (fecna-agent): lee y edita el código Python (fecna_agent, api, tests) y la app Expo (mobile/src). Sin shell.",
+  "prompt": "file://~/.claude/orquestacion/reglas-delegados.md",
+  "tools": [
+    "fs_read",
+    "fs_write"
+  ],
+  "allowedTools": [
+    "fs_read"
+  ],
+  "toolsSettings": {
+    "fs_read": {
+      "deniedPaths": [
+        "~/.ssh/**",
+        "~/.aws/**",
+        "~/.gnupg/**",
+        "~/.netrc",
+        "~/.m2/settings.xml",
+        "~/.codex/auth.json",
+        "**/.env",
+        "**/.env.*",
+        "**/secrets.toml",
+        "**/*.db",
+        "**/*.sqlite",
+        "data/**",
+        "./data/**",
+        ".streamlit/secrets.toml",
+        "./.streamlit/secrets.toml"
+      ]
+    },
+    "fs_write": {
+      "allowedPaths": [
+        "fecna_agent/**",
+        "./fecna_agent/**",
+        "api/**",
+        "./api/**",
+        "tests/**",
+        "./tests/**",
+        "mobile/src/**",
+        "./mobile/src/**",
+        "docs/**",
+        "./docs/**",
+        ".kiro/specs/**",
+        "./.kiro/specs/**",
+        "*.md",
+        "./*.md",
+        "mobile/*.md",
+        "./mobile/*.md"
+      ],
+      "deniedPaths": [
+        "build/**",
+        "./build/**",
+        "bin/**",
+        "./bin/**",
+        ".gradle/**",
+        "./.gradle/**",
+        ".settings/**",
+        "./.settings/**",
+        ".git/**",
+        "./.git/**",
+        "~/.m2/**",
+        "~/.gradle/**",
+        "**/.env",
+        "**/.env.*",
+        "**/secrets.toml",
+        "**/*.db",
+        "**/*.sqlite",
+        "node_modules/**",
+        "dist/**",
+        ".venv/**",
+        "data/**",
+        "./data/**",
+        ".streamlit/**",
+        "./.streamlit/**",
+        "mobile/node_modules/**",
+        "./mobile/node_modules/**",
+        ".github/**",
+        "./.github/**"
+      ]
+    }
+  },
+  "mcpServers": {},
+  "resources": []
+}

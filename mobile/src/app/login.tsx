@@ -1,7 +1,7 @@
 import { Link } from 'expo-router';
 import { SOURCE_NOTE } from '../legal';
 import { useState } from 'react';
-import { Image, KeyboardAvoidingView, ScrollView, StyleSheet, Text, View } from 'react-native';
+import { Image, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, Text, View } from 'react-native';
 import { useAuth } from '../auth';
 import { c, font } from '../theme';
 import { Button, ErrorText, Field } from '../ui';
@@ -35,6 +35,12 @@ export default function Login() {
         <Text style={s.small}>¿Sin cuenta? <Link href="/registro" style={s.link}>Regístrate</Link></Text>
         <Text style={[s.small, { fontSize: 11 }]}>{SOURCE_NOTE}</Text>
         <Text style={[s.small, { fontSize: 12 }]}><Link href="/terminos" style={s.link}>Términos y condiciones</Link></Text>
+        {/* En la web, la landing es una página estática fuera de la app: se abre con una carga completa. */}
+        {Platform.OS === 'web' ? (
+          <Text style={[s.small, { fontSize: 12 }]}>
+            <Text accessibilityRole="link" style={s.link} onPress={() => window.location.assign('/bienvenida')}>¿Qué es NATIA? Conócela</Text>
+          </Text>
+        ) : null}
       </ScrollView>
     </KeyboardAvoidingView>
   );

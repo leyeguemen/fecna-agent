@@ -82,7 +82,8 @@ def _to_24h(hhmm: str, meridian: str | None) -> str:
     h, m = (int(x) for x in hhmm.split(":"))
     if meridian:
         meridian = meridian.upper()
-        if meridian == "PM" and h != 12:
+        # Algunos programas escriben la hora ya en 24 h con "PM" ("16:30 PM").
+        if meridian == "PM" and h < 12:
             h += 12
         elif meridian == "AM" and h == 12:
             h = 0
@@ -106,10 +107,15 @@ _HY_EVENT = re.compile(
 )
 _HY_HEAT = re.compile(r"Heat\s+\d+\s+of\s+\d+.*Starts at\s+(\d{1,2}:\d{2})\s*(AM|PM)?")
 _HY_ENTRY = re.compile(
-    r"^(\d{1,2})\s+(.+?)\s+(\d{1,2})\s+([A-Z0-9]{2,5})\s+(NT|[\d:]*\d\.\d{2})\s*$"
+    r"^(\d{1,2})\s+(.+?)\s+(\d{1,2})\s+([A-Z0-9]{2,5})\s+(NT|[\d:]*\d\.\d{2})"
+    r"(?:\s*[A-Z]{2,6})?\s*$"  # estándar de calificación opcional (p. ej. "FECN")
 )
-# Encabezado de jornada (abarca todo el ancho): "... 1 Jornada Viernes 5 de Junio".
-_HY_JORNADA = re.compile(r"(\d+)\s+Jornada\s+\S+\s+(\d{1,2})\s+de\s+(\w+)", re.I)
+_HY_SEED = re.compile(r"NT|[\d:]*\d\.\d{2}")
+# Encabezado de jornada (abarca todo el ancho): "... 1 Jornada Viernes 5 de Junio"
+# o "Meet Program - 1 Sesion Viernes 27 Noviembre".
+_HY_JORNADA = re.compile(
+    r"(\d+)\s+(?:Jornada|Sesi[oó]n)\s+\S+\s+(\d{1,2})\s+(?:de\s+)?([A-Za-zñÑ]+)", re.I
+)
 _GENDER = {"Women": "F", "Men": "M", "Mixed": "X"}
 
 
@@ -250,6 +256,10 @@ def _parse_colombia(lines: list[str]) -> tuple[dict, list[dict]]:
 def _clean_name(name: str) -> str:
     """Normaliza espacios y corrige la 'ñ' que el PDF extrae como 'nñ'."""
     name = name.replace("nñ", "ñ").replace("Nñ", "Ñ")
+    # Algunos PDF codifican la tilde aguda como un caracter de control pegado a
+    # la vocal ("Mari\x8da", "Nicola\x81s"): se convierte en tilde combinada.
+    name = re.sub(r"(?<=[AEIOUaeiou])[\x81\x8d]", "\u0301", name)
+    name = unicodedata.normalize("NFC", re.sub(r"[\x80-\x9f]", "", name))
     return re.sub(r"\s+", " ", name).strip()
 
 
@@ -366,14 +376,23 @@ def _rebuild_line(chars: list, bounds: tuple[float, float, float] | None) -> str
     age_left = min(digit_xs) if digit_xs else float("inf")
     name_c = [t for t, x in zone
               if not t.isdigit() and not (t == " " and x >= age_left - 6)]
+    # Los apellidos muy largos también invaden la columna del club, intercalando
+    # minúsculas con el código (en mayúsculas): "cCaDCR" = "ca" + "CDCR". Si el
+    # club mezcla ambas, las minúsculas son la cola del nombre.
+    team_raw = "".join(team_c).strip()
+    if re.search(r"[a-z]", team_raw) and re.search(r"[A-Z]", team_raw):
+        name_c.append("".join(t for t in team_raw if t.islower()))
+        team_raw = "".join(t for t in team_raw if not t.islower())
     lane = "".join(lane_c).strip()
     name = re.sub(r"\s+", " ", "".join(name_c)).strip()
     age = "".join(t for t, _ in zone if t.isdigit()).strip()
-    team = "".join(team_c).strip()
-    seed = "".join(seed_c).strip()
+    team = team_raw.strip()
+    # Después del tiempo algunos programas traen el estándar de calificación
+    # pegado ("3:36.41FECN"); solo interesa el tiempo.
+    seed_m = _HY_SEED.match("".join(seed_c).strip())
     if (re.fullmatch(r"\d{1,2}", lane) and re.fullmatch(r"\d{1,2}", age)
-            and name and re.match(r"NT|[\d:]*\d\.\d{2}", seed)):
-        return f"{lane} {name} {age} {team} {seed}"
+            and name and seed_m):
+        return f"{lane} {name} {age} {team} {seed_m.group(0)}"
     return raw
 
 

@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useState } from 'react';
+import { useFocusEffect } from 'expo-router';
 import { ActivityIndicator, FlatList, Pressable, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
 import { useAuth } from '../../auth';
@@ -20,9 +21,13 @@ export default function Torneos() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    api('/competitions').then((r) => setComps(r.items)).catch((e) => setError(e.message)).finally(() => setLoading(false));
-  }, []);
+  // Las pestañas quedan montadas: se recarga la lista cada vez que se abre Torneos
+  // para que aparezca un programa recién cargado desde Admin.
+  useFocusEffect(
+    useCallback(() => {
+      api('/competitions').then((r) => setComps(r.items)).catch((e) => setError(e.message)).finally(() => setLoading(false));
+    }, []),
+  );
 
   const load = useCallback(async (comp: Item, name: string, onlyMine: boolean) => {
     setLoading(true); setError(null);

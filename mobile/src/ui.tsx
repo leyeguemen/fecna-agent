@@ -24,6 +24,8 @@ const ICONS: Record<string, ReactNode> = {
   check: <Path d="M20 6L9 17l-5-5" />,
   target: <><Circle cx="12" cy="12" r="9" /><Circle cx="12" cy="12" r="5" /><Circle cx="12" cy="12" r="1" /></>,
   back: <Path d="M15 18l-6-6 6-6" />,
+  alert: <><Circle cx="12" cy="12" r="9" /><Path d="M12 8v5" /><Path d="M12 16h.01" /></>,
+  mail: <><Rect x="3" y="5" width="18" height="14" rx="2" /><Path d="M3 7l9 6 9-6" /></>,
   upload: <><Path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><Path d="M17 8l-5-5-5 5" /><Path d="M12 3v12" /></>,
 };
 

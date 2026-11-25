@@ -22,6 +22,8 @@ function Routes() {
   return (
     <Stack screenOptions={{ headerShown: false }}>
       <Stack.Screen name="terminos" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="licencias" options={{ presentation: 'modal' }} />
+      <Stack.Screen name="acerca" />
       <Stack.Protected guard={!!user}>
         <Stack.Screen name="(tabs)" />
         <Stack.Screen name="vincular" options={{ presentation: 'modal' }} />

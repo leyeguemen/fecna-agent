@@ -39,6 +39,17 @@ def _summary(swimmer_id: str | None) -> dict | None:
         conn.close()
 
 
+def _read_info(swimmer_id: str | None) -> tuple[dict | None, str | None]:
+    """Resumen del nadador vinculado y fecha del resultado más reciente (para "Acerca de")."""
+    conn = read_conn()
+    try:
+        summary = db.swimmer_summary(conn, swimmer_id) if swimmer_id else None
+        data_until = conn.execute("SELECT MAX(result_date) FROM ranking_results").fetchone()[0]
+    finally:
+        conn.close()
+    return summary, (str(data_until) if data_until else None)
+
+
 @router.get("")
 def my_profile(user: dict = Depends(security.active_user)):
     conn = app_conn()
@@ -47,8 +58,9 @@ def my_profile(user: dict = Depends(security.active_user)):
         following = db.list_following(conn, _uid(user))
     finally:
         conn.close()
+    swimmer, data_until = _read_info(swimmer_id)
     return {"email": user["email"], "role": user["role"],
-            "swimmer": _summary(swimmer_id), "following": following}
+            "swimmer": swimmer, "following": following, "data_until": data_until}
 
 
 @router.put("/swimmer")

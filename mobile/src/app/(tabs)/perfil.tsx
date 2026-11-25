@@ -96,6 +96,7 @@ export default function Perfil() {
             <Pressable style={s.line} onPress={() => { setError(null); setRep(true); }}><Text style={s.text}>Reportar un problema</Text><Icon name="chevron" size={18} /></Pressable>
           ) : null}
           <Pressable style={s.line} onPress={() => router.push('/terminos')}><Text style={s.text}>Términos y condiciones</Text><Icon name="chevron" size={18} /></Pressable>
+          <Pressable style={s.line} onPress={() => router.push('/acerca')}><Text style={s.text}>Acerca de NATIA</Text><Icon name="chevron" size={18} /></Pressable>
           <Pressable style={[s.line, { borderBottomWidth: 0 }]} onPress={() => { setDelText(''); setDel(true); }}><Text style={s.text}>Eliminar mi cuenta y datos</Text><Icon name="chevron" size={18} /></Pressable>
         </Card>
 

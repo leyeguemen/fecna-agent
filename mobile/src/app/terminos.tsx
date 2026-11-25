@@ -11,6 +11,13 @@ export default function Terminos() {
   const { seccion } = useLocalSearchParams<{ seccion?: string }>();
   const scroll = useRef<ScrollViewInstance>(null);
   const target = seccion ? TERMS.findIndex((t) => t.title.startsWith(`${seccion}.`)) : -1;
+  // Solo el primer layout: si luego cambia (giro, fuentes), no se le quita el lugar a quien ya se desplazó.
+  const jumped = useRef(false);
+  const jumpTo = (y: number) => {
+    if (jumped.current) return;
+    jumped.current = true;
+    scroll.current?.scrollTo({ y: Math.max(0, y - 12), animated: false });
+  };
 
   return (
     <View style={s.root}>
@@ -22,7 +29,7 @@ export default function Terminos() {
         <View style={s.note}><Text style={s.noteText}>{SOURCE_NOTE}</Text></View>
         {TERMS.map((t, i) => (
           <View key={t.title} style={{ gap: 4 }}
-            onLayout={i === target ? (e) => scroll.current?.scrollTo({ y: Math.max(0, e.nativeEvent.layout.y - 12), animated: false }) : undefined}>
+            onLayout={i === target ? (e) => jumpTo(e.nativeEvent.layout.y) : undefined}>
             <Text style={s.h}>{t.title}</Text>
             <Text style={s.p}>{t.body}</Text>
           </View>

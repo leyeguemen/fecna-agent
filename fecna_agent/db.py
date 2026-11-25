@@ -45,6 +45,8 @@ CREATE TABLE IF NOT EXISTS ranking_results (
 );
 CREATE INDEX IF NOT EXISTS idx_results_swimmer ON ranking_results (swimmer_id);
 CREATE INDEX IF NOT EXISTS idx_results_event ON ranking_results (event_id, pool_type);
+-- MAX(result_date) en GET /me ("Acerca de") y en el estado de sincronización: sin índice recorre la tabla.
+CREATE INDEX IF NOT EXISTS idx_results_date ON ranking_results (result_date);
 
 -- Vista sin datos sensibles (sin fecha de nacimiento exacta): es la única que ve el chat.
 CREATE VIEW IF NOT EXISTS ranking_public AS
@@ -197,8 +199,8 @@ COLUMNS = [
 
 _PG_SCHEMA_READY: set[str] = set()  # URLs cuyo esquema ya se verificó en este proceso
 _PG_MIGRATION_LOCK = 4270001  # clave de pg_advisory_lock: un solo migrador a la vez
-# Si algo de esto falta, se corre la migración. Toda columna nueva de pg.MIGRATIONS_SQL debe estar
-# aquí (lo verifica tests/test_pg.py): si no, una base existente nunca la recibe.
+# Si algo de esto falta, se corre la migración. Toda columna nueva de pg.MIGRATIONS_SQL y todo índice
+# de SCHEMA deben estar aquí (lo verifica tests/test_pg.py): si no, una base existente nunca la recibe.
 _PG_READY_CHECK = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
                    AND to_regclass('public.ranking_public') IS NOT NULL
                    AND EXISTS (SELECT 1 FROM information_schema.columns
@@ -213,7 +215,11 @@ _PG_READY_CHECK = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
                                WHERE table_name = 'ranking_results' AND column_name = 'tournament')
                    AND to_regclass('public.app_role') IS NOT NULL
                    AND to_regclass('public.swimmer_mark') IS NOT NULL
-                   AND to_regclass('public.minimum_mark') IS NOT NULL"""
+                   AND to_regclass('public.minimum_mark') IS NOT NULL
+                   AND to_regclass('public.idx_results_swimmer') IS NOT NULL
+                   AND to_regclass('public.idx_results_event') IS NOT NULL
+                   AND to_regclass('public.idx_results_date') IS NOT NULL
+                   AND to_regclass('public.idx_entry_comp') IS NOT NULL"""
 
 
 def _ensure_pg_schema(conn, url: str) -> None:

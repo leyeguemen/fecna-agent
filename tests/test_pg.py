@@ -50,3 +50,15 @@ def test_toda_columna_migrada_se_verifica_al_arrancar():
 
     for table, column in re.findall(r"ALTER TABLE (\w+) ADD COLUMN IF NOT EXISTS (\w+)", pgm.MIGRATIONS_SQL):
         assert f"table_name = '{table}' AND column_name = '{column}'" in dbm._PG_READY_CHECK, (table, column)
+
+
+def test_todo_indice_se_verifica_al_arrancar():
+    """Un índice nuevo en SCHEMA que no esté en la verificación nunca se crea en una base existente."""
+    import re
+
+    from fecna_agent import db as dbm
+
+    names = re.findall(r"CREATE INDEX IF NOT EXISTS (\w+)", dbm.SCHEMA)
+    assert "idx_results_date" in names
+    for name in names:
+        assert f"to_regclass('public.{name}') IS NOT NULL" in dbm._PG_READY_CHECK, name

@@ -1,5 +1,9 @@
 """Pruebas del parser del programa de campeonatos (ambos formatos)."""
 
+import os
+
+import pytest
+
 from fecna_agent import programa
 
 HYTEK = """\
@@ -278,6 +282,8 @@ def test_match_swimmers_por_nombre():
     assert aaron["swimmer_id"] == "123"
 
 
+@pytest.mark.skipif(not os.path.exists("data/programa_prueba.pdf.pdf"),
+                    reason="PDF real de prueba no versionado (data/ es local)")
 def test_pdf_hytek_existente_sigue_parseando_bien():
     comp, entries = programa.parse_pdf("data/programa_prueba.pdf.pdf")
     assert comp["source_format"] == "hytek"
@@ -288,3 +294,47 @@ def test_pdf_hytek_existente_sigue_parseando_bien():
     assert first["event_label"] == "200 IM"
     assert first["swimmer_name"] == "Luciana Sanchez Gutierrez"
     assert first["club_code"] == "CDDQ"
+
+
+def test_hytek_variante_sesion_estandar_y_hora_24h_con_pm():
+    # Programa nacional infantil 2026-II: "Sesion" en vez de "Jornada", el
+    # estándar de calificación pegado al tiempo ("FECN") y horas en 24 h con PM.
+    text = (
+        "2026 CAMPEONATO NACIONAL INTERNAL INFANTIL II - 27/11/2026 to 29/11/2026\n"
+        "Meet Program - 2 Sesion Viernes 27 Noviembre Warp 16:00 - 16:45 Comp 17:00\n"
+        "Event 1 Women 10 Year Olds 200 LC Meter IM\n"
+        "Lane Name Age Team Seed Time\n"
+        "Heat 1 of 3 Finals Starts at 16:30 PM\n"
+        "1 Maria Jose Beltran Ortiz 10 ACEN 3:36.41FECN\n"
+        "2 Pedro Perez 10 AQUS 3:35.01 FECN\n"
+        "Heat 2 of 3 Finals Starts at 01:05 PM\n"
+        "3 Ana Gil 10 AQUS NT\n"
+    )
+    _comp, entries = programa.parse_text(text)
+    assert [e["seed_raw"] for e in entries] == ["3:36.41", "3:35.01", "NT"]
+    assert entries[0]["session_no"] == 2
+    assert entries[0]["session_date"] == "2026-11-27"
+    assert entries[0]["start_time"] == "16:30"
+    assert entries[2]["start_time"] == "13:05"
+
+
+def test_rebuild_line_descarta_estandar_y_recupera_apellido_en_club():
+    # "Salaman" + "ca" invade el club: los caracteres quedan "cCaDCR".
+    bounds = (44.0, 150.0, 220.0)
+    chars = [
+        _char("8", 28),
+        _char("A", 44), _char("n", 52), _char("a", 60), _char(" ", 70),
+        _char("S", 80), _char("a", 96), _char("l", 110),
+        _char("1", 134), _char("0", 140),
+        _char("c", 150), _char("C", 152), _char("a", 156), _char("D", 160),
+        _char("C", 166), _char("R", 172),
+        _char("1", 222), _char(":", 226), _char("0", 230), _char("0", 234),
+        _char(".", 238), _char("0", 242), _char("0", 246),
+        _char("F", 250), _char("E", 254), _char("C", 258), _char("N", 262),
+    ]
+    assert programa._rebuild_line(chars, bounds) == "8 Ana Salca 10 CDCR 1:00.00"
+
+
+def test_clean_name_corrige_tilde_codificada_como_control():
+    assert programa._clean_name("Mari\x8da Jose") == "María Jose"
+    assert programa._clean_name("Nicola\x81s Cruz") == "Nicolás Cruz"

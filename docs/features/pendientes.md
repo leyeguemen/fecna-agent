@@ -14,7 +14,7 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 
 5. ~~Skill `/bugs`~~ — **hecha** (`.claude/skills/bugs/`): lista los issues, toma uno, lo reproduce, lo corrige con pruebas y lo deja «por probar». Detalle en `docs/features/reportes-bugs.md`.
 6. **Landing page** — página de presentación de la app.
-7. **Torneos: agrupar por nadador** — en la visualización de las pruebas de un torneo, mostrarlas agrupadas por nadador.
+7. ~~Torneos: agrupar por nadador~~ — **hecho**: el programa de un torneo se ve *Por nadador* (tarjetas que se abren con sus pruebas) o *Por prueba* (lista por hora). Se sumó la pantalla de **Inicio** (`/me/home`) como entrada tras iniciar sesión y Configuración pasó al Perfil.
 
 ## Pulido y deuda técnica
 8. ~~Las rutas validan solo el token~~ — **hecho**: ranking, nadadores, torneos y chat ya usaban `require_permission`; las de la propia cuenta (`/me/*`) ahora usan `active_user`. Una cuenta desactivada o borrada pierde el acceso en máximo 30 s (caché de `current_access`), no al vencer el token.

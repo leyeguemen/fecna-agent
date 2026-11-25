@@ -19,7 +19,8 @@ export default function Config() {
   const items = OPTIONS.filter((o) => can(o.perm));
   return (
     <View style={s.root}>
-      <Header title="Configuración" subtitle="Administración de NATIA" right={<ProfileButton />} />
+      <Header title="Configuración" subtitle="Administración de NATIA" right={<ProfileButton />}
+        onBack={() => (router.canGoBack() ? router.back() : router.replace('/perfil'))} />
       <ScrollView contentContainerStyle={{ padding: 16, paddingTop: 28 }}>
         <View style={s.grid}>
           {items.map((o) => (

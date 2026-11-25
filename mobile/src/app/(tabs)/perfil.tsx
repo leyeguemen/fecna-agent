@@ -9,6 +9,7 @@ import { Avatar, Button, Card, Chip, ConfirmDialog, ErrorText, Field, Icon } fro
 
 export default function Perfil() {
   const { user, signOut, can, changePassword } = useAuth();
+  const isAdmin = ['sincronizar', 'cargar_programa', 'gestionar_usuarios', 'cargar_minimas'].some(can);
   const [me, setMe] = useState<Item | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
@@ -88,6 +89,24 @@ export default function Perfil() {
           ))}
           {me && me.following.length === 0 ? <Text style={s.sub}>Aún no sigues a nadie. Usa “Seguir” en la ficha de un nadador.</Text> : null}
         </View>
+
+        {isAdmin ? (
+          <>
+            <Text style={s.h}>ADMINISTRACIÓN</Text>
+            <Card>
+              <Pressable style={[s.line, { borderBottomWidth: 0 }]} accessibilityRole="button" onPress={() => router.push('/config')}>
+                <View style={[s.row, { flex: 1 }]}>
+                  <Icon name="gear" size={20} color={c.primary} />
+                  <View style={{ flex: 1 }}>
+                    <Text style={s.text}>Configuración</Text>
+                    <Text style={s.sub}>Usuarios, sincronización, programas y mínimas</Text>
+                  </View>
+                </View>
+                <Icon name="chevron" size={18} />
+              </Pressable>
+            </Card>
+          </>
+        ) : null}
 
         <Text style={s.h}>CUENTA</Text>
         <Card>

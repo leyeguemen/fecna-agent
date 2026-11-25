@@ -159,3 +159,46 @@ def test_historial_del_nadador_incluye_las_marcas_del_historial_completo(client,
     assert [i["date"] for i in items] == ["2022-04-02", "2026-01-01"]
     assert items[0]["tournament"] == "TORNEO 2022" and items[0]["points"] == 150
     assert len(client.get("/swimmers/1/history", params={"event_id": "E1", "pool": "LC"}).json()["items"]) == 2
+
+
+def test_inicio_sin_nadador_vinculado(client):
+    """Usuario recién registrado: el Inicio no trae nadador ni torneo, solo los conteos."""
+    body = client.get("/me/home").json()
+    assert body["swimmer"] is None and body["minima"] is None and body["next_competition"] is None
+    assert body["following"] == 0 and body["competitions"] == 0
+
+
+def _competencia(session_date, swimmer_id="1", name="Ana Perez", comp="Chequeo"):
+    import os
+
+    conn = db.connect(os.environ["FECNA_APP_DB"])
+    entry = {c: None for c in db.ENTRY_COLUMNS}
+    entry.update(event_number=1, event_label="100 libre F", session_date=session_date, heat=4, lane=5,
+                 start_time="09:10", swimmer_name=name, club_code="CLUB", seed_ms=60000, swimmer_id=swimmer_id)
+    db.save_competition(conn, {"name": comp, "pool_type": "LC"}, [entry])
+    conn.close()
+
+
+def test_inicio_con_nadador_y_proximo_torneo(client):
+    from datetime import date, timedelta
+
+    client.put("/me/swimmer", json={"swimmer_id": "1", "birth_date": "2008-05-01"})
+    _competencia((date.today() + timedelta(days=4)).isoformat())
+    _competencia((date.today() - timedelta(days=30)).isoformat(), comp="Pasado")  # ya se nadó: no cuenta
+    body = client.get("/me/home").json()
+    assert body["swimmer"]["swimmer_name"] == "Ana Perez"
+    assert body["swimmer"]["top_event"]["national_rank"] == 1  # Bea es de otra categoría (edad)
+    nxt = body["next_competition"]
+    assert nxt["name"] == "Chequeo" and nxt["entries"] == 1 and nxt["swimmers"] == 1
+    assert nxt["first"]["heat"] == 4 and nxt["first"]["lane"] == 5 and nxt["first"]["start_time"] == "09:10"
+    assert body["competitions"] == 2
+
+
+def test_inicio_incluye_torneos_de_los_nadadores_que_sigo(client):
+    from datetime import date, timedelta
+
+    client.put("/me/following/2")
+    _competencia((date.today() + timedelta(days=2)).isoformat(), swimmer_id="2", name="Bea Gil")
+    body = client.get("/me/home").json()
+    assert body["swimmer"] is None and body["following"] == 1
+    assert body["next_competition"]["first"]["swimmer_name"] == "Bea Gil"

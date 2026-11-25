@@ -11,8 +11,10 @@ const tab = (title: string, icon: string) => ({
 });
 
 // Pestaña → permiso que la habilita (en orden de preferencia para la pantalla inicial).
+// Inicio ('/') no pide permiso: es la pantalla de entrada para cualquier rol.
 const SCREENS = [
-  { path: '/', perms: ['chat'] },
+  { path: '/', perms: [] as string[] },
+  { path: '/chat', perms: ['chat'] },
   { path: '/ranking', perms: ['ver_ranking'] },
   { path: '/nadador', perms: ['ver_nadador'] },
   { path: '/torneos', perms: ['ver_torneos'] },
@@ -30,7 +32,7 @@ const hidden = { tabBarItemStyle: { display: 'none' as const } };
 export default function TabsLayout() {
   const { can, pendingLink } = useAuth();
   const pathname = usePathname();
-  const allowed = (perms: string[]) => perms.some(can);
+  const allowed = (perms: string[]) => perms.length === 0 || perms.some(can);
   const isAdmin = allowed(['sincronizar', 'cargar_programa', 'gestionar_usuarios', 'cargar_minimas']);
   if (pendingLink) return <Redirect href="/vincular?first=1" />;
   // Si la pantalla actual ya no está permitida (o el rol cambió), ir a la primera que sí lo esté.
@@ -50,13 +52,14 @@ export default function TabsLayout() {
       // En web la altura por defecto recorta las etiquetas: se da espacio explícito.
       tabBarStyle: { backgroundColor: c.white, borderTopColor: c.border, ...(Platform.OS === 'web' ? { height: 66 + webSafeBottom(), paddingTop: 6, paddingBottom: 8 + webSafeBottom() } : {}) },
     }}>
-      <Tabs.Screen name="index" options={{ ...tab('Chat', 'chat'), ...(can('chat') ? {} : hidden) }} />
+      <Tabs.Screen name="index" options={tab('Inicio', 'home')} />
+      <Tabs.Screen name="chat" options={{ ...tab('Chat', 'chat'), ...(can('chat') ? {} : hidden) }} />
       <Tabs.Screen name="ranking" options={{ ...tab('Ranking', 'ranking'), ...(can('ver_ranking') ? {} : hidden) }} />
       <Tabs.Screen name="nadador" options={{ ...tab('Nadador', 'swimmer'), ...(can('ver_nadador') ? {} : hidden) }} />
       <Tabs.Screen name="torneos" options={{ ...tab('Torneos', 'calendar'), ...(can('ver_torneos') ? {} : hidden) }} />
       <Tabs.Screen name="minimas" options={{ ...tab('Mínimas', 'target'), ...(can('ver_minimas') ? {} : hidden) }} />
-      {/* Configuración: una sola pestaña para lo administrativo; solo con algún permiso de administración. */}
-      <Tabs.Screen name="config" options={{ ...tab('Config', 'gear'), href: isAdmin ? undefined : null }} />
+      {/* Configuración se abre desde Perfil (solo con algún permiso de administración): fuera de la barra. */}
+      <Tabs.Screen name="config" options={isAdmin ? hidden : { href: null }} />
       {/* Sub-pantallas de Configuración: rutas válidas, fuera de la barra (el backend igual valida cada permiso). */}
       <Tabs.Screen name="seguridad" options={hidden} />
       <Tabs.Screen name="sincronizar" options={hidden} />

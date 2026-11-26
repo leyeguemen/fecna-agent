@@ -126,7 +126,7 @@ export default function Inicio() {
         ) : null}
 
         {minima ? (
-          <Pressable style={s.card} accessibilityRole="button" onPress={() => router.push('/minimas')}>
+          <Pressable style={s.card} accessibilityRole="button" onPress={() => router.push({ pathname: '/minimas', params: { torneo: minima.tournament, nadador: sw?.swimmer_id ?? '' } })}>
             {minima.event ? (
               <>
                 <View style={[s.row, { justifyContent: 'space-between' }]}>

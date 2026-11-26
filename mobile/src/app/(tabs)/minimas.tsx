@@ -1,3 +1,4 @@
+import { useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { ActivityIndicator, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
 import { api, Item } from '../../api';
@@ -37,6 +38,18 @@ export default function Minimas() {
       else { setPicking(true); setLoading(false); }
     }).catch(() => { setPicking(true); setLoading(false); });
   }, []);
+
+  // Desde el Inicio (?torneo=…&nadador=…): abre el campeonato y el nadador de la tarjeta.
+  // La pestaña queda montada, así que se aplica cada vez que cambian los parámetros.
+  const { torneo, nadador } = useLocalSearchParams<{ torneo?: string; nadador?: string }>();
+  const paramKey = torneo ? `${torneo}|${nadador ?? ''}` : null;
+  const [appliedKey, setAppliedKey] = useState<string | null>(null);
+  if (torneo && paramKey !== appliedKey) {
+    setAppliedKey(paramKey);
+    setMode('n');
+    setTournament(torneo);
+    if (nadador) { setSwimmerId(nadador); setPicking(false); }
+  }
 
   const loadSwimmer = useCallback(async () => {
     if (!swimmerId) return;

@@ -14,7 +14,7 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 
 5. ~~Skill `/bugs`~~ — **hecha** (`.claude/skills/bugs/`): lista los issues, toma uno, lo reproduce, lo corrige con pruebas y lo deja «por probar». Detalle en `docs/features/reportes-bugs.md`.
 6. ~~Landing page~~ — **hecha**: página estática en `/bienvenida` del sitio web (`mobile/public/bienvenida/index.html`), enlazada desde el Login web. Pendiente: enlace de descarga del APK cuando haya uno estable.
-7. ~~Torneos: agrupar por nadador~~ — **hecho**: el programa de un torneo se ve *Por nadador* (tarjetas que se abren con sus pruebas) o *Por prueba* (lista por hora). Se sumó la pantalla de **Inicio** (`/me/home`) como entrada tras iniciar sesión y Configuración pasó al Perfil.
+7. ~~Torneos: agrupar por nadador~~ — **hecho**: el programa de un torneo se ve por nadador (tarjetas que se abren con sus pruebas): «Tus nadadores» (vinculado, seguidos y vigilados) arriba y el resto debajo, con un buscador por nombre o club que filtra ambos. Se sumó la pantalla de **Inicio** (`/me/home`) como entrada tras iniciar sesión y Configuración pasó al Perfil.
 8. ~~Recuperar contraseña~~ — **hecho**: «¿Olvidaste tu contraseña?» en el Login (`/recuperar`). La API (`/auth/forgot`, `/auth/reset`) envía un código de 6 dígitos por correo con Brevo; vence en 15 min, 5 intentos, reenvío cada 60 s, y al cambiarla cierra las demás sesiones. Requiere `BREVO_API_KEY` y `MAIL_FROM` en `natia-api`.
 
 ## Pulido y deuda técnica

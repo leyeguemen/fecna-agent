@@ -70,7 +70,10 @@ _HOME_MINIMAS = ("infantiles", "interligas")
 
 
 def _home_minima(swimmer_id: str) -> dict | None:
-    """La mínima más cercana que le falta al nadador o, si ya cumple todas, cuántas cumple."""
+    """La prueba en la que mejor cumple la mínima o, si no cumple ninguna, la más cercana que le falta.
+
+    El margen es relativo a la mínima, para comparar pruebas cortas con largas (1 s en 50 m pesa más que en 800 m).
+    """
     from api.routers.minimas import evaluate_swimmer
     from fecna_agent import minimas
 
@@ -78,11 +81,13 @@ def _home_minima(swimmer_id: str) -> dict | None:
         ev = evaluate_swimmer(swimmer_id, tournament)
         if not ev or not ev["applicable"]:
             continue
-        missing = sorted((r for r in ev["rows"] if r["status"] == "falta"), key=lambda r: r["diff_ms"])
-        row = missing[0] if missing else None
+        margin = lambda r: r["diff_ms"] / r["minima_ms"]  # noqa: E731
+        met = [r for r in ev["rows"] if r["status"] == "cumple"]
+        missing = [r for r in ev["rows"] if r["status"] == "falta"]
+        row = max(met, key=margin) if met else min(missing, key=margin) if missing else None
         return {"tournament": tournament, "tournament_label": minimas.TOURNAMENTS[tournament],
                 "category_label": ev["category_label"], "met": ev["met"], "total": ev["total"],
-                "event": row["event"] if row else None, "best": row["best"] if row else None,
+                "event": row["event"] if row else None, "status": row["status"] if row else None, "best": row["best"] if row else None,
                 "minima": row["minima"] if row else None, "diff": row["diff"] if row else None,
                 "best_ms": row["best_ms"] if row else None, "minima_ms": row["minima_ms"] if row else None}
     return None

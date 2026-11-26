@@ -1,6 +1,6 @@
 import * as DocumentPicker from 'expo-document-picker';
 import { File, Paths } from 'expo-file-system';
-import { useLocalSearchParams } from 'expo-router';
+import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import * as Sharing from 'expo-sharing';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import { ActivityIndicator, Image, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from 'react-native';
@@ -9,7 +9,7 @@ import { api, apiImage, Item } from '../../api';
 import { useAuth } from '../../auth';
 import { c, font } from '../../theme';
 import { SOURCE_NOTE } from '../../legal';
-import { Avatar, ConfirmDialog, Empty, ErrorText, Icon, SourceNote } from '../../ui';
+import { Avatar, ConfirmDialog, Empty, ErrorText, Icon, initials, SourceNote } from '../../ui';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 const MESES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sep', 'oct', 'nov', 'dic'];
@@ -71,7 +71,9 @@ export default function Nadador() {
   const [history, setHistory] = useState<Item[]>([]);
   const [all, setAll] = useState<Item[]>([]);
   const [openGroups, setOpenGroups] = useState<Record<string, boolean>>({});
-  const [following, setFollowing] = useState(false);
+  const [mine, setMine] = useState<Item | null>(null); // nadador vinculado a la cuenta
+  const [followed, setFollowed] = useState<Item[]>([]); // nadadores que sigue (franja de arriba)
+  const [meReady, setMeReady] = useState(false);
   const [cmpOpen, setCmpOpen] = useState(false);
   const [cmpQ, setCmpQ] = useState('');
   const [cmpResults, setCmpResults] = useState<Item[]>([]);
@@ -100,8 +102,6 @@ export default function Nadador() {
       const p = await api(`/swimmers/${encodeURIComponent(swimmerId)}`);
       setProfile(p); setAll([]); setOpenGroups({});
       api(`/swimmers/${encodeURIComponent(swimmerId)}/history`).then((h) => setAll(h.items)).catch(() => {});
-      const me = await api('/me');
-      setFollowing(me.following.some((f: Item) => f.swimmer_id === swimmerId));
       // Prueba destacada: la mejor posición nacional.
       const best = [...p.top_events].sort((a: Item, b: Item) => a.national_rank - b.national_rank)[0];
       if (best) await loadHistory(swimmerId, best); else { setSelected(null); setHistory([]); }
@@ -109,10 +109,25 @@ export default function Nadador() {
     finally { setLoading(false); }
   }, [loadHistory]);
 
+  // Mi nadador y los seguidos: se recargan al volver a la pestaña (pudieron cambiar en el Perfil).
+  const loadMe = useCallback(async () => {
+    try {
+      const me = await api('/me');
+      setMine(me.swimmer ?? null);
+      setFollowed(me.following ?? []);
+      return me;
+    } catch { return null; }
+    finally { setMeReady(true); }
+  }, []);
+  useFocusEffect(useCallback(() => { loadMe(); }, [loadMe]));
+
   // Abre el nadador indicado, o "mi nadador" si la cuenta lo tiene vinculado.
   useEffect(() => {
     if (id) { open(id); return; }
-    api('/me').then((me) => { if (me.swimmer && !profile) open(me.swimmer.swimmer_id); else if (!me.swimmer) setSearching(true); }).catch(() => setSearching(true));
+    loadMe().then((me) => {
+      if (me?.swimmer && !profile) open(me.swimmer.swimmer_id);
+      else if (!me?.swimmer && !me?.following?.length) setSearching(true);
+    });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [id]);
 
@@ -138,9 +153,28 @@ export default function Nadador() {
     api(`/swimmers/compare?${p}`).then(setCmpRes).catch((e) => setError(e.message));
   }, [cmp, selected, profile]);
 
+  const following = !!profile && followed.some((f) => f.swimmer_id === profile.swimmer_id);
+  const isMine = !!profile && mine?.swimmer_id === profile.swimmer_id;
   const toggleFollow = async () => {
-    try { await api(`/me/following/${encodeURIComponent(profile!.swimmer_id)}`, { method: following ? 'DELETE' : 'PUT' }); setFollowing(!following); }
-    catch (err: any) { setError(err.message); }
+    if (!profile) return;
+    const p = profile;
+    try {
+      await api(`/me/following/${encodeURIComponent(p.swimmer_id)}`, { method: following ? 'DELETE' : 'PUT' });
+      setFollowed((list) => following
+        ? list.filter((f) => f.swimmer_id !== p.swimmer_id)
+        : [...list, { swimmer_id: p.swimmer_id, swimmer_name: p.swimmer_name }]
+            .sort((a, b) => a.swimmer_name.localeCompare(b.swimmer_name)));
+    } catch (err: any) { setError(err.message); }
+  };
+
+  // Franja: mi nadador primero y luego los seguidos (sin repetir).
+  const strip = useMemo(() => [
+    ...(mine ? [{ ...mine, mine: true }] : []),
+    ...followed.filter((f) => f.swimmer_id !== mine?.swimmer_id),
+  ], [mine, followed]);
+  const pick = (swimmerId: string) => {
+    setQ(''); setResults([]);
+    if (swimmerId !== profile?.swimmer_id) open(swimmerId); else setSearching(false);
   };
 
   // Campeonatos en los que hay marcas con torneo conocido (solo nadadores seguidos), el más reciente primero.
@@ -239,33 +273,68 @@ export default function Nadador() {
     }).sort((a, b) => b.marks.length - a.marks.length);
   }, [all]);
 
-  const sub = profile ? [profile.club, profile.league, profile.gender, profile.age != null ? `${profile.age} años` : null].filter(Boolean).join(' · ') : 'Ficha, posiciones y evolución';
+  const sub = profile ? [profile.club, profile.league, profile.gender, profile.age != null ? `${profile.age} años` : null].filter(Boolean).join(' · ') : 'Los que sigues y cualquier nadador del ranking';
 
   return (
     <View style={s.root}>
       <View style={[s.header, { paddingTop: (Platform.OS === 'web' ? 0 : insets.top) + 14 }]}>
-        {profile ? <Avatar label={profile.swimmer_name} size={56} /> : null}
-        <View style={{ flex: 1 }}>
-          <Text style={s.name} numberOfLines={1}>{profile ? profile.swimmer_name : 'Nadador'}</Text>
-          <Text style={s.subtitle} numberOfLines={2}>{sub}</Text>
+        <View style={s.headRow}>
+          {profile ? <Avatar label={profile.swimmer_name} size={56} /> : null}
+          <View style={{ flex: 1 }}>
+            <Text style={s.name} numberOfLines={1}>{profile ? profile.swimmer_name : 'Nadadores'}</Text>
+            <Text style={s.subtitle} numberOfLines={2}>{sub}</Text>
+          </View>
         </View>
+        {profile ? (
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={s.strip}
+            accessibilityRole="tablist" accessibilityLabel="Nadadores que sigues" keyboardShouldPersistTaps="handled">
+            {strip.map((n) => {
+              const active = n.swimmer_id === profile.swimmer_id && !searching;
+              return (
+                <Pressable key={n.swimmer_id} onPress={() => pick(n.swimmer_id)} accessibilityRole="tab"
+                  accessibilityState={{ selected: active }} accessibilityLabel={n.swimmer_name}
+                  style={[s.pill, active && s.pillOn]}>
+                  <View style={[s.pillAv, active && { backgroundColor: c.primary }]}>
+                    <Text style={s.pillAvText}>{initials(n.swimmer_name)}</Text>
+                  </View>
+                  <Text style={[s.pillText, active && { color: c.deep }]} numberOfLines={1}>{n.swimmer_name.split(' ')[0]}</Text>
+                  {n.mine ? (
+                    <View style={[s.tag, active && { backgroundColor: c.chip }]}>
+                      <Text style={[s.tagText, active && { color: c.deep }]}>MÍO</Text>
+                    </View>
+                  ) : null}
+                </Pressable>
+              );
+            })}
+            <Pressable onPress={() => setSearching((v) => !v)} accessibilityRole="button" accessibilityLabel="Buscar otro nadador"
+              style={[s.pill, s.pillSearch, searching && s.pillOn]}>
+              <Icon name="search" size={16} color={searching ? c.deep : c.white} />
+              <Text style={[s.pillText, searching && { color: c.deep }]}>Buscar</Text>
+            </Pressable>
+          </ScrollView>
+        ) : null}
       </View>
 
       <ScrollView contentContainerStyle={{ padding: 16, gap: 12 }} keyboardShouldPersistTaps="handled">
-        {profile ? (
-          <View style={{ flexDirection: 'row', gap: 8 }}>
-            <Pressable onPress={toggleFollow} style={[s.action, following && { backgroundColor: c.chip, borderColor: c.accent }]}>
-              <Text style={s.actionText}>{following ? '✓ Siguiendo' : '+ Seguir'}</Text>
-            </Pressable>
-            <Pressable accessibilityLabel="Buscar otro nadador" onPress={() => setSearching((v) => !v)} style={[s.action, { flexDirection: 'row', gap: 6 }]}>
-              <Icon name="search" size={14} color={c.primary} />
-              <Text style={s.actionText}>Buscar otro</Text>
-            </Pressable>
+        {profile && !searching ? (
+          <View style={{ flexDirection: 'row', gap: 10, alignItems: 'center' }}>
+            {isMine ? (
+              <View style={[s.action, { backgroundColor: c.chip, borderColor: c.accent }]}>
+                <Text style={s.actionText}>★ Mi nadador</Text>
+              </View>
+            ) : (
+              <>
+                <Pressable onPress={toggleFollow} style={[s.action, following && { backgroundColor: c.chip, borderColor: c.accent }]}>
+                  <Text style={s.actionText}>{following ? '✓ Siguiendo' : '+ Seguir'}</Text>
+                </Pressable>
+                <Text style={[s.small, { flex: 1 }]}>{following ? 'Está en tu franja de arriba' : 'Al seguirlo aparece arriba'}</Text>
+              </>
+            )}
           </View>
         ) : null}
-        {searching ? (
+        {searching || !profile ? (
           <View style={{ gap: 8 }}>
-            <TextInput autoFocus value={q} onChangeText={setQ} placeholder="Buscar por nombre (mín. 3 letras)" placeholderTextColor="#8AA3B5" style={s.search} />
+            <TextInput autoFocus={!!profile} value={q} onChangeText={setQ} placeholder="Buscar por nombre (mín. 3 letras)" placeholderTextColor="#8AA3B5" style={s.search} />
             {results.map((r) => (
               <Pressable key={r.swimmer_id} style={s.row} onPress={() => { setQ(''); setResults([]); open(r.swimmer_id); }}>
                 <View style={{ flex: 1 }}>
@@ -437,7 +506,29 @@ export default function Nadador() {
           <ErrorText text={error} />
         </ConfirmDialog>
 
-        {!profile && !loading && !searching ? <Empty text="Busca un nadador o abre uno desde el Ranking." /> : null}
+        {/* Sin nadador abierto: los que sigue, a un toque. */}
+        {!profile && !loading && meReady && !q.trim() ? (
+          <View style={{ gap: 8, marginTop: 6 }}>
+            {followed.length ? (
+              <>
+                <Text style={s.overline}>NADADORES QUE SIGUES · {followed.length}</Text>
+                {followed.map((f) => (
+                  <Pressable key={f.swimmer_id} style={[s.row, { gap: 12 }]} onPress={() => open(f.swimmer_id)}>
+                    <Avatar label={f.swimmer_name} size={40} />
+                    <Text style={[s.rowName, { flex: 1 }]} numberOfLines={1}>{f.swimmer_name}</Text>
+                    <Icon name="chevron" size={18} color="#8AA3B5" />
+                  </Pressable>
+                ))}
+              </>
+            ) : <Empty text="Busca un nadador o abre uno desde el Ranking." />}
+            {!mine ? (
+              <Pressable onPress={() => router.push('/vincular')} style={s.hint}>
+                <Icon name="swimmer" size={18} color={c.deep} />
+                <Text style={s.hintText}>¿Nadas o tienes un hijo nadador? <Text style={{ fontFamily: font.semi, textDecorationLine: 'underline' }}>Vincula tu nadador</Text> y se abrirá aquí primero.</Text>
+              </Pressable>
+            ) : null}
+          </View>
+        ) : null}
       </ScrollView>
     </View>
   );
@@ -445,7 +536,20 @@ export default function Nadador() {
 
 const s = StyleSheet.create({
   root: { flex: 1, backgroundColor: c.bg },
-  header: { backgroundColor: c.deep, paddingHorizontal: 16, paddingBottom: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  header: { backgroundColor: c.deep, paddingBottom: 14, gap: 14 },
+  headRow: { paddingHorizontal: 16, flexDirection: 'row', alignItems: 'center', gap: 12 },
+  strip: { paddingHorizontal: 16, gap: 8 },
+  pill: { height: 40, flexDirection: 'row', alignItems: 'center', gap: 8, paddingLeft: 4, paddingRight: 14, borderRadius: 20, borderWidth: 1, borderColor: 'rgba(255,255,255,0.18)', backgroundColor: 'rgba(255,255,255,0.10)' },
+  pillOn: { backgroundColor: c.white, borderColor: c.white },
+  pillSearch: { paddingLeft: 14, gap: 6, borderStyle: 'dashed', borderColor: 'rgba(255,255,255,0.45)', backgroundColor: 'transparent' },
+  pillAv: { width: 32, height: 32, borderRadius: 16, backgroundColor: 'rgba(255,255,255,0.18)', alignItems: 'center', justifyContent: 'center' },
+  pillAvText: { color: c.white, fontFamily: font.bold, fontSize: 12 },
+  pillText: { color: c.white, fontFamily: font.semi, fontSize: 13, maxWidth: 110 },
+  tag: { borderRadius: 8, paddingHorizontal: 6, paddingVertical: 2, backgroundColor: 'rgba(255,255,255,0.18)' },
+  tagText: { color: c.white, fontFamily: font.bold, fontSize: 10, letterSpacing: 0.3 },
+  overline: { fontFamily: font.semi, fontSize: 12, color: c.muted, letterSpacing: 0.4 },
+  hint: { flexDirection: 'row', gap: 10, alignItems: 'flex-start', backgroundColor: c.chip, borderRadius: 14, padding: 12, marginTop: 8 },
+  hintText: { flex: 1, fontFamily: font.body, fontSize: 13, color: c.deep, lineHeight: 19 },
   name: { color: c.white, fontFamily: font.title, fontSize: 20 },
   subtitle: { color: c.headerSub, fontFamily: font.body, fontSize: 12, marginTop: 2 },
   action: { alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: c.border, borderRadius: 16, paddingHorizontal: 12, paddingVertical: 7, backgroundColor: c.white },

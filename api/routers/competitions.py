@@ -29,6 +29,7 @@ def _time_display(ms: int | None) -> str | None:
 
 def _entry_item(r) -> dict:
     return {
+        "id": r["id"],
         "date": r["session_date"],
         "session_no": r["session_no"],
         "start_time": r["start_time"],
@@ -42,6 +43,8 @@ def _entry_item(r) -> dict:
         "seed": _time_display(r["seed_ms"]),
         "seed_ms": r["seed_ms"],
         "swimmer_id": r["swimmer_id"],
+        "age": r["age"],
+        "event_id": r["event_id"],  # cruza con el ranking (mejor marca en el detalle de la prueba)
     }
 
 

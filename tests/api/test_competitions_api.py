@@ -185,6 +185,9 @@ def test_schedule_filtra_por_swimmer(client, monkeypatch):
     assert items[0]["club_code"] == "CFEN"
     assert items[0]["seed"] == "01:15.69"
     assert items[0]["swimmer_id"] == "999"
+    # Campos del detalle de la prueba en la app.
+    assert isinstance(items[0]["id"], int)
+    assert {"age", "event_id"} <= items[0].keys()
 
 
 def test_clubs_and_swimmers(client, monkeypatch):

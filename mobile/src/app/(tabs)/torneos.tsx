@@ -5,6 +5,7 @@ import { api, Item } from '../../api';
 import { useAuth } from '../../auth';
 import { dayLabel } from '../../fechas';
 import { ProfileButton } from '../../ProfileButton';
+import { PruebaDetalle } from '../../PruebaDetalle';
 import { c, font } from '../../theme';
 import { Avatar, ConfirmDialog, Empty, ErrorText, Header, Icon } from '../../ui';
 
@@ -44,6 +45,8 @@ export default function Torneos() {
   const [progLoading, setProgLoading] = useState(false); // inscripciones del programa abierto
   const [error, setError] = useState<string | null>(null);
   const [expanded, setExpanded] = useState<Record<string, boolean>>({});
+  const [detail, setDetail] = useState<{ entry: Item; mine: boolean } | null>(null); // prueba abierta
+  const closeDetail = useCallback(() => setDetail(null), []);
   const groups = useMemo(() => groupBySwimmer(rows), [rows]);
 
   // Una sola lista: mis nadadores arriba y luego el resto. El filtro (nombre o club) aplica a las dos.
@@ -82,7 +85,7 @@ export default function Torneos() {
   }, []);
 
   // Abre un programa y carga sus inscripciones.
-  const openComp = useCallback((comp: Item) => { setOpen(comp); setSwimmer(''); load(comp); }, [load]);
+  const openComp = useCallback((comp: Item) => { setOpen(comp); setSwimmer(''); setDetail(null); load(comp); }, [load]);
   // Desde el Inicio (?comp=id): abre ese programa (mis nadadores quedan arriba).
   const { comp: compParam } = useLocalSearchParams<{ comp?: string }>();
   const openedParam = useRef<string | null>(null);
@@ -118,7 +121,7 @@ export default function Torneos() {
       <View style={s.root}>
         <Header title="Programa" subtitle={open.name} right={<ProfileButton />} />
         <View style={{ padding: 16, gap: 10, flex: 1 }}>
-          <Pressable onPress={() => { setOpen(null); setSwimmer(''); setRows([]); setMineKeys(new Set()); }}><Text style={s.back}>← Campeonatos</Text></Pressable>
+          <Pressable onPress={() => { setOpen(null); setSwimmer(''); setRows([]); setMineKeys(new Set()); setDetail(null); }}><Text style={s.back}>← Campeonatos</Text></Pressable>
           <View style={s.searchBox}>
             <Icon name="search" size={18} />
             <TextInput value={swimmer} onChangeText={setSwimmer} placeholder="Buscar nadador o club" placeholderTextColor="#8AA3B5"
@@ -172,7 +175,8 @@ export default function Torneos() {
                       <View style={{ transform: [{ rotate: opened ? '-90deg' : '90deg' }] }}><Icon name="chevron" size={18} /></View>
                     </Pressable>
                     {opened ? g.entries.map((e, i) => (
-                      <View key={i} style={s.entry}>
+                      <Pressable key={i} style={s.entry} onPress={() => setDetail({ entry: e, mine })}
+                        accessibilityRole="button" accessibilityLabel={`Ver detalle: ${e.event_label}`}>
                         <View style={{ width: 56, alignItems: 'center' }}>
                           <Text style={s.time}>{e.start_time ?? '—'}</Text>
                           <Text style={s.small}>{dayLabel(e.date)}</Text>
@@ -187,7 +191,8 @@ export default function Torneos() {
                             <Text style={s.small}>inscripción</Text>
                           </View>
                         ) : null}
-                      </View>
+                        <Icon name="chevron" size={16} color="#8AA3B5" />
+                      </Pressable>
                     )) : null}
                   </View>
                 );
@@ -195,6 +200,13 @@ export default function Torneos() {
             />
           )}
         </View>
+        {/* Encima del programa (no lo reemplaza): al volver se conserva el scroll y lo abierto. */}
+        {detail ? (
+          <View style={StyleSheet.absoluteFill}>
+            <PruebaDetalle entry={detail.entry} mine={detail.mine} rows={rows} compName={open.name}
+              pool={open.pool_type} onBack={closeDetail} />
+          </View>
+        ) : null}
       </View>
     );
   }

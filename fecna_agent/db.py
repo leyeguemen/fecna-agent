@@ -181,6 +181,16 @@ CREATE TABLE IF NOT EXISTS swimmer_follow (
   swimmer_name TEXT NOT NULL,
   PRIMARY KEY (user_id, swimmer_id)
 );
+
+-- Código vigente para recuperar la contraseña (uno por usuario; se borra al usarlo).
+CREATE TABLE IF NOT EXISTS password_reset (
+  user_id    INTEGER PRIMARY KEY,
+  code_hash  TEXT NOT NULL,
+  salt       TEXT NOT NULL,
+  expires_at INTEGER NOT NULL,           -- epoch (s)
+  attempts   INTEGER NOT NULL DEFAULT 0, -- intentos fallidos con este código
+  sent_at    INTEGER NOT NULL            -- epoch (s) del envío: limita los reenvíos
+);
 """
 
 ENTRY_COLUMNS = [
@@ -216,6 +226,7 @@ _PG_READY_CHECK = """SELECT to_regclass('public.swimmer_follow') IS NOT NULL
                    AND to_regclass('public.app_role') IS NOT NULL
                    AND to_regclass('public.swimmer_mark') IS NOT NULL
                    AND to_regclass('public.minimum_mark') IS NOT NULL
+                   AND to_regclass('public.password_reset') IS NOT NULL
                    AND to_regclass('public.idx_results_swimmer') IS NOT NULL
                    AND to_regclass('public.idx_results_event') IS NOT NULL
                    AND to_regclass('public.idx_results_date') IS NOT NULL
@@ -1390,9 +1401,80 @@ def change_password(conn, user_id: int, current: str, new: str) -> None:
     conn.commit()
 
 
+# --- Recuperar contraseña ---------------------------------------------------------
+RESET_TTL = 15 * 60       # el código vence a los 15 minutos
+RESET_RESEND = 60         # no se envía otro antes de 1 minuto
+RESET_MAX_ATTEMPTS = 5    # con 5 intentos fallidos el código se anula
+RESET_INVALID = "El código no es válido o ya venció. Pide uno nuevo."
+
+
+def start_password_reset(conn, email: str, now: int) -> tuple[dict, str] | None:
+    """Genera un código de 6 dígitos para una cuenta activa y guarda solo su hash.
+
+    Devuelve (usuario, código) para enviarlo por correo, o None si no hay que enviar nada:
+    la cuenta no existe, está desactivada o ya se envió uno hace menos de RESET_RESEND.
+    Quien llama responde igual en todos los casos: no revela qué correos tienen cuenta."""
+    import secrets
+
+    from . import auth
+
+    user = get_user_by_email(conn, email)
+    if user is None or not user["active"]:
+        return None
+    prev = conn.execute("SELECT sent_at FROM password_reset WHERE user_id = ?", (user["id"],)).fetchone()
+    if prev and now - int(prev["sent_at"]) < RESET_RESEND:
+        return None
+    code = f"{secrets.randbelow(10**6):06d}"
+    code_hash, salt = auth.hash_password(code)
+    conn.execute("DELETE FROM password_reset WHERE user_id = ?", (user["id"],))
+    conn.execute(
+        "INSERT INTO password_reset (user_id, code_hash, salt, expires_at, attempts, sent_at)"
+        " VALUES (?, ?, ?, ?, 0, ?)",
+        (user["id"], code_hash, salt, now + RESET_TTL, now),
+    )
+    conn.commit()
+    return dict(user), code
+
+
+def finish_password_reset(conn, email: str, code: str, new_password: str, now: int) -> dict:
+    """Cambia la contraseña si el código es correcto y vigente. Devuelve el usuario.
+
+    ValueError con mensaje en español si no. Cada intento fallido cuenta; al llegar a
+    RESET_MAX_ATTEMPTS el código se borra. El cambio cierra las demás sesiones
+    (password_changed_at), igual que change_password."""
+    from . import auth
+
+    err = auth.valid_password(new_password)
+    if err:  # antes de mirar el código: un error de formato no gasta intentos
+        raise ValueError(err)
+    user = get_user_by_email(conn, email)
+    reset = None
+    if user is not None and user["active"]:
+        reset = conn.execute("SELECT * FROM password_reset WHERE user_id = ?", (user["id"],)).fetchone()
+    if reset is None or now > int(reset["expires_at"]):
+        auth.hash_password(code or "")  # mismo costo de PBKDF2 que el camino normal
+        raise ValueError(RESET_INVALID)
+    if not auth.verify_password((code or "").strip(), reset["code_hash"], reset["salt"]):
+        attempts = int(reset["attempts"]) + 1
+        if attempts >= RESET_MAX_ATTEMPTS:
+            conn.execute("DELETE FROM password_reset WHERE user_id = ?", (user["id"],))
+        else:
+            conn.execute("UPDATE password_reset SET attempts = ? WHERE user_id = ?", (attempts, user["id"]))
+        conn.commit()
+        raise ValueError(RESET_INVALID)
+    hash_hex, salt_hex = auth.hash_password(new_password)
+    conn.execute(
+        "UPDATE app_user SET password_hash = ?, salt = ?, password_changed_at = ? WHERE id = ?",
+        (hash_hex, salt_hex, now, user["id"]),
+    )
+    conn.execute("DELETE FROM password_reset WHERE user_id = ?", (user["id"],))
+    conn.commit()
+    return dict(get_user_by_email(conn, email))
+
+
 def delete_user(conn, user_id: int) -> None:
     """Borra la cuenta y todo lo asociado (seguidos, vigilancia, vínculo)."""
-    for table in ("swimmer_follow", "competition_watch"):
+    for table in ("swimmer_follow", "competition_watch", "password_reset"):
         conn.execute(f"DELETE FROM {table} WHERE user_id = ?", (user_id,))
     conn.execute("DELETE FROM app_user WHERE id = ?", (user_id,))
     conn.commit()

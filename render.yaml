@@ -28,6 +28,10 @@ services:
         value: main
       - key: FECNA_ASK_DAILY_LIMIT
         value: "50"
+      - key: BREVO_API_KEY           # recuperar contraseña: Brevo → SMTP & API → API keys
+        sync: false
+      - key: MAIL_FROM               # remitente verificado en Brevo (Senders)
+        sync: false
 
   # Versión web instalable (PWA) de la app, para iPhone sin cuenta de Apple Developer.
   - type: web

@@ -32,6 +32,8 @@ incluye.
 | `TURSO_AUTH_TOKEN`      | Token de Turso (requerido junto con `TURSO_DATABASE_URL`).            | (vacío)                 |
 | `FECNA_JWT_SECRET`      | Clave para firmar los tokens JWT (`api/security.py`).                 | valor de desarrollo     |
 | `FECNA_ADMIN_EMAIL`     | Email(s) admin (separados por coma) al registrarse.                  | (vacío → todos "user")  |
+| `BREVO_API_KEY`         | API key de Brevo para enviar el código de recuperar contraseña.      | (vacío → `/auth/forgot` responde 503) |
+| `MAIL_FROM`             | Remitente verificado en Brevo. `MAIL_FROM_NAME` opcional («NATIA»).  | (vacío → igual que arriba) |
 | `FECNA_CORS_ORIGINS`    | Orígenes permitidos, separados por coma.                             | `*`                     |
 | `FECNA_RATELIMIT_OFF`   | `1` para desactivar el rate limit de `/auth/*` y `/ask` (tests/dev).  | (vacío → activado)      |
 

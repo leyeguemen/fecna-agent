@@ -1,18 +1,20 @@
 """Endpoints de autenticación: registro, login y perfil (/auth/*).
 
-Rate limit básico con slowapi (10/minuto por IP real, ver client_ip) en register/login para
+Rate limit básico con slowapi (10/minuto por IP real, ver client_ip; 5/minuto en forgot) en
+register/login/forgot/reset para
 mitigar fuerza bruta. Se puede desactivar en tests con FECNA_RATELIMIT_OFF=1
 (leído al construir el limiter, antes de que las pruebas hagan requests)."""
 
 import ipaddress
 import os
+import time
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
+from fastapi import APIRouter, BackgroundTasks, Depends, HTTPException, Request, status
 from pydantic import BaseModel
 from slowapi import Limiter
 from slowapi.util import get_remote_address
 
-from api import security
+from api import correo, security
 from api.deps import app_conn
 from fecna_agent import auth, db
 
@@ -100,6 +102,59 @@ def login(request: Request, body: Credentials):
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Email o contraseña incorrectos.",
         )
+    token = security.create_token(user)
+    return {"token": token, "email": user["email"], "role": user["role"],
+            "permissions": _permissions(user["role"])}
+
+
+class ForgotBody(BaseModel):
+    email: str
+
+
+class ResetBody(BaseModel):
+    email: str
+    code: str
+    password: str
+
+
+FORGOT_MESSAGE = ("Si el correo tiene una cuenta en NATIA, te enviamos un código de 6 dígitos. "
+                  "Revisa también la carpeta de spam.")
+
+
+@router.post("/forgot", status_code=status.HTTP_202_ACCEPTED)
+@limiter.limit("5/minute")
+def forgot(request: Request, body: ForgotBody, background: BackgroundTasks):
+    """Envía un código para crear una contraseña nueva.
+
+    Responde lo mismo exista o no la cuenta, y el correo sale en segundo plano para que el
+    tiempo de respuesta tampoco lo revele."""
+    if not correo.configured():
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+                            detail=f"La recuperación no está disponible. Escribe a {CONTACT_EMAIL}.")
+    conn = app_conn()
+    try:
+        started = db.start_password_reset(conn, body.email, int(time.time()))
+    finally:
+        conn.close()
+    if started:
+        user, code = started
+        background.add_task(correo.send_reset_code, user["email"], code, db.RESET_TTL // 60)
+    return {"detail": FORGOT_MESSAGE}
+
+
+@router.post("/reset")
+@limiter.limit("10/minute")
+def reset(request: Request, body: ResetBody):
+    """Crea la contraseña nueva con el código y deja la sesión iniciada."""
+    conn = app_conn()
+    try:
+        try:
+            user = db.finish_password_reset(conn, body.email, body.code, body.password, int(time.time()))
+        except ValueError as exc:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail=str(exc)) from exc
+    finally:
+        conn.close()
+    security.clear_role_cache(user["id"])
     token = security.create_token(user)
     return {"token": token, "email": user["email"], "role": user["role"],
             "permissions": _permissions(user["role"])}

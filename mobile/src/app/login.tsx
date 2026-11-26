@@ -30,6 +30,9 @@ export default function Login() {
       <ScrollView style={s.sheet} contentContainerStyle={{ gap: 14, padding: 24, paddingBottom: 36 }} keyboardShouldPersistTaps="handled">
         <Field label="Correo" value={email} onChangeText={setEmail} keyboardType="email-address" placeholder="tu@correo.com" />
         <Field label="Contraseña" value={password} onChangeText={setPassword} secureTextEntry placeholder="••••••••" />
+        <Text style={[s.small, { textAlign: 'right', marginTop: -6 }]}>
+          <Link href={{ pathname: '/recuperar', params: email.trim() ? { email: email.trim() } : {} }} style={s.link}>¿Olvidaste tu contraseña?</Link>
+        </Text>
         <ErrorText text={error} />
         <Button title="Ingresar" onPress={submit} loading={busy} disabled={!email || !password} />
         <Text style={s.small}>¿Sin cuenta? <Link href="/registro" style={s.link}>Regístrate</Link></Text>

@@ -15,17 +15,18 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
 5. ~~Skill `/bugs`~~ — **hecha** (`.claude/skills/bugs/`): lista los issues, toma uno, lo reproduce, lo corrige con pruebas y lo deja «por probar». Detalle en `docs/features/reportes-bugs.md`.
 6. ~~Landing page~~ — **hecha**: página estática en `/bienvenida` del sitio web (`mobile/public/bienvenida/index.html`), enlazada desde el Login web. Pendiente: enlace de descarga del APK cuando haya uno estable.
 7. ~~Torneos: agrupar por nadador~~ — **hecho**: el programa de un torneo se ve *Por nadador* (tarjetas que se abren con sus pruebas) o *Por prueba* (lista por hora). Se sumó la pantalla de **Inicio** (`/me/home`) como entrada tras iniciar sesión y Configuración pasó al Perfil.
+8. **Recuperar contraseña** — opción «¿Olvidaste tu contraseña?» en el Login: enviar un enlace o código por correo para crear una nueva. Requiere un servicio de envío de correos.
 
 ## Pulido y deuda técnica
-8. ~~Las rutas validan solo el token~~ — **hecho**: ranking, nadadores, torneos y chat ya usaban `require_permission`; las de la propia cuenta (`/me/*`) ahora usan `active_user`. Una cuenta desactivada o borrada pierde el acceso en máximo 30 s (caché de `current_access`), no al vencer el token.
-9. **La sincronización solo agrega**: no refleja correcciones ni borrados de FECNA. Si importa, una sincronización completa periódica con comparación.
-10. **Día irrecuperable** `2025-11-06` (50 y 100 libre F LC): el servidor de FECNA falla con 500 en ese día; nada que hacer salvo que lo corrijan.
-11. **Test en vivo contra Supabase** (`tests/test_pg_live.py`) se cuelga si el pooler está lleno; conviene un timeout.
-12. **iPhone nativo** necesitaría cuenta Apple Developer (99 USD/año); hoy es la web instalada (PWA).
+9. ~~Las rutas validan solo el token~~ — **hecho**: ranking, nadadores, torneos y chat ya usaban `require_permission`; las de la propia cuenta (`/me/*`) ahora usan `active_user`. Una cuenta desactivada o borrada pierde el acceso en máximo 30 s (caché de `current_access`), no al vencer el token.
+10. **La sincronización solo agrega**: no refleja correcciones ni borrados de FECNA. Si importa, una sincronización completa periódica con comparación.
+11. **Día irrecuperable** `2025-11-06` (50 y 100 libre F LC): el servidor de FECNA falla con 500 en ese día; nada que hacer salvo que lo corrijan.
+12. **Test en vivo contra Supabase** (`tests/test_pg_live.py`) se cuelga si el pooler está lleno; conviene un timeout.
+13. **iPhone nativo** necesitaría cuenta Apple Developer (99 USD/año); hoy es la web instalada (PWA).
 
 ## Legal, seguridad y presentación
-13. **Derechos de autor** — definir y declarar la autoría y la licencia de la app y del código, y el uso de los datos de FECNA.
-14. **Proteger la app (seguridad informática)** — auditoría del 2026-11-23. Hecho:
+14. **Derechos de autor** — definir y declarar la autoría y la licencia de la app y del código, y el uso de los datos de FECNA.
+15. **Proteger la app (seguridad informática)** — auditoría del 2026-11-23. Hecho:
    - La base local con datos personales salió del repositorio y de su historial.
    - El SQL libre del chat se valida con lista blanca (`sqlglot`) y corre en solo lectura con tiempo máximo.
    - Los límites de intentos usan la IP real (`CF-Connecting-IP`, en `api/routers/auth.py`).
@@ -40,7 +41,7 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
    - Limitar CORS al dominio de `natia-app`.
    - Actualizar Expo cuando corrija `minimatch` (`npm audit`, solo herramientas de compilación).
    - Pedir a GitHub Support la purga de los commits viejos.
-15. **Crear el «Acerca de»** — pantalla con la información de la app.
+16. **Crear el «Acerca de»** — pantalla con la información de la app.
 
 ## Operativos (los haces tú)
 - Borrar los servicios viejos de Render `fecna-api` y `fecna-app` cuando ya no uses el APK anterior.

@@ -131,7 +131,9 @@ export default function Inicio() {
               <>
                 <View style={[s.row, { justifyContent: 'space-between' }]}>
                   <Text style={[s.h, { flex: 1 }]}>MÍNIMA {minima.tournament_label.toUpperCase()} · {minima.event.toUpperCase()}</Text>
-                  <Text style={s.missing}>Faltan {minima.diff}</Text>
+                  {minima.status === 'cumple'
+                    ? <Text style={s.met}>✓ Cumple por {minima.diff}</Text>
+                    : <Text style={s.missing}>Faltan {minima.diff}</Text>}
                 </View>
                 {progress != null ? (
                   <View style={s.track} accessibilityLabel={`${Math.round(progress * 100)} % de la mínima`}>
@@ -192,6 +194,7 @@ const s = StyleSheet.create({
   link: { fontFamily: font.bold, fontSize: 13, color: c.primary },
   iconBox: { width: 40, height: 40, borderRadius: 12, backgroundColor: c.chip, alignItems: 'center', justifyContent: 'center' },
   missing: { fontFamily: font.bold, fontSize: 12, color: '#8A5A00' },
+  met: { fontFamily: font.bold, fontSize: 12, color: '#0B6B43' },
   track: { height: 8, borderRadius: 4, backgroundColor: '#E3EDF3', overflow: 'hidden' },
   fill: { height: 8, borderRadius: 4, backgroundColor: c.primary },
   askBar: { flexDirection: 'row', alignItems: 'center', gap: 8, height: 48, borderWidth: 1, borderColor: c.input, borderRadius: 24, backgroundColor: c.white, paddingLeft: 16, paddingRight: 6 },

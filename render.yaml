@@ -43,6 +43,9 @@ services:
       - key: NODE_VERSION
         value: 20.20.2
     routes:
+      - type: rewrite        # landing estática (mobile/public/bienvenida), antes de la regla de la app
+        source: /bienvenida
+        destination: /bienvenida/index.html
       - type: rewrite        # navegación del lado del cliente (expo-router)
         source: /*
         destination: /index.html

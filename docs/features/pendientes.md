@@ -13,7 +13,7 @@ Todo lo que quedó para trabajar luego, por orden de utilidad. Cada punto indica
    - **puesto dentro del torneo** (hoy «Nac.» solo sale si la marca es su mejor de esa prueba): habría que traerlo de FECNA.
 
 5. ~~Skill `/bugs`~~ — **hecha** (`.claude/skills/bugs/`): lista los issues, toma uno, lo reproduce, lo corrige con pruebas y lo deja «por probar». Detalle en `docs/features/reportes-bugs.md`.
-6. **Landing page** — página de presentación de la app.
+6. ~~Landing page~~ — **hecha**: página estática en `/bienvenida` del sitio web (`mobile/public/bienvenida/index.html`), enlazada desde el Login web. Pendiente: enlace de descarga del APK cuando haya uno estable.
 7. ~~Torneos: agrupar por nadador~~ — **hecho**: el programa de un torneo se ve *Por nadador* (tarjetas que se abren con sus pruebas) o *Por prueba* (lista por hora). Se sumó la pantalla de **Inicio** (`/me/home`) como entrada tras iniciar sesión y Configuración pasó al Perfil.
 
 ## Pulido y deuda técnica

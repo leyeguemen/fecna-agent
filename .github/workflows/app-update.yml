@@ -1,0 +1,53 @@
+name: Publicar actualización de la app
+
+# Publica el código JS de la app en EAS Update (canal preview, el del APK)
+# cada vez que llegan cambios de la app a main. Los APK con la misma
+# versión de app.json la descargan al abrirse y la aplican al siguiente
+# arranque. Si cambian librerías nativas o la versión, hace falta un APK
+# nuevo (eas build), esto no basta.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - "mobile/src/**"
+      - "mobile/assets/**"
+      - "mobile/app.json"
+      - "mobile/package.json"
+      - "mobile/package-lock.json"
+  workflow_dispatch:
+
+concurrency:
+  group: app-update
+  cancel-in-progress: true
+
+jobs:
+  update:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        working-directory: mobile
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+      - uses: expo/expo-github-action@v8
+        with:
+          eas-version: latest
+          token: ${{ secrets.EXPO_TOKEN }}
+      - run: npm ci
+      - name: Revisar tipos
+        run: npx tsc --noEmit
+      - name: Publicar en el canal preview
+        env:
+          EXPO_PUBLIC_API_URL: https://natia-api.onrender.com
+          # Por variable y no dentro del comando: el mensaje del commit no se
+          # interpreta como shell. Solo su primera línea.
+          MENSAJE: ${{ github.event.head_commit.message || 'Publicación manual' }}
+        run: |
+          eas update --channel preview --environment preview --platform android \
+            --message "$(printf '%s' "$MENSAJE" | head -n 1)" --non-interactive

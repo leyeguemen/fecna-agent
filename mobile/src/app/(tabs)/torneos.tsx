@@ -183,7 +183,7 @@ export default function Torneos() {
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.event}>{e.event_label}</Text>
-                          <Text style={s.sub}>Serie {e.heat} · Carril {e.lane}</Text>
+                          <Text style={s.sub}>{[e.session_no ? `Jornada ${e.session_no}` : null, `Serie ${e.heat}`, `Carril ${e.lane}`].filter(Boolean).join(' · ')}</Text>
                         </View>
                         {e.seed ? (
                           <View style={{ alignItems: 'flex-end' }}>

@@ -177,9 +177,9 @@ export default function Torneos() {
                     {opened ? g.entries.map((e, i) => (
                       <Pressable key={i} style={s.entry} onPress={() => setDetail({ entry: e, mine })}
                         accessibilityRole="button" accessibilityLabel={`Ver detalle: ${e.event_label}`}>
-                        <View style={{ width: 56, alignItems: 'center' }}>
+                        <View style={{ width: 64, alignItems: 'center' }}>
                           <Text style={s.time}>{e.start_time ?? '—'}</Text>
-                          <Text style={s.small}>{dayLabel(e.date)}</Text>
+                          <Text style={s.small} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.8}>{dayLabel(e.date)}</Text>
                         </View>
                         <View style={{ flex: 1 }}>
                           <Text style={s.event}>{e.event_label}</Text>

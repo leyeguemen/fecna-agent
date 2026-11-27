@@ -51,4 +51,13 @@ sola (lunes 04:00 hora Colombia) y el botón de Admin de la app la dispara a dem
 
 ### Recuperar la versión anterior (Streamlit + Next.js)
 La etiqueta `pre-mobile-cleanup` conserva el estado previo a la limpieza:
-`git checkout pre-mobile-cleanup`. La rama `develop` sigue con esa versión.
+`git checkout pre-mobile-cleanup`.
+
+## Flujo de ramas
+- `feature/*` → PR a **`develop`** (integración; no despliega nada).
+- Para desplegar el grupo de cambios: un solo PR **`develop` → `main`**.
+  Al hacer merge a `main` se despliega Render y se publica la app (EAS Update).
+- Crear features desde `develop`: `git checkout develop && git pull && git checkout -b feature/x`.
+- PR de un feature: `gh pr create --base develop`.
+- PR de despliegue: `gh pr create --base main --head develop --title "Release AAAA-MM-DD"`.
+  Usar **merge commit** (no squash) para que `develop` y `main` no diverjan.

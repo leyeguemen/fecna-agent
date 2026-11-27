@@ -72,7 +72,7 @@ export function PruebaDetalle({ entry, rows, compName, pool, mine, onBack }: {
   }, [rows, entry]);
 
   const st = status(entry.date, entry.start_time);
-  const when = [dayLabel(entry.date), hour12(entry.start_time), entry.session_no ? `Sesión ${entry.session_no}` : null].filter(Boolean).join(' · ');
+  const when = [dayLabel(entry.date), hour12(entry.start_time), entry.session_no ? `Jornada ${entry.session_no}` : null].filter(Boolean).join(' · ');
   const diff = best && entry.seed_ms != null ? best.best_ms - entry.seed_ms : null;
 
   return (
@@ -117,6 +117,23 @@ export function PruebaDetalle({ entry, rows, compName, pool, mine, onBack }: {
             </>
           ) : null}
         </Pressable>
+
+        {entry.session_no || entry.start_time ? (
+          <View style={[s.card, { flexDirection: 'row', alignItems: 'center', gap: 12 }]}>
+            <Icon name="calendar" size={22} color={c.primary} />
+            <View style={{ flex: 1 }}>
+              <Text style={s.sub}>Jornada</Text>
+              <Text style={s.bestTime}>{entry.session_no ? `Jornada ${entry.session_no}` : 'Sin jornada'}</Text>
+              {entry.date ? <Text style={s.sub}>{dayLabel(entry.date)}</Text> : null}
+            </View>
+            {entry.start_time ? (
+              <View style={{ alignItems: 'flex-end' }}>
+                <Text style={s.sub}>Hora aproximada</Text>
+                <Text style={s.bestTime}>{hour12(entry.start_time)}</Text>
+              </View>
+            ) : null}
+          </View>
+        ) : null}
 
         <View style={s.grid}>
           <View style={[s.card, s.tile]}>
